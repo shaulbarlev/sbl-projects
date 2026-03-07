@@ -140,9 +140,9 @@ And it was pretty simple.
 
 Because the bell is made from brass, it is conductive enough, and it just worked with some gaffer tape.
 
-## The problem
+## //TODO
 
-The only problem was that the bell became a sort of antenna and was way too sensitive, so just waving my hands around it triggered the button too, which was a problem that I still need to address using a pull-down resistor, probably.`,
+I have a problem where the bell becomes a sort of antenna and is way too sensitive, just waving my hands around it triggered the button too, which was a problem that I still need to address using a pull-down resistor, probably.`,
   },
   {
     id: 'wifi-shades',
@@ -151,14 +151,15 @@ The only problem was that the bell became a sort of antenna and was way too sens
     year: '2023',
     tags: ['esp8266', 'home-automation', 'diy', '3d-printing'],
     thumbnail: {
-      src: '/electric%20shades/IMG_7392.jpg',
+      src: '/electric%20shades/IMG_0097.jpg',
       alt: 'WiFi motorized shades',
     },
     videos: [
       { kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades' },
-      { kind: 'file', src: '/electric%20shades/IMG_7032.mp4', title: 'WiFi shades' },
+      { kind: 'file', src: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.mp4', title: 'WiFi shades' },
     ],
     images: [
+      { src: '/electric%20shades/IMG_0097.jpg', alt: 'WiFi shades' },
       { src: '/electric%20shades/IMG_7392.jpg', alt: 'WiFi shades' },
       { src: '/electric%20shades/IMG_9192.jpg', alt: 'Shades detail' },
     ],
