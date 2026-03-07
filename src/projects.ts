@@ -7,11 +7,11 @@ export type Project = {
   /** Thumbnail image shown in the grid */
   thumbnail: { src: string; alt: string }
   /**
-   * Video URL for the detail view.
-   * - Prefer YouTube/Vimeo embed URLs.
-   * - Or a local mp4 under /public (e.g. "/videos/demo.mp4").
+   * Videos for the detail view (any number).
+   * - Prefer YouTube/Vimeo embed URLs (kind: 'embed').
+   * - Or local files under /public (kind: 'file', e.g. mp4).
    */
-  video?: { kind: 'embed' | 'file'; src: string; title?: string }
+  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string }>
   /** Additional images for the detail view */
   images?: Array<{ src: string; alt: string }>
   /** Long-form description (supports simple line breaks) */
@@ -30,11 +30,9 @@ export const PROJECTS: Project[] = [
       src: '/bulb/IMG_8898.jpg',
       alt: 'Levitating bulb project',
     },
-    video: {
-      kind: 'file',
-      src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4',
-      title: 'Levitating bulb smart WiFi gadget',
-    },
+    videos: [
+      { kind: 'file', src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4', title: 'Levitating bulb smart WiFi gadget' },
+    ],
     images: [
       { src: '/bulb/IMG_8898.jpg', alt: 'Levitating bulb' },
       { src: '/bulb/IMG_6163.jpg', alt: 'Bulb base and wiring' },
@@ -81,11 +79,9 @@ I'm thinking about making the capacitive touch button usable again by routing it
       src: '/comfy/IMG_6170.jpg',
       alt: 'Comfy keyboard',
     },
-    video: {
-      kind: 'file',
-      src: '/comfy/IMG_9080.MOV',
-      title: 'Comfy keyboard smart home controller',
-    },
+    videos: [
+      { kind: 'file', src: '/comfy/IMG_9080.MOV', title: 'Comfy keyboard smart home controller' },
+    ],
     images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' }],
     description:
       `## The Idea
@@ -129,11 +125,9 @@ I coded it up in Python and made a small proof of concept, and you can see it in
       src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg',
       alt: 'ZigBee bell',
     },
-    video: {
-      kind: 'file',
-      src: '/bell/IMG_4696.MOV',
-      title: 'ZigBee bell',
-    },
+    videos: [
+      { kind: 'file', src: '/bell/IMG_4696.MOV', title: 'ZigBee bell' },
+    ],
     images: [
       { src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
     ],
@@ -149,6 +143,35 @@ Because the bell is made from brass, it is conductive enough, and it just worked
 ## The problem
 
 The only problem was that the bell became a sort of antenna and was way too sensitive, so just waving my hands around it triggered the button too, which was a problem that I still need to address using a pull-down resistor, probably.`,
+  },
+  {
+    id: 'wifi-shades',
+    title: 'WiFi Shades',
+    subtitle: 'Motorizing lever shades with a linear actuator and ESP8266 so they open with my alarm.',
+    year: '2023',
+    tags: ['esp8266', 'home-automation', 'diy', '3d-printing'],
+    thumbnail: {
+      src: '/electric%20shades/IMG_7392.jpg',
+      alt: 'WiFi motorized shades',
+    },
+    videos: [
+      { kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades' },
+      { kind: 'file', src: '/electric%20shades/IMG_7032.mp4', title: 'WiFi shades' },
+    ],
+    images: [
+      { src: '/electric%20shades/IMG_7392.jpg', alt: 'WiFi shades' },
+      { src: '/electric%20shades/IMG_9192.jpg', alt: 'Shades detail' },
+    ],
+    description:
+      `I used to live in a room which had lever shades, and I wanted them to open automatically with my alarm. The first step was to find a way to motorize them. I found a small linear actuator that had enough range and was small enough to fit inside the aluminum casing of the window.
+
+## Hardware
+
+With a bit of help from my dad, we drilled a hole into the lever of the shade. I also 3D-printed a small part to help fit the lever into the tip of the linear actuator.
+
+## Electronics
+
+In terms of electronics, it was pretty straightforward: I used a buck converter, an H-bridge to control the actuator's direction, and an ESP8266 for Wi-Fi connectivity and control.`,
   },
 ]
 

@@ -219,14 +219,17 @@ function ProjectModal({
           <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
               <section className="min-w-0 space-y-4">
-                {project.video ? (
-                  <div className="overflow-hidden rounded border border-red-500/40 bg-black/40">
-                    {project.video.kind === 'embed' ? (
+                {project.videos?.map((v) => (
+                  <div
+                    key={v.src}
+                    className="overflow-hidden rounded border border-red-500/40 bg-black/40"
+                  >
+                    {v.kind === 'embed' ? (
                       <div className="aspect-video w-full">
                         <iframe
                           className="h-full w-full"
-                          src={project.video.src}
-                          title={project.video.title ?? `${project.title} video`}
+                          src={v.src}
+                          title={v.title ?? `${project.title} video`}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           referrerPolicy="strict-origin-when-cross-origin"
                           allowFullScreen
@@ -238,15 +241,11 @@ function ProjectModal({
                         controls
                         preload="metadata"
                       >
-                        <source src={project.video.src} />
+                        <source src={v.src} />
                       </video>
                     )}
                   </div>
-                ) : (
-                  <div className="rounded border border-red-500/30 bg-black/30 p-4 text-sm text-white/70">
-                    No video yet.
-                  </div>
-                )}
+                ))}
 
                 {project.images?.length ? (
                   <ProjectGallery
@@ -408,7 +407,7 @@ function App() {
               </div>
               <div className="min-h-0 shrink-0 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="truncate text-sm font-semibold tracking-wide text-white/90">
+                  <div className="min-w-0 break-words text-sm font-semibold tracking-wide text-white/90">
                     {p.title}
                   </div>
                   {p.year ? (
@@ -418,7 +417,7 @@ function App() {
                   ) : null}
                 </div>
                 {p.subtitle ? (
-                  <div className="mt-1 line-clamp-2 text-xs text-white/65">
+                  <div className="mt-1 break-words text-xs text-white/65">
                     {p.subtitle}
                   </div>
                 ) : (
