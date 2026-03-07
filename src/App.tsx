@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import Lightbox from 'yet-another-react-lightbox'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
+import 'yet-another-react-lightbox/styles.css'
 import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
@@ -95,6 +98,11 @@ function ProjectModal({
   useEscapeToClose(onClose, true)
   useLockBodyScroll(true)
 
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const slides =
+    project.images?.map((img) => ({ src: img.src, alt: img.alt })) ?? []
+
   return (
     <div
       className="fixed inset-0 z-50"
@@ -182,20 +190,36 @@ function ProjectModal({
                   <>
                     <p className="text-xs text-white/60 sm:hidden">Writeup below...</p>
                     <div className="grid gap-3 sm:grid-cols-2">
-                    {project.images.map((img) => (
+                    {project.images.map((img, idx) => (
                       <figure
                         key={img.src}
                         className="aspect-[3/4] overflow-hidden rounded border border-red-500/30 bg-black/30"
                       >
-                        <img
-                          src={img.src}
-                          alt={img.alt}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLightboxIndex(idx)
+                            setLightboxOpen(true)
+                          }}
+                          className="h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in"
+                        >
+                          <img
+                            src={img.src}
+                            alt={img.alt}
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
                       </figure>
                     ))}
                   </div>
+                  <Lightbox
+                    open={lightboxOpen}
+                    close={() => setLightboxOpen(false)}
+                    index={lightboxIndex}
+                    slides={slides}
+                    plugins={[Zoom]}
+                  />
                   </>
                 ) : null}
               </section>
