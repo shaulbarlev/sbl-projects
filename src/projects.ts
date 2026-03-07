@@ -72,29 +72,22 @@ I'm thinking about making the capacitive touch button usable again by routing it
     ],
   },
   {
-    id: 'project-2',
-    title: 'Project Two',
-    subtitle: 'Another short blurb',
+    id: 'comfy',
+    title: 'Comfy',
+    subtitle: 'Short blurb — edit in src/projects.ts',
     year: '2025',
-    tags: ['video', 'web'],
+    tags: [],
     thumbnail: {
-      src: 'https://images.unsplash.com/photo-1527427337751-fdca2f128ce5?auto=format&fit=crop&w=800&q=80',
-      alt: 'Dark desk setup',
+      src: '/comfy/IMG_6170.jpg',
+      alt: 'Comfy',
     },
     video: {
       kind: 'file',
-      // Put a file at /public/videos/project-two.mp4 to use this
-      src: '/videos/project-two.mp4',
-      title: 'Project Two video',
+      src: '/comfy/IMG_9080.MOV',
+      title: 'Comfy',
     },
-    images: [
-      {
-        src: 'https://images.unsplash.com/photo-1522252234503-e356532cafd5?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Developer workspace',
-      },
-    ],
-    description:
-      'This project shows the “video file” path option.\n\nIf you don’t have a video yet, delete the `video` field.',
+    images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy' }],
+    description: 'Add a write-up for this project in src/projects.ts.',
   },
 ]
 

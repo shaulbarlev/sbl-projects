@@ -88,6 +88,70 @@ function useLockBodyScroll(locked: boolean) {
   }, [locked])
 }
 
+const GALLERY_IMAGE_ASPECT = 'aspect-[3/4]' as const
+function ProjectGallery({
+  images,
+  lightboxTitle,
+}: {
+  images: Array<{ src: string; alt: string }>
+  lightboxTitle: string
+}) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const slides = useMemo(
+    () => images.map((img) => ({ src: img.src, alt: img.alt })),
+    [images],
+  )
+
+  const isLoneInRow = (index: number) => {
+    const count = images.length
+    return count === 1 || (count % 2 === 1 && index === count - 1)
+  }
+
+  return (
+    <>
+      <p className="text-xs text-white/60 sm:hidden">Write up below</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {images.map((img, idx) => (
+          <figure
+            key={img.src}
+            className={cx(
+              isLoneInRow(idx) && 'sm:col-span-2',
+              GALLERY_IMAGE_ASPECT,
+              'overflow-hidden rounded border border-red-500/30 bg-black/30',
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setLightboxIndex(idx)
+                setLightboxOpen(true)
+              }}
+              className="h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in"
+              aria-label={`View image ${idx + 1} of ${images.length} full size`}
+            >
+              <img
+                src={img.src}
+                alt={img.alt}
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            </button>
+          </figure>
+        ))}
+      </div>
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={slides}
+        plugins={[Zoom]}
+        aria-label={`${lightboxTitle} image gallery`}
+      />
+    </>
+  )
+}
+
 function ProjectModal({
   project,
   onClose,
@@ -97,11 +161,6 @@ function ProjectModal({
 }) {
   useEscapeToClose(onClose, true)
   useLockBodyScroll(true)
-
-  const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [lightboxIndex, setLightboxIndex] = useState(0)
-  const slides =
-    project.images?.map((img) => ({ src: img.src, alt: img.alt })) ?? []
 
   return (
     <div
@@ -187,40 +246,10 @@ function ProjectModal({
                 )}
 
                 {project.images?.length ? (
-                  <>
-                    <p className="text-xs text-white/60 sm:hidden">Writeup below...</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                    {project.images.map((img, idx) => (
-                      <figure
-                        key={img.src}
-                        className="aspect-[3/4] overflow-hidden rounded border border-red-500/30 bg-black/30"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLightboxIndex(idx)
-                            setLightboxOpen(true)
-                          }}
-                          className="h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in"
-                        >
-                          <img
-                            src={img.src}
-                            alt={img.alt}
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        </button>
-                      </figure>
-                    ))}
-                  </div>
-                  <Lightbox
-                    open={lightboxOpen}
-                    close={() => setLightboxOpen(false)}
-                    index={lightboxIndex}
-                    slides={slides}
-                    plugins={[Zoom]}
+                  <ProjectGallery
+                    images={project.images}
+                    lightboxTitle={project.title}
                   />
-                  </>
                 ) : null}
               </section>
 
