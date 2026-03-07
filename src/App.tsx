@@ -1,0 +1,334 @@
+import { useEffect, useMemo, useState } from 'react'
+import { PROJECTS, type Project } from './projects'
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(' ')
+}
+
+function useEscapeToClose(onClose: () => void, active: boolean) {
+  useEffect(() => {
+    if (!active) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose, active])
+}
+
+function useLockBodyScroll(locked: boolean) {
+  useEffect(() => {
+    if (!locked) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [locked])
+}
+
+function ProjectModal({
+  project,
+  onClose,
+}: {
+  project: Project
+  onClose: () => void
+}) {
+  useEscapeToClose(onClose, true)
+  useLockBodyScroll(true)
+
+  return (
+    <div
+      className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${project.title} details`}
+    >
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-[1px]"
+        onClick={onClose}
+      />
+
+      <div className="absolute inset-0 p-0 sm:p-6">
+        <div
+          className={cx(
+            'relative h-full w-full overflow-hidden sm:mx-auto sm:max-w-5xl',
+            'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
+            'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-red-500/40 bg-black/40 px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h2 className="truncate text-base font-semibold tracking-wide text-white">
+                  {project.title}
+                </h2>
+                {project.year ? (
+                  <span className="text-xs text-white/60">[{project.year}]</span>
+                ) : null}
+              </div>
+              {project.subtitle ? (
+                <p className="mt-1 line-clamp-2 text-sm text-white/70">
+                  {project.subtitle}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className={cx(
+                'shrink-0 rounded border border-red-500/50 bg-black/60 px-3 py-1.5',
+                'text-xs font-semibold tracking-wide text-white/90 hover:bg-black/80',
+                'focus:outline-none focus:ring-2 focus:ring-red-500/70',
+              )}
+              aria-label="Close"
+            >
+              close
+            </button>
+          </div>
+
+          <div className="h-[calc(100%-52px)] overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <section className="space-y-4">
+                {project.video ? (
+                  <div className="overflow-hidden rounded border border-red-500/40 bg-black/40">
+                    {project.video.kind === 'embed' ? (
+                      <div className="aspect-video w-full">
+                        <iframe
+                          className="h-full w-full"
+                          src={project.video.src}
+                          title={project.video.title ?? `${project.title} video`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <video
+                        className="aspect-video w-full"
+                        controls
+                        preload="metadata"
+                      >
+                        <source src={project.video.src} />
+                      </video>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded border border-red-500/30 bg-black/30 p-4 text-sm text-white/70">
+                    No video yet.
+                  </div>
+                )}
+
+                {project.images?.length ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {project.images.map((img) => (
+                      <figure
+                        key={img.src}
+                        className="overflow-hidden rounded border border-red-500/30 bg-black/30"
+                      >
+                        <img
+                          src={img.src}
+                          alt={img.alt}
+                          loading="lazy"
+                          className="h-44 w-full object-cover sm:h-48"
+                        />
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+
+              <aside className="space-y-4">
+                {project.tags?.length ? (
+                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                    <div className="text-xs font-semibold tracking-wide text-white/80">
+                      tags
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {project.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded border border-white/15 bg-black/40 px-2 py-1 text-xs text-white/75"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {project.description ? (
+                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                    <div className="text-xs font-semibold tracking-wide text-white/80">
+                      notes
+                    </div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/75">
+                      {project.description}
+                    </div>
+                  </div>
+                ) : null}
+
+                {project.links?.length ? (
+                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                    <div className="text-xs font-semibold tracking-wide text-white/80">
+                      links
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {project.links.map((l) => (
+                        <a
+                          key={l.href}
+                          href={l.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cx(
+                            'inline-flex items-center justify-between gap-3 rounded',
+                            'border border-red-500/30 bg-black/40 px-3 py-2 text-sm',
+                            'text-white/85 hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-red-500/70',
+                          )}
+                        >
+                          <span className="font-semibold tracking-wide">
+                            {l.label}
+                          </span>
+                          <span className="truncate text-xs text-white/60">
+                            {l.href.replace(/^https?:\/\//, '')}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function App() {
+  const projects = useMemo(() => PROJECTS, [])
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const raw = window.location.hash.replace('#', '')
+    return projects.some((p) => p.id === raw) ? raw : null
+  })
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      const raw = window.location.hash.replace('#', '')
+      if (raw && projects.some((p) => p.id === raw)) {
+        setActiveId(raw)
+      } else {
+        setActiveId(null)
+      }
+    }
+
+    window.addEventListener('hashchange', syncFromHash)
+    return () => window.removeEventListener('hashchange', syncFromHash)
+  }, [projects])
+
+  const handleOpen = (id: string) => {
+    setActiveId(id)
+    if (typeof window !== 'undefined') {
+      window.location.hash = id
+    }
+  }
+
+  const handleClose = () => {
+    setActiveId(null)
+    if (typeof window !== 'undefined') {
+      const url = window.location.pathname + window.location.search
+      window.history.replaceState(null, '', url)
+    }
+  }
+
+  const active = activeId ? projects.find((p) => p.id === activeId) : null
+
+  return (
+    <div className="min-h-dvh">
+      <header className="border-b border-red-500/40 bg-black/40">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold tracking-[0.25em] text-red-400/90">
+                PERSONAL PROJECTS
+              </div>
+              <h1 className="mt-2 text-2xl font-semibold tracking-wide text-white">
+                sbl
+              </h1>
+              <p className="mt-1 max-w-xl text-sm text-white/70">
+                Thumbnails → click for details (modal on desktop, full-page feel
+                on mobile).
+              </p>
+            </div>
+
+            <div className="text-xs text-white/60">
+              <span className="text-white/80">theme:</span> black / red / white
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleOpen(p.id)}
+              className={cx(
+                'group text-left',
+                'rounded border border-red-500/30 bg-black/30',
+                'hover:border-red-400/60 hover:bg-black/40',
+                'focus:outline-none focus:ring-2 focus:ring-red-500/70',
+              )}
+            >
+              <div className="overflow-hidden rounded-t">
+                <img
+                  src={p.thumbnail.src}
+                  alt={p.thumbnail.alt}
+                  loading="lazy"
+                  className="h-44 w-full object-cover grayscale-[20%] contrast-125 group-hover:grayscale-0"
+                />
+              </div>
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="truncate text-sm font-semibold tracking-wide text-white/90">
+                    {p.title}
+                  </div>
+                  {p.year ? (
+                    <div className="shrink-0 text-xs text-white/60">
+                      {p.year}
+                    </div>
+                  ) : null}
+                </div>
+                {p.subtitle ? (
+                  <div className="mt-1 line-clamp-2 text-xs text-white/65">
+                    {p.subtitle}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-xs text-white/45">
+                    click to open
+                  </div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <footer className="mt-8 border-t border-red-500/20 pt-4 text-xs text-white/55">
+          Edit projects in <code className="text-white/75">src/projects.ts</code>
+          .
+        </footer>
+      </main>
+
+      {active ? (
+        <ProjectModal project={active} onClose={handleClose} />
+      ) : null}
+    </div>
+  )
+}
+
+export default App

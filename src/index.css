@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Simple dark "old HTML" vibe */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #070707;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+/* Keep form controls matching the vibe */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: rgba(248, 113, 113, 0.95);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: rgba(239, 68, 68, 0.35);
+}
