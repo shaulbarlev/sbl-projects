@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
 function cx(...parts: Array<string | false | null | undefined>) {
@@ -232,7 +233,7 @@ function App() {
   const handleOpen = (id: string) => {
     setActiveId(id)
     if (typeof window !== 'undefined') {
-      window.location.hash = id
+      window.location.assign(`#${id}`)
     }
   }
 
@@ -255,9 +256,9 @@ function App() {
               <div className="text-xs font-semibold tracking-[0.25em] text-red-400/90">
                 PERSONAL PROJECTS
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-wide text-white">
-                sbl
-              </h1>
+              <div className="mt-2">
+                <Logo />
+              </div>
               <p className="mt-1 max-w-xl text-sm text-white/70">
                 Thumbnails → click for details (modal on desktop, full-page feel
                 on mobile).
