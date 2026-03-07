@@ -6,6 +6,63 @@ function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
 }
 
+function ProjectDescription({ text }: { text: string }) {
+  const lines = text.split('\n')
+
+  const blocks: Array<{ type: 'heading' | 'paragraph'; content: string }> = []
+  let currentParagraph: string[] = []
+
+  const pushParagraph = () => {
+    if (!currentParagraph.length) return
+    blocks.push({ type: 'paragraph', content: currentParagraph.join('\n') })
+    currentParagraph = []
+  }
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trimEnd()
+
+    if (trimmed.startsWith('## ')) {
+      pushParagraph()
+      blocks.push({
+        type: 'heading',
+        content: trimmed.slice(3).trim(),
+      })
+      continue
+    }
+
+    currentParagraph.push(rawLine)
+  }
+
+  pushParagraph()
+
+  if (!blocks.length) {
+    return (
+      <div className="whitespace-pre-wrap text-sm leading-relaxed text-white/75">
+        {text}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 text-sm leading-relaxed text-white/75">
+      {blocks.map((block, idx) =>
+        block.type === 'heading' ? (
+          <div
+            key={idx}
+            className="pb-0 pt-4 text-sm font-semibold uppercase tracking-[0.18em] text-white"
+          >
+            {block.content}
+          </div>
+        ) : (
+          <p key={idx} className="whitespace-pre-wrap">
+            {block.content}
+          </p>
+        ),
+      )}
+    </div>
+  )
+}
+
 function useEscapeToClose(onClose: () => void, active: boolean) {
   useEffect(() => {
     if (!active) return
@@ -164,8 +221,8 @@ function ProjectModal({
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       notes
                     </div>
-                    <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/75">
-                      {project.description}
+                    <div className="mt-2">
+                      <ProjectDescription text={project.description} />
                     </div>
                   </div>
                 ) : null}
@@ -253,21 +310,17 @@ function App() {
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="text-xs font-semibold tracking-[0.25em] text-red-400/90">
-                PERSONAL PROJECTS
-              </div>
               <div className="mt-2">
                 <Logo />
               </div>
               <p className="mt-1 max-w-xl text-sm text-white/70">
-                Thumbnails → click for details (modal on desktop, full-page feel
-                on mobile).
+                Here are a few of my personal projects.
               </p>
             </div>
 
-            <div className="text-xs text-white/60">
+            {/* <div className="text-xs text-white/60">
               <span className="text-white/80">theme:</span> black / red / white
-            </div>
+            </div> */}
           </div>
         </div>
       </header>
@@ -319,10 +372,10 @@ function App() {
           ))}
         </div>
 
-        <footer className="mt-8 border-t border-red-500/20 pt-4 text-xs text-white/55">
+        {/* <footer className="mt-8 border-t border-red-500/20 pt-4 text-xs text-white/55">
           Edit projects in <code className="text-white/75">src/projects.ts</code>
           .
-        </footer>
+        </footer> */}
       </main>
 
       {active ? (
