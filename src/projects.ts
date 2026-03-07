@@ -119,5 +119,36 @@ Then I could map them and catch them on the Home Assistant side.
 I went with the latter.
 I coded it up in Python and made a small proof of concept, and you can see it in the video triggering my light.`,
   },
+  {
+    id: 'zigbee-bell',
+    title: 'ZigBee Bell',
+    subtitle: 'Hacking an IKEA ZigBee button so a brass bell triggers smart home actions when it dings.',
+    year: '2025',
+    tags: ['zigbee', 'home-assistant', 'diy', 'ikea'],
+    thumbnail: {
+      src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg',
+      alt: 'ZigBee bell',
+    },
+    video: {
+      kind: 'file',
+      src: '/bell/IMG_4696.MOV',
+      title: 'ZigBee bell',
+    },
+    images: [
+      { src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
+    ],
+    description:
+      `We had a bell, and I wanted to make it trigger some smart home things.
+
+So I cracked open an IKEA ZigBee button and made it so when the bell dings, it shorts the ZigBee button contacts where the physical button used to live.
+
+And it was pretty simple.
+
+Because the bell is made from brass, it is conductive enough, and it just worked with some gaffer tape.
+
+## The problem
+
+The only problem was that the bell became a sort of antenna and was way too sensitive, so just waving my hands around it triggered the button too, which was a problem that I still need to address using a pull-down resistor, probably.`,
+  },
 ]
 
