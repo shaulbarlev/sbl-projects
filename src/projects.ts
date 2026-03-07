@@ -27,24 +27,19 @@ export const PROJECTS: Project[] = [
     year: '2026',
     tags: ['esp32', 'esphome', 'home-assistant', 'diy'],
     thumbnail: {
-      src: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=800&q=80',
-      alt: 'Code on a screen',
+      src: '/bulb/IMG_8898.jpg',
+      alt: 'Levitating bulb project',
     },
     video: {
-      kind: 'embed',
-      // Example: YouTube embed URL
-      src: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
-      title: 'Project One demo',
+      kind: 'file',
+      src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4',
+      title: 'Levitating bulb smart WiFi gadget',
     },
     images: [
-      {
-        src: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Laptop with code',
-      },
-      {
-        src: 'https://images.unsplash.com/photo-1526378722484-bd91ca387e72?auto=format&fit=crop&w=1200&q=80',
-        alt: 'Terminal screen',
-      },
+      { src: '/bulb/IMG_8898.jpg', alt: 'Levitating bulb' },
+      { src: '/bulb/IMG_6163.jpg', alt: 'Bulb base and wiring' },
+      { src: '/bulb/IMG_6164.jpg', alt: 'Bulb detail' },
+      { src: '/bulb/IMG_6165.jpg', alt: 'Bulb and base' },
     ],
     description:
       `My roommate got this cool levitating bulb from AliExpress. It was a neat little showpiece for our living room. The only catch? We placed it somewhere that made its glow reflect on the TV whenever it was on, which was unacceptable for me.

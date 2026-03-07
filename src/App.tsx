@@ -108,13 +108,13 @@ function ProjectModal({
       />
 
       <div className="absolute inset-0 p-0 sm:p-6">
-        <div
-          className={cx(
-            'relative h-full w-full overflow-hidden sm:mx-auto sm:max-w-5xl',
-            'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
-            'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
-          )}
-        >
+          <div
+            className={cx(
+              'relative h-full min-w-0 w-full overflow-hidden sm:mx-auto sm:max-w-5xl',
+              'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
+              'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
+            )}
+          >
           <div className="flex items-start justify-between gap-3 border-b border-red-500/40 bg-black/40 px-4 py-3 sm:px-5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -146,9 +146,9 @@ function ProjectModal({
             </button>
           </div>
 
-          <div className="h-[calc(100%-52px)] overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <section className="space-y-4">
+          <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <section className="min-w-0 space-y-4">
                 {project.video ? (
                   <div className="overflow-hidden rounded border border-red-500/40 bg-black/40">
                     {project.video.kind === 'embed' ? (
@@ -179,25 +179,28 @@ function ProjectModal({
                 )}
 
                 {project.images?.length ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <>
+                    <p className="text-xs text-white/60 sm:hidden">Writeup below...</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
                     {project.images.map((img) => (
                       <figure
                         key={img.src}
-                        className="overflow-hidden rounded border border-red-500/30 bg-black/30"
+                        className="aspect-[3/4] overflow-hidden rounded border border-red-500/30 bg-black/30"
                       >
                         <img
                           src={img.src}
                           alt={img.alt}
                           loading="lazy"
-                          className="h-44 w-full object-cover sm:h-48"
+                          className="h-full w-full object-cover"
                         />
                       </figure>
                     ))}
                   </div>
+                  </>
                 ) : null}
               </section>
 
-              <aside className="space-y-4">
+              <aside className="min-w-0 space-y-4">
                 {project.tags?.length ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
@@ -240,15 +243,15 @@ function ProjectModal({
                           target="_blank"
                           rel="noreferrer"
                           className={cx(
-                            'inline-flex items-center justify-between gap-3 rounded',
+                            'inline-flex min-w-0 items-center justify-between gap-3 rounded',
                             'border border-red-500/30 bg-black/40 px-3 py-2 text-sm',
                             'text-white/85 hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-red-500/70',
                           )}
                         >
-                          <span className="font-semibold tracking-wide">
+                          <span className="shrink-0 font-semibold tracking-wide">
                             {l.label}
                           </span>
-                          <span className="truncate text-xs text-white/60">
+                          <span className="min-w-0 truncate text-xs text-white/60">
                             {l.href.replace(/^https?:\/\//, '')}
                           </span>
                         </a>
@@ -305,11 +308,11 @@ function App() {
   const active = activeId ? projects.find((p) => p.id === activeId) : null
 
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh overflow-x-hidden">
       <header className="border-b border-red-500/40 bg-black/40">
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
+        <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 sm:px-6">
+          <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
               <div className="mt-2">
                 <Logo />
               </div>
@@ -325,8 +328,8 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <main className="mx-auto min-w-0 max-w-6xl px-4 py-6 sm:px-6">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
             <button
               key={p.id}
@@ -339,12 +342,12 @@ function App() {
                 'focus:outline-none focus:ring-2 focus:ring-red-500/70',
               )}
             >
-              <div className="overflow-hidden rounded-t">
+              <div className="aspect-[3/4] overflow-hidden rounded-t">
                 <img
                   src={p.thumbnail.src}
                   alt={p.thumbnail.alt}
                   loading="lazy"
-                  className="h-44 w-full object-cover grayscale-[20%] contrast-125 group-hover:grayscale-0"
+                  className="h-full w-full object-cover grayscale-[20%] contrast-125 group-hover:grayscale-0"
                 />
               </div>
               <div className="px-4 py-3">
