@@ -73,21 +73,51 @@ I'm thinking about making the capacitive touch button usable again by routing it
   },
   {
     id: 'comfy',
-    title: 'Comfy',
-    subtitle: 'Short blurb — edit in src/projects.ts',
+    title: 'Turning My Childhood Keyboard into a Smart Home Controller',
+    subtitle: 'Hooking up a vintage Comfy kids keyboard to Home Assistant via Raspberry Pi and MQTT.',
     year: '2025',
-    tags: [],
+    tags: ['raspberry-pi', 'mqtt', 'home-assistant', 'python', 'diy'],
     thumbnail: {
       src: '/comfy/IMG_6170.jpg',
-      alt: 'Comfy',
+      alt: 'Comfy keyboard',
     },
     video: {
       kind: 'file',
       src: '/comfy/IMG_9080.MOV',
-      title: 'Comfy',
+      title: 'Comfy keyboard smart home controller',
     },
-    images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy' }],
-    description: 'Add a write-up for this project in src/projects.ts.',
+    images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' }],
+    description:
+      `## The Idea
+
+The background story is that when I was young, like five, I had this children keyboard for the PC. It was named Comfy, and I loved it. It was colorful, it had great buttons. I recently thought how cool would it be to have that connected to anything on my smart home and make it into a smart home controller.
+
+So that's exactly what me and my roommate decided to do.
+
+We asked friends if they had an angle on getting one of those Comfy keyboards. Eventually, we found one.
+
+Now I just had to figure out how to hook it up.
+
+## Figuring Out How to Connect It
+
+I imagined that it would probably use something proprietary for communications, but it was funny to find out that it is just a basic HID keyboard. The buttons just communicate letter key presses, that includes the scrolly thing!
+
+I saw two ways forward:
+
+## Option 1 — Replace the board with an ESP32
+
+I could either do a board replacement and replace it with an ESP32. The pro of doing that is that it would be low power and cheap.
+
+But then I realized that ESP32s have limited IOs, and I have many buttons that I need to support here. That means I would probably need to do something like a GPIO extender bus thing, which I didn't really like.
+
+## Option 2 — Use a Raspberry Pi
+
+Then I thought of another option: I could use a Raspberry Pi, interpret the key presses, and send them as commands over MQTT.
+
+Then I could map them and catch them on the Home Assistant side.
+
+I went with the latter.
+I coded it up in Python and made a small proof of concept, and you can see it in the video triggering my light.`,
   },
 ]
 

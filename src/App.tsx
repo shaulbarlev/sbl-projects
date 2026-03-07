@@ -112,33 +112,36 @@ function ProjectGallery({
     <>
       <p className="text-xs text-white/60 sm:hidden">Write up below</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        {images.map((img, idx) => (
-          <figure
-            key={img.src}
-            className={cx(
-              isLoneInRow(idx) && 'sm:col-span-2',
-              GALLERY_IMAGE_ASPECT,
-              'overflow-hidden rounded border border-red-500/30 bg-black/30',
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setLightboxIndex(idx)
-                setLightboxOpen(true)
-              }}
-              className="h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in"
-              aria-label={`View image ${idx + 1} of ${images.length} full size`}
+        {images.map((img, idx) => {
+          const lone = isLoneInRow(idx)
+          return (
+            <figure
+              key={img.src}
+              className={cx(
+                lone && 'sm:col-span-2',
+                !lone && GALLERY_IMAGE_ASPECT,
+                'overflow-hidden rounded border border-red-500/30 bg-black/30',
+              )}
             >
-              <img
-                src={img.src}
-                alt={img.alt}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
-            </button>
-          </figure>
-        ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setLightboxIndex(idx)
+                  setLightboxOpen(true)
+                }}
+                className={lone ? 'block w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in' : 'h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in'}
+                aria-label={`View image ${idx + 1} of ${images.length} full size`}
+              >
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  loading="lazy"
+                  className={lone ? 'max-h-96 w-full object-cover' : 'h-full w-full object-cover'}
+                />
+              </button>
+            </figure>
+          )
+        })}
       </div>
       <Lightbox
         open={lightboxOpen}
@@ -389,21 +392,21 @@ function App() {
               type="button"
               onClick={() => handleOpen(p.id)}
               className={cx(
-                'group text-left',
+                'group flex flex-col overflow-hidden text-left',
                 'rounded border border-red-500/30 bg-black/30',
                 'hover:border-red-400/60 hover:bg-black/40',
                 'focus:outline-none focus:ring-2 focus:ring-red-500/70',
               )}
             >
-              <div className="aspect-[3/4] overflow-hidden rounded-t">
+              <div className="aspect-[3/4] w-full shrink-0 overflow-hidden rounded-t">
                 <img
                   src={p.thumbnail.src}
                   alt={p.thumbnail.alt}
                   loading="lazy"
-                  className="h-full w-full object-cover grayscale-[20%] contrast-125 group-hover:grayscale-0"
+                  className="block h-full w-full min-h-0 min-w-0 object-cover object-center grayscale-[20%] contrast-125 group-hover:grayscale-0"
                 />
               </div>
-              <div className="px-4 py-3">
+              <div className="min-h-0 shrink-0 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="truncate text-sm font-semibold tracking-wide text-white/90">
                     {p.title}
