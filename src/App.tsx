@@ -7,6 +7,7 @@ import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
 const SHOW_TAGS_AND_LINKS = false
+const SHOW_YEAR = false
 
 const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
 const LINKEDIN_URL = 'https://www.linkedin.com/in/shaul-bar-lev/'
@@ -132,7 +133,7 @@ function ProjectGallery({
               className={cx(
                 lone && 'col-span-2',
                 !lone && GALLERY_IMAGE_ASPECT,
-                'overflow-hidden rounded border border-red-500/30 bg-black/30',
+                'overflow-hidden border border-red-500/30 bg-black/30',
               )}
             >
               <button
@@ -141,7 +142,7 @@ function ProjectGallery({
                   setLightboxIndex(idx)
                   setLightboxOpen(true)
                 }}
-                className={lone ? 'block w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in' : 'h-full w-full text-left max-sm:pointer-events-none sm:cursor-zoom-in'}
+                className={lone ? 'block w-full cursor-pointer text-left max-sm:pointer-events-none sm:cursor-zoom-in' : 'h-full w-full cursor-pointer text-left max-sm:pointer-events-none sm:cursor-zoom-in'}
                 aria-label={`View image ${idx + 1} of ${images.length} full size`}
               >
                 <img
@@ -184,7 +185,7 @@ function ProjectVideoGrid({
           <div
             key={v.src}
             className={cx(
-              'min-w-0 overflow-hidden rounded border border-red-500/40 bg-black/40',
+              'min-w-0 overflow-hidden border border-red-500/40 bg-black/40',
               lone && 'col-span-2',
             )}
           >
@@ -249,15 +250,15 @@ function ProjectModal({
           <div className="flex items-start justify-between gap-3 border-b border-red-500/40 bg-black/40 px-4 py-3 sm:px-5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h2 className="truncate text-base font-semibold tracking-wide text-white">
+                <h2 className="text-base font-semibold tracking-wide text-white break-words">
                   {project.title}
                 </h2>
-                {project.year ? (
+                {SHOW_YEAR && project.year ? (
                   <span className="text-xs text-white/60">[{project.year}]</span>
                 ) : null}
               </div>
               {project.subtitle ? (
-                <p className="mt-1 line-clamp-2 text-sm text-white/70">
+                <p className="mt-1 text-sm text-white/70 break-words">
                   {project.subtitle}
                 </p>
               ) : null}
@@ -267,17 +268,16 @@ function ProjectModal({
               type="button"
               onClick={onClose}
               className={cx(
-                'shrink-0 rounded border border-red-500/50 bg-black/60 px-3 py-1.5',
-                'text-xs font-semibold tracking-wide text-white/90 hover:bg-black/80',
-                'focus:outline-none focus:ring-2 focus:ring-red-500/70',
+                'shrink-0 flex cursor-pointer items-center justify-center border border-red-500/50 bg-black/60 p-1.5',
+                'text-red-500 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-red-500/70',
               )}
               aria-label="Close"
             >
-              close
+              <i className="hn hn-times text-xl text-red-500" aria-hidden />
             </button>
           </div>
 
-          <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+          <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom)+80px)] sm:px-5 sm:py-5 sm:pb-5">
             <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
               <section className="min-w-0 space-y-4">
                 {project.videos?.length ? (
@@ -294,7 +294,7 @@ function ProjectModal({
 
               <aside className="min-w-0 space-y-4">
                 {SHOW_TAGS_AND_LINKS && project.tags && project.tags.length > 0 ? (
-                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                  <div className="border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       tags
                     </div>
@@ -302,7 +302,7 @@ function ProjectModal({
                       {project.tags.map((t) => (
                         <span
                           key={t}
-                          className="rounded border border-white/15 bg-black/40 px-2 py-1 text-xs text-white/75"
+                          className="border border-white/15 bg-black/40 px-2 py-1 text-xs text-white/75"
                         >
                           {t}
                         </span>
@@ -312,7 +312,7 @@ function ProjectModal({
                 ) : null}
 
                 {project.description ? (
-                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                  <div className="border border-red-500/30 bg-black/30 p-3">
                     <div className="mt-2">
                       <ProjectDescription text={project.description} />
                     </div>
@@ -320,7 +320,7 @@ function ProjectModal({
                 ) : null}
 
                 {SHOW_TAGS_AND_LINKS && project.links && project.links.length > 0 ? (
-                  <div className="rounded border border-red-500/30 bg-black/30 p-3">
+                  <div className="border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       links
                     </div>
@@ -332,7 +332,7 @@ function ProjectModal({
                           target="_blank"
                           rel="noreferrer"
                           className={cx(
-                            'inline-flex min-w-0 items-center justify-between gap-3 rounded',
+                            'inline-flex min-w-0 cursor-pointer items-center justify-between gap-3',
                             'border border-red-500/30 bg-black/40 px-3 py-2 text-sm',
                             'text-white/85 hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-red-500/70',
                           )}
@@ -400,34 +400,31 @@ function App() {
     <div className="min-h-dvh overflow-x-hidden">
       <header className="border-b border-red-500/40 bg-black/40">
         <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 sm:px-6">
-          <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0">
-              <div className="mt-2">
-                <Logo />
-              </div>
-              <p className="mt-1 max-w-xl text-sm text-white/70">
-                things i built
-              </p>
+          <div className="min-w-0">
+            <div className="mt-2">
+              <Logo />
             </div>
-
-            <div className="flex items-center gap-3">
+            <p className="mt-1 max-w-xl text-sm text-red-500/40">
+              things i built
+            </p>
+            <div className="mt-2 flex items-center gap-3">
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500/70 rounded"
+                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/70 [&_.hn]:text-red-500/40 [&_.hn]:hover:text-red-500/70"
                 aria-label="Instagram"
               >
-                <i className="hn hn-instagram text-2xl" aria-hidden />
+                <i className="hn hn-instagram text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
               </a>
               <a
                 href={LINKEDIN_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500/70 rounded"
+                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/70 [&_.hn]:text-red-500/40 [&_.hn]:hover:text-red-500/70"
                 aria-label="LinkedIn"
               >
-                <i className="hn hn-linkedin text-2xl" aria-hidden />
+                <i className="hn hn-linkedin text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
               </a>
             </div>
           </div>
@@ -442,13 +439,13 @@ function App() {
               type="button"
               onClick={() => handleOpen(p.id)}
               className={cx(
-                'group flex flex-col overflow-hidden text-left',
-                'rounded border border-red-500/30 bg-black/30',
+                'group flex cursor-pointer flex-col overflow-hidden text-left',
+                'border border-red-500/30 bg-black/30',
                 'hover:border-red-400/60 hover:bg-black/40',
                 'focus:outline-none focus:ring-2 focus:ring-red-500/70',
               )}
             >
-              <div className="aspect-[3/4] w-full shrink-0 overflow-hidden rounded-t">
+              <div className="aspect-[3/4] w-full shrink-0 overflow-hidden">
                 <img
                   src={mediaUrl(p.thumbnail.src)}
                   alt={p.thumbnail.alt}
@@ -461,7 +458,7 @@ function App() {
                   <div className="min-w-0 break-words text-sm font-semibold tracking-wide text-white/90">
                     {p.title}
                   </div>
-                  {p.year ? (
+                  {SHOW_YEAR && p.year ? (
                     <div className="shrink-0 text-xs text-white/60">
                       {p.year}
                     </div>
