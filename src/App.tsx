@@ -143,7 +143,7 @@ function ProjectGallery({
                   setLightboxIndex(idx)
                   setLightboxOpen(true)
                 }}
-                className={lone ? 'block w-full cursor-pointer text-left max-sm:pointer-events-none sm:cursor-zoom-in' : 'h-full w-full cursor-pointer text-left max-sm:pointer-events-none sm:cursor-zoom-in'}
+                className={lone ? 'block w-full cursor-pointer text-left sm:cursor-zoom-in' : 'h-full w-full cursor-pointer text-left sm:cursor-zoom-in'}
                 aria-label={`View image ${idx + 1} of ${images.length} full size`}
               >
                 <img

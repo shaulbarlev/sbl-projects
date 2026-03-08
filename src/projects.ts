@@ -33,7 +33,7 @@ export const PROJECTS: Project[] = [
       alt: 'Smart door lock',
     },
     videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
+      { kind: 'file', src: '/doorlock/IMG_4804.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
       { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
       { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
     ],
@@ -151,7 +151,7 @@ What started as a simple joystick hack turned into something bigger. We ended up
       alt: 'Comfy keyboard',
     },
     videos: [
-      { kind: 'file', src: '/comfy/IMG_9080.MOV', title: 'Comfy keyboard smart home controller', thumbnail: '/comfy/IMG_9080.jpg' },
+      { kind: 'file', src: '/comfy/IMG_9080.mp4', title: 'Comfy keyboard smart home controller', thumbnail: '/comfy/IMG_9080.jpg' },
     ],
     images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' }],
     description:
@@ -197,7 +197,7 @@ I coded it up in Python and made a small proof of concept, and you can see it in
       alt: 'ZigBee bell',
     },
     videos: [
-      { kind: 'file', src: '/bell/IMG_4696.MOV', title: 'ZigBee bell', thumbnail: '/bell/IMG_4696.jpg' },
+      { kind: 'file', src: '/bell/IMG_4696.mp4', title: 'ZigBee bell', thumbnail: '/bell/IMG_4696.jpg' },
     ],
     images: [
       { src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
@@ -256,8 +256,7 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
       alt: 'Custom MIDI controller with knob and three buttons',
     },
     videos: [
-      { kind: 'file', src: '/midi-controller/IMG_9666.MP4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
-      { kind: 'file', src: '/midi-controller/IMG_9670.MOV', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9670.jpg' },
+      { kind: 'file', src: '/midi-controller/IMG_9666.mp4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
     ],
     images: [
       { src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
