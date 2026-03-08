@@ -267,30 +267,5 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
 
 I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set it up. The Leonardo is capable of sending MIDI over USB, so I programmed the buttons to act as MIDI channels. That way, my friend could easily assign each channel to whatever function he wanted in his DAW of choice, which was Ableton Live. For the buttons, I used mechanical keyboard switches and printed custom keycaps.`,
   },
-  {
-    id: 'doorlock',
-    title: 'Smart Door Lock',
-    subtitle: 'A custom door lock add-on with ESP32 and ESPHome—key still works when power is off.',
-    year: '2025',
-    tags: ['esp32', 'esphome', 'home-assistant', 'diy', '3d-printing'],
-    thumbnail: {
-      src: '/doorlock/IMG_6527-0001.png',
-      alt: 'Smart door lock',
-    },
-    videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
-      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
-      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
-    ],
-    images: [
-      { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
-    ],
-    description:
-      `I wanted to be able to leave the house without carrying a key. Sure, there are off-the-shelf products like Nuki that do this, but I thought it would be a cool project to build my own door lock add-on from scratch.
-
-## Designing the Mechanics
-
-The key challenge was to design mechanics that would lock and unlock the door, but also allow the door to be operated completely powerlessly with a regular physical key. So my goal was to make sure that even if the electronics failed or power was off, you could still use the key as usual.
-  }
 ]
 
