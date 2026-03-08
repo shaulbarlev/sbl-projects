@@ -10,8 +10,9 @@ export type Project = {
    * Videos for the detail view (any number).
    * - Prefer YouTube/Vimeo embed URLs (kind: 'embed').
    * - Or local files under /public (kind: 'file', e.g. mp4).
+   * - thumbnail: optional poster image (e.g. frame JPG alongside the video).
    */
-  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string }>
+  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string; thumbnail?: string }>
   /** Additional images for the detail view */
   images?: Array<{ src: string; alt: string }>
   /** Long-form description (supports simple line breaks) */
@@ -31,7 +32,7 @@ export const PROJECTS: Project[] = [
       alt: 'Levitating bulb project',
     },
     videos: [
-      { kind: 'file', src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4', title: 'Levitating bulb smart WiFi gadget' },
+      { kind: 'file', src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4', title: 'Levitating bulb smart WiFi gadget', thumbnail: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.jpg' },
     ],
     images: [
       { src: '/bulb/IMG_8898.jpg', alt: 'Levitating bulb' },
@@ -80,7 +81,7 @@ I'm thinking about making the capacitive touch button usable again by routing it
       alt: 'Comfy keyboard',
     },
     videos: [
-      { kind: 'file', src: '/comfy/IMG_9080.MOV', title: 'Comfy keyboard smart home controller' },
+      { kind: 'file', src: '/comfy/IMG_9080.MOV', title: 'Comfy keyboard smart home controller', thumbnail: '/comfy/IMG_9080.jpg' },
     ],
     images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' }],
     description:
@@ -126,7 +127,7 @@ I coded it up in Python and made a small proof of concept, and you can see it in
       alt: 'ZigBee bell',
     },
     videos: [
-      { kind: 'file', src: '/bell/IMG_4696.MOV', title: 'ZigBee bell' },
+      { kind: 'file', src: '/bell/IMG_4696.MOV', title: 'ZigBee bell', thumbnail: '/bell/IMG_4696.jpg' },
     ],
     images: [
       { src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
@@ -155,8 +156,8 @@ I have a problem where the bell becomes a sort of antenna and is way too sensiti
       alt: 'WiFi motorized shades',
     },
     videos: [
-      { kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades' },
-      { kind: 'file', src: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.mp4', title: 'WiFi shades' },
+      { kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.jpg' },
+      { kind: 'file', src: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.jpg' },
     ],
     images: [
       { src: '/electric%20shades/IMG_0097.jpg', alt: 'WiFi shades' },
@@ -185,8 +186,8 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
       alt: 'Custom MIDI controller with knob and three buttons',
     },
     videos: [
-      { kind: 'file', src: '/midi-controller/IMG_9666.MP4', title: 'MIDI controller' },
-      { kind: 'file', src: '/midi-controller/IMG_9670.MOV', title: 'MIDI controller' },
+      { kind: 'file', src: '/midi-controller/IMG_9666.MP4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
+      { kind: 'file', src: '/midi-controller/IMG_9670.MOV', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9670.jpg' },
     ],
     images: [
       { src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
@@ -208,9 +209,9 @@ I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set i
       alt: 'Smart door lock',
     },
     videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD' },
+      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
+      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
+      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
     ],
     images: [
       { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },

@@ -247,6 +247,7 @@ function ProjectModal({
                         className="aspect-video w-full"
                         controls
                         preload="metadata"
+                        poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
                       >
                         <source src={mediaUrl(v.src)} />
                       </video>
