@@ -1,21 +1,25 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import SplitType from 'split-type'
 
 export function Logo() {
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const stateRef = useRef<{ ctx: gsap.Context; nameSplit: SplitType } | null>(null)
 
-  useEffect(() => {
+  const runAnimation = useCallback(() => {
     const root = rootRef.current
     if (!root) return
 
-    let nameSplit: SplitType | undefined
+    if (stateRef.current) {
+      stateRef.current.ctx.revert()
+      stateRef.current.nameSplit.revert()
+      stateRef.current = null
+    }
+
+    const nameSplit = new SplitType('#logo-name')
+    if (!nameSplit.chars?.length) return
 
     const ctx = gsap.context(() => {
-      nameSplit = new SplitType('#logo-name')
-
-      if (!nameSplit.chars?.length) return
-
       gsap.to(nameSplit.chars, {
         duration: 0.05,
         fontWeight: 800,
@@ -41,19 +45,26 @@ export function Logo() {
           yoyo: true,
         },
       })
-
     }, root)
 
-    return () => {
-      ctx.revert()
-      if (nameSplit) nameSplit.revert()
-    }
+    stateRef.current = { ctx, nameSplit }
   }, [])
+
+  useEffect(() => {
+    runAnimation()
+    return () => {
+      if (stateRef.current) {
+        stateRef.current.ctx.revert()
+        stateRef.current.nameSplit.revert()
+      }
+    }
+  }, [runAnimation])
 
   return (
     <div
       ref={rootRef}
-      className="leading-tight font-['Doto',ui-sans-serif,system-ui]"
+      onClick={runAnimation}
+      className="leading-tight font-['Doto',ui-sans-serif,system-ui] cursor-pointer"
     >
       <h1
         id="logo-name"

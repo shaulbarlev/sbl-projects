@@ -9,8 +9,9 @@ import { PROJECTS, type Project } from './projects'
 const SHOW_TAGS_AND_LINKS = false
 const SHOW_YEAR = false
 
-const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
+// const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
 const LINKEDIN_URL = 'https://www.linkedin.com/in/shaul-bar-lev/'
+const CV_URL = '/shaul-bar-lev-cv.pdf'
 
 /** Resolve project media path with the app base URL (e.g. /sblprojects/). */
 function mediaUrl(path: string): string {
@@ -408,7 +409,7 @@ function App() {
               things i built
             </p>
             <div className="mt-2 flex items-center gap-3">
-              <a
+              {/* <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noreferrer"
@@ -416,7 +417,7 @@ function App() {
                 aria-label="Instagram"
               >
                 <i className="hn hn-instagram text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
-              </a>
+              </a> */}
               <a
                 href={LINKEDIN_URL}
                 target="_blank"
@@ -425,6 +426,16 @@ function App() {
                 aria-label="LinkedIn"
               >
                 <i className="hn hn-linkedin text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
+              </a>
+              <a
+                href={mediaUrl(CV_URL)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex cursor-pointer items-center gap-1.5 text-red-500/40 hover:text-red-500/70 focus:outline-none focus:ring-2 focus:ring-red-500/70 [&_.hn]:text-red-500/40 [&_.hn]:hover:text-red-500/70"
+                aria-label="See my CV"
+              >
+                <i className="hn hn-paperclip text-xl text-red-500/40 hover:text-red-500/70" aria-hidden />
+                <span className="text-sm">See my CV</span>
               </a>
             </div>
           </div>
