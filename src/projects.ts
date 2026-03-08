@@ -59,7 +59,7 @@ On the electronics side, the heart of the system is the ESP32 running ESPHome. I
   },  
   {
     id: 'levitating-bulb',
-    title: 'Turning a Levitating Bulb into a Smart WiFi Gadget',
+    title: 'Adding WiFi to a magnetically levitating bulb',
     subtitle: 'Hacking the base with an ESP32 and ESP Home so the light turns off when the TV is on.',
     year: '2026',
     tags: ['esp32', 'esphome', 'home-assistant', 'diy'],
@@ -109,7 +109,7 @@ I'm thinking about making the capacitive touch button usable again by routing it
   {
     id: 'pacman-controller',
     title: 'Pacman Controller',
-    subtitle: 'Turning a vintage Pac-Man joystick into a smart home controller with ESP and ESPHome—buttons trigger Sonos, lights, and more.',
+    subtitle: 'Turning a Pac-Man joystick into a smart home controller with ESP and ESPHome—buttons trigger Sonos, lights, and more.',
     year: '2025',
     tags: ['esp', 'esphome', 'home-assistant', 'sonos', 'diy', 'smart-home'],
     thumbnail: {
@@ -142,8 +142,8 @@ What started as a simple joystick hack turned into something bigger. We ended up
   },
   {
     id: 'comfy-keyboard',
-    title: 'Turning My Childhood Keyboard into a Smart Home Controller',
-    subtitle: 'Hooking up a vintage Comfy kids keyboard to Home Assistant via Raspberry Pi and MQTT.',
+    title: 'Comfy keyboard for the smart home',
+    subtitle: 'Hooking up a Comfy kids keyboard to Home Assistant via Raspberry Pi and MQTT.',
     year: '2025',
     tags: ['raspberry-pi', 'mqtt', 'home-assistant', 'python', 'diy'],
     thumbnail: {
