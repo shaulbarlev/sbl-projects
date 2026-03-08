@@ -147,7 +147,7 @@ What started as a simple joystick hack turned into something bigger. We ended up
     year: '2025',
     tags: ['raspberry-pi', 'mqtt', 'home-assistant', 'python', 'diy'],
     thumbnail: {
-      src: '/comfy/IMG_6170.jpg',
+      src: '/comfy/comfythumb.jpg',
       alt: 'Comfy keyboard',
     },
     videos: [
