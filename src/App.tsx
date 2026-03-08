@@ -5,6 +5,13 @@ import 'yet-another-react-lightbox/styles.css'
 import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
+/** Resolve project media path with the app base URL (e.g. /sblprojects/). */
+function mediaUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const base = import.meta.env.BASE_URL
+  return path.startsWith('/') ? base + path.slice(1) : base + path
+}
+
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
 }
@@ -99,7 +106,7 @@ function ProjectGallery({
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const slides = useMemo(
-    () => images.map((img) => ({ src: img.src, alt: img.alt })),
+    () => images.map((img) => ({ src: mediaUrl(img.src), alt: img.alt })),
     [images],
   )
 
@@ -133,7 +140,7 @@ function ProjectGallery({
                 aria-label={`View image ${idx + 1} of ${images.length} full size`}
               >
                 <img
-                  src={img.src}
+                  src={mediaUrl(img.src)}
                   alt={img.alt}
                   loading="lazy"
                   className={lone ? 'max-h-96 w-full object-cover' : 'h-full w-full object-cover'}
@@ -228,7 +235,7 @@ function ProjectModal({
                       <div className="aspect-video w-full">
                         <iframe
                           className="h-full w-full"
-                          src={v.src}
+                          src={mediaUrl(v.src)}
                           title={v.title ?? `${project.title} video`}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           referrerPolicy="strict-origin-when-cross-origin"
@@ -241,7 +248,7 @@ function ProjectModal({
                         controls
                         preload="metadata"
                       >
-                        <source src={v.src} />
+                        <source src={mediaUrl(v.src)} />
                       </video>
                     )}
                   </div>
@@ -399,7 +406,7 @@ function App() {
             >
               <div className="aspect-[3/4] w-full shrink-0 overflow-hidden rounded-t">
                 <img
-                  src={p.thumbnail.src}
+                  src={mediaUrl(p.thumbnail.src)}
                   alt={p.thumbnail.alt}
                   loading="lazy"
                   className="block h-full w-full min-h-0 min-w-0 object-cover object-center grayscale-[20%] contrast-125 group-hover:grayscale-0"
