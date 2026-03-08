@@ -117,14 +117,14 @@ function ProjectGallery({
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         {images.map((img, idx) => {
           const lone = isLoneInRow(idx)
           return (
             <figure
               key={img.src}
               className={cx(
-                lone && 'sm:col-span-2',
+                lone && 'col-span-2',
                 !lone && GALLERY_IMAGE_ASPECT,
                 'overflow-hidden rounded border border-red-500/30 bg-black/30',
               )}
@@ -186,7 +186,7 @@ function ProjectModal({
       <div className="absolute inset-0 p-0 sm:p-6">
           <div
             className={cx(
-              'relative h-full min-w-0 w-full overflow-hidden sm:mx-auto sm:max-w-5xl',
+              'relative h-full min-w-0 w-full overflow-hidden sm:mx-auto sm:max-w-7xl',
               'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
               'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
             )}
@@ -225,34 +225,47 @@ function ProjectModal({
           <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
               <section className="min-w-0 space-y-4">
-                {project.videos?.map((v) => (
-                  <div
-                    key={v.src}
-                    className="overflow-hidden rounded border border-red-500/40 bg-black/40"
-                  >
-                    {v.kind === 'embed' ? (
-                      <div className="aspect-video w-full">
-                        <iframe
-                          className="h-full w-full"
-                          src={mediaUrl(v.src)}
-                          title={v.title ?? `${project.title} video`}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
-                      </div>
-                    ) : (
-                      <video
-                        className="aspect-video w-full"
-                        controls
-                        preload="metadata"
-                        poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
-                      >
-                        <source src={mediaUrl(v.src)} />
-                      </video>
-                    )}
+                {project.videos?.length ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {project.videos.map((v, idx) => {
+                      const count = project.videos!.length
+                      const lone = count === 1 || (count % 2 === 1 && idx === count - 1)
+                      const isHorizontal = v.orientation === 'horizontal'
+                      const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
+                      return (
+                        <div
+                          key={v.src}
+                          className={cx(
+                            'min-w-0 overflow-hidden rounded border border-red-500/40 bg-black/40',
+                            lone && 'col-span-2',
+                          )}
+                        >
+                          {v.kind === 'embed' ? (
+                            <div className={`${aspectClass} w-full`}>
+                              <iframe
+                                className="h-full w-full"
+                                src={mediaUrl(v.src)}
+                                title={v.title ?? `${project.title} video`}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerPolicy="strict-origin-when-cross-origin"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : (
+                            <video
+                              className={`${aspectClass} w-full`}
+                              controls
+                              preload="metadata"
+                              poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
+                            >
+                              <source src={mediaUrl(v.src)} />
+                            </video>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
+                ) : null}
 
                 {project.images?.length ? (
                   <ProjectGallery
@@ -263,7 +276,7 @@ function ProjectModal({
               </section>
 
               <aside className="min-w-0 space-y-4">
-                {project.tags?.length ? (
+                {false && project.tags?.length ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       tags
@@ -283,16 +296,16 @@ function ProjectModal({
 
                 {project.description ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
-                    <div className="text-xs font-semibold tracking-wide text-white/80">
+                    {/* <div className="text-xs font-semibold tracking-wide text-white/80">
                       notes
-                    </div>
+                    </div> */}
                     <div className="mt-2">
                       <ProjectDescription text={project.description} />
                     </div>
                   </div>
                 ) : null}
 
-                {project.links?.length ? (
+                {false && project.links?.length ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       links
@@ -379,7 +392,7 @@ function App() {
                 <Logo />
               </div>
               <p className="mt-1 max-w-xl text-sm text-white/70">
-                Here are a few of my personal projects.
+                things i built
               </p>
             </div>
 

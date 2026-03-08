@@ -11,8 +11,9 @@ export type Project = {
    * - Prefer YouTube/Vimeo embed URLs (kind: 'embed').
    * - Or local files under /public (kind: 'file', e.g. mp4).
    * - thumbnail: optional poster image (e.g. frame JPG alongside the video).
+   * - orientation: 'vertical' (default) or 'horizontal' for aspect ratio.
    */
-  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string; thumbnail?: string }>
+  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string; thumbnail?: string; orientation?: 'vertical' | 'horizontal' }>
   /** Additional images for the detail view */
   images?: Array<{ src: string; alt: string }>
   /** Long-form description (supports simple line breaks) */
