@@ -117,7 +117,6 @@ function ProjectGallery({
 
   return (
     <>
-      <p className="text-xs text-white/60 sm:hidden">Write up below</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {images.map((img, idx) => {
           const lone = isLoneInRow(idx)
