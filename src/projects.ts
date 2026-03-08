@@ -197,5 +197,40 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
 
 I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set it up. The Leonardo is capable of sending MIDI over USB, so I programmed the buttons to act as MIDI channels. That way, my friend could easily assign each channel to whatever function he wanted in his DAW of choice, which was Ableton Live. For the buttons, I used mechanical keyboard switches and printed custom keycaps.`,
   },
+  {
+    id: 'doorlock',
+    title: 'Smart Door Lock',
+    subtitle: 'A custom door lock add-on with ESP32 and ESPHome—key still works when power is off.',
+    year: '2025',
+    tags: ['esp32', 'esphome', 'home-assistant', 'diy', '3d-printing'],
+    thumbnail: {
+      src: '/doorlock/IMG_6527-0001.png',
+      alt: 'Smart door lock',
+    },
+    videos: [
+      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock' },
+      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock' },
+      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD' },
+    ],
+    images: [
+      { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
+    ],
+    description:
+      `I wanted to be able to leave the house without carrying a key. Sure, there are off-the-shelf products like Nuki that do this, but I thought it would be a cool project to build my own door lock add-on from scratch.
+
+## Designing the Mechanics
+
+The key challenge was to design mechanics that would lock and unlock the door, but also allow the door to be operated completely powerlessly with a regular physical key. So my goal was to make sure that even if the electronics failed or power was off, you could still use the key as usual.
+
+## How I Did It
+
+I realized I needed to detect the state of the lock—basically to know whether it was locked or unlocked. I looked into how the existing Nuki product works: they use a small DC motor, some complex mechanics, and an encoder to track the lock state. Instead of going that route, I found a servo motor that had a built-in potentiometer. This way, I could always know the motor's position and thus the lock's state.
+
+When the motor is unpowered, it's loose enough that the key can turn it freely. That means you can still lock or unlock the door with the key, and the potentiometer lets me update the lock state electronically.
+
+## Electronics and Control
+
+On the electronics side, the heart of the system is the ESP32 running ESPHome. I added an OLED screen to show the lock state and a button mounted on a 3D-printed case that lets you toggle the lock from inside the house.`,
+  },
 ]
 
