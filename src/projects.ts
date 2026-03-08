@@ -32,9 +32,9 @@ export const PROJECTS: Project[] = [
       alt: 'Smart door lock',
     },
     videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD' },
+      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
+      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
+      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
     ],
     images: [
       { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
@@ -116,12 +116,12 @@ I'm thinking about making the capacitive touch button usable again by routing it
       alt: 'Pac-Man joystick controller',
     },
     videos: [
-      { kind: 'file', src: '/pacman/IMG_0306.mp4', title: 'Pacman controller' },
-      { kind: 'file', src: '/pacman/IMG_0310.mp4', title: 'Pacman controller' },
-      { kind: 'file', src: '/pacman/IMG_0315.mp4', title: 'Pacman controller' },
-      { kind: 'file', src: '/pacman/IMG_4296.mp4', title: 'Pacman controller' },
-      { kind: 'file', src: '/pacman/IMG_4810.mp4', title: 'Pacman controller' },
-      { kind: 'file', src: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/IMG_0306.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0306.jpg' },
+      { kind: 'file', src: '/pacman/IMG_0310.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0310.jpg' },
+      { kind: 'file', src: '/pacman/IMG_0315.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0315.jpg' },
+      { kind: 'file', src: '/pacman/IMG_4296.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4296.jpg' },
+      { kind: 'file', src: '/pacman/IMG_4810.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4810.jpg' },
+      { kind: 'file', src: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.mp4', title: 'Pacman controller', thumbnail: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.jpg' },
     ],
     images: [
       { src: '/pacman/IMG_5093.jpg', alt: 'Pac-Man joystick controller' },

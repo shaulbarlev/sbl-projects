@@ -19,12 +19,14 @@ for dir in "${dirs[@]}"; do
     out="${base}.jpg"
     echo "  $f -> $out"
     duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$f" 2>/dev/null || true)
+    # Scale to square pixels so JPG matches video display aspect ratio (fixes anamorphic/SAR)
+    vf="scale=iw*sar:ih,setsar=1"
     if [[ -z "$duration" ]] || [[ ! "$duration" =~ ^[0-9.]*$ ]]; then
       # Fallback: use first frame (e.g. invalid or 0 duration)
-      ffmpeg -y -i "$f" -vframes 1 -q:v 2 "$out" 2>/dev/null || true
+      ffmpeg -y -i "$f" -vf "$vf" -vframes 1 -q:v 2 "$out" 2>/dev/null || true
     else
       mid=$(awk "BEGIN { printf \"%.2f\", $duration / 2 }")
-      ffmpeg -y -ss "$mid" -i "$f" -vframes 1 -q:v 2 "$out" 2>/dev/null || true
+      ffmpeg -y -ss "$mid" -i "$f" -vf "$vf" -vframes 1 -q:v 2 "$out" 2>/dev/null || true
     fi
   done < <(find "$dir" -type f \( -iname "*.mp4" -o -iname "*.mov" \) -print0)
 done
