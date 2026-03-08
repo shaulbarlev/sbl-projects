@@ -33,7 +33,7 @@ export const PROJECTS: Project[] = [
       alt: 'Smart door lock',
     },
     videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
+      { kind: 'file', src: '/doorlock/IMG_4804-1.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
       { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
       { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
     ],
