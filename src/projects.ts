@@ -259,7 +259,7 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
       { kind: 'file', src: '/midi-controller/IMG_9666.mp4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
     ],
     images: [
-      { src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
+      { src: '/midi-controller/IMG_9666-1.jpg', alt: 'MIDI controller' },
       { src: '/midi-controller/IMG_9670-0001.png', alt: 'MIDI controller' },
     ],
     description:
