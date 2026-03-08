@@ -58,7 +58,7 @@ When the motor is unpowered, it's loose enough that the key can turn it freely. 
 On the electronics side, the heart of the system is the ESP32 running ESPHome. I added an OLED screen to show the lock state and a button mounted on a 3D-printed case that lets you toggle the lock from inside the house.`,
   },  
   {
-    id: 'project-1',
+    id: 'levitating-bulb',
     title: 'Turning a Levitating Bulb into a Smart WiFi Gadget',
     subtitle: 'Hacking the base with an ESP32 and ESP Home so the light turns off when the TV is on.',
     year: '2026',
@@ -141,7 +141,7 @@ It worked beautifully—my nephew loved it!
 What started as a simple joystick hack turned into something bigger. We ended up connecting it to even more devices, including a traffic light and a levitating lamp I mentioned in another project, as well as all the RGB lights in the living room. So this little nostalgic piece ended up becoming a central part of a much bigger smart home setup.`,
   },
   {
-    id: 'comfy',
+    id: 'comfy-keyboard',
     title: 'Turning My Childhood Keyboard into a Smart Home Controller',
     subtitle: 'Hooking up a vintage Comfy kids keyboard to Home Assistant via Raspberry Pi and MQTT.',
     year: '2025',
