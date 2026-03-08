@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
+import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
 const SHOW_TAGS_AND_LINKS = false
+
+const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
+const LINKEDIN_URL = 'https://www.linkedin.com/in/shaul-bar-lev/'
 
 /** Resolve project media path with the app base URL (e.g. /sblprojects/). */
 function mediaUrl(path: string): string {
@@ -406,9 +410,26 @@ function App() {
               </p>
             </div>
 
-            {/* <div className="text-xs text-white/60">
-              <span className="text-white/80">theme:</span> black / red / white
-            </div> */}
+            <div className="flex items-center gap-3">
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500/70 rounded"
+                aria-label="Instagram"
+              >
+                <i className="hn hn-instagram text-2xl" aria-hidden />
+              </a>
+              <a
+                href={LINKEDIN_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500/70 rounded"
+                aria-label="LinkedIn"
+              >
+                <i className="hn hn-linkedin text-2xl" aria-hidden />
+              </a>
+            </div>
           </div>
         </div>
       </header>
