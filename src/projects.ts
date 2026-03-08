@@ -21,13 +21,48 @@ export type Project = {
 
 export const PROJECTS: Project[] = [
   {
+    id: 'doorlock',
+    title: 'Smart Door Lock',
+    subtitle: 'A custom door lock add-on with ESP32 and ESPHome—key still works when power is off.',
+    year: '2025',
+    tags: ['esp32', 'esphome', 'home-assistant', 'diy', '3d-printing'],
+    thumbnail: {
+      src: '/doorlock/IMG_6527-0001.png',
+      alt: 'Smart door lock',
+    },
+    videos: [
+      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock' },
+      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock' },
+      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD' },
+    ],
+    images: [
+      { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
+    ],
+    description:
+      `I wanted to be able to leave the house without carrying a key. Sure, there are off-the-shelf products like Nuki that do this, but I thought it would be a cool project to build my own door lock add-on from scratch.
+
+## Designing the Mechanics
+
+The key challenge was to design mechanics that would lock and unlock the door, but also allow the door to be operated completely powerlessly with a regular physical key. So my goal was to make sure that even if the electronics failed or power was off, you could still use the key as usual.
+
+## How I Did It
+
+I realized I needed to detect the state of the lock—basically to know whether it was locked or unlocked. I looked into how the existing Nuki product works: they use a small DC motor, some complex mechanics, and an encoder to track the lock state. Instead of going that route, I found a servo motor that had a built-in potentiometer. This way, I could always know the motor's position and thus the lock's state.
+
+When the motor is unpowered, it's loose enough that the key can turn it freely. That means you can still lock or unlock the door with the key, and the potentiometer lets me update the lock state electronically.
+
+## Electronics and Control
+
+On the electronics side, the heart of the system is the ESP32 running ESPHome. I added an OLED screen to show the lock state and a button mounted on a 3D-printed case that lets you toggle the lock from inside the house.`,
+  },  
+  {
     id: 'project-1',
     title: 'Turning a Levitating Bulb into a Smart WiFi Gadget',
     subtitle: 'Hacking the base with an ESP32 and ESP Home so the light turns off when the TV is on.',
     year: '2026',
     tags: ['esp32', 'esphome', 'home-assistant', 'diy'],
     thumbnail: {
-      src: '/bulb/IMG_8898.jpg',
+      src: '/bulb/IMG_6165.jpg',
       alt: 'Levitating bulb project',
     },
     videos: [
@@ -68,6 +103,40 @@ I'm thinking about making the capacitive touch button usable again by routing it
       { label: 'GitHub', href: 'https://github.com/' },
       { label: 'Live', href: 'https://example.com' },
     ],
+  },
+  {
+    id: 'pacman-controller',
+    title: 'Pacman Controller',
+    subtitle: 'Turning a vintage Pac-Man joystick into a smart home controller with ESP and ESPHome—buttons trigger Sonos, lights, and more.',
+    year: '2025',
+    tags: ['esp', 'esphome', 'home-assistant', 'sonos', 'diy', 'smart-home'],
+    thumbnail: {
+      src: '/pacman/IMG_5093.jpg',
+      alt: 'Pac-Man joystick controller',
+    },
+    videos: [
+      { kind: 'file', src: '/pacman/IMG_0306.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/IMG_0310.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/IMG_0315.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/IMG_4296.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/IMG_4810.mp4', title: 'Pacman controller' },
+      { kind: 'file', src: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.mp4', title: 'Pacman controller' },
+    ],
+    images: [
+      { src: '/pacman/IMG_5093.jpg', alt: 'Pac-Man joystick controller' },
+    ],
+    description:
+      `This little project started with an old plug-and-play video game joystick I used to have. It was a Pac-Man-themed joystick that output RCA straight to the TV, something I played with when I was little. I thought it would be fun to turn it into something my nephew could enjoy.
+
+## The Plan: Board Replacement and Smart Sound Triggers
+
+The idea was to trigger sounds with the buttons. To do this, I replaced the original board with an ESP board and exposed it to Home Assistant using ESPHome. From there, I could manage triggering sounds on a Sonos speaker through Home Assistant whenever he pressed a button.
+
+It worked beautifully—my nephew loved it!
+
+## Expanding the Fun
+
+What started as a simple joystick hack turned into something bigger. We ended up connecting it to even more devices, including a traffic light and a levitating lamp I mentioned in another project, as well as all the RGB lights in the living room. So this little nostalgic piece ended up becoming a central part of a much bigger smart home setup.`,
   },
   {
     id: 'comfy',
@@ -197,40 +266,6 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
 
 I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set it up. The Leonardo is capable of sending MIDI over USB, so I programmed the buttons to act as MIDI channels. That way, my friend could easily assign each channel to whatever function he wanted in his DAW of choice, which was Ableton Live. For the buttons, I used mechanical keyboard switches and printed custom keycaps.`,
   },
-  {
-    id: 'doorlock',
-    title: 'Smart Door Lock',
-    subtitle: 'A custom door lock add-on with ESP32 and ESPHome—key still works when power is off.',
-    year: '2025',
-    tags: ['esp32', 'esphome', 'home-assistant', 'diy', '3d-printing'],
-    thumbnail: {
-      src: '/doorlock/IMG_6527-0001.png',
-      alt: 'Smart door lock',
-    },
-    videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804.MP4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock' },
-      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD' },
-    ],
-    images: [
-      { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
-    ],
-    description:
-      `I wanted to be able to leave the house without carrying a key. Sure, there are off-the-shelf products like Nuki that do this, but I thought it would be a cool project to build my own door lock add-on from scratch.
 
-## Designing the Mechanics
-
-The key challenge was to design mechanics that would lock and unlock the door, but also allow the door to be operated completely powerlessly with a regular physical key. So my goal was to make sure that even if the electronics failed or power was off, you could still use the key as usual.
-
-## How I Did It
-
-I realized I needed to detect the state of the lock—basically to know whether it was locked or unlocked. I looked into how the existing Nuki product works: they use a small DC motor, some complex mechanics, and an encoder to track the lock state. Instead of going that route, I found a servo motor that had a built-in potentiometer. This way, I could always know the motor's position and thus the lock's state.
-
-When the motor is unpowered, it's loose enough that the key can turn it freely. That means you can still lock or unlock the door with the key, and the potentiometer lets me update the lock state electronically.
-
-## Electronics and Control
-
-On the electronics side, the heart of the system is the ESP32 running ESPHome. I added an OLED screen to show the lock state and a button mounted on a 3D-printed case that lets you toggle the lock from inside the house.`,
-  },
 ]
 
