@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: 'https://shaulb.com/sbl-projects/',
+  base: 'https://shaulb.com/',
   plugins: [
     react(),
     tailwindcss(),

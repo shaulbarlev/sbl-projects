@@ -406,7 +406,8 @@ function App() {
               <Logo />
             </div>
             <p className="mt-1 max-w-xl text-sm text-red-500/40">
-              things i built
+              <span className="mr-2 text-white hover:underline cursor-pointer transition">electronics & iot</span>
+              <a href={"https://shaulbarlev.com"} target="_blank" rel="noreferrer" className="hover:underline cursor-pointer transition">film & art projects</a>
             </p>
             <div className="mt-2 flex items-center gap-3">
               {/* <a

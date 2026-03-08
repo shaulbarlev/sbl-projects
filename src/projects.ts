@@ -157,7 +157,7 @@ What started as a simple joystick hack turned into something bigger. We ended up
     description:
       `## The Idea
 
-The background story is that when I was young, like five, I had this children keyboard for the PC. It was named Comfy, and I loved it. It was colorful, it had great buttons. I recently thought how cool would it be to have that connected to anything on my smart home and make it into a smart home controller.
+As a kid I had this children keyboard for the PC. It was named Comfy, and I loved it. It was colorful, it had great buttons. I recently thought how cool would it be to have that connected to anything on my smart home and make it into a smart home controller.
 
 So that's exactly what me and my roommate decided to do.
 
