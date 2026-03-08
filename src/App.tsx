@@ -208,7 +208,7 @@ function ProjectVideoGrid({
                 preload="metadata"
                 poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
               >
-                <source src={mediaUrl(v.src)} />
+                <source src={mediaUrl(v.src)} type="video/mp4" />
               </video>
             )}
           </div>
