@@ -429,6 +429,13 @@ function App() {
                 <i className="hn hn-linkedin text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
               </a>
               <a
+                href="mailto:shaulbarlev1@gmail.com"
+                className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/70 [&_.hn]:text-red-500/40 [&_.hn]:hover:text-red-500/70"
+                aria-label="Email"
+              >
+                <i className="hn hn-envelope text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
+              </a>
+              <a
                 href={mediaUrl(CV_URL)}
                 target="_blank"
                 rel="noreferrer"
