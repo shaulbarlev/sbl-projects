@@ -5,6 +5,8 @@ import 'yet-another-react-lightbox/styles.css'
 import { Logo } from './Logo'
 import { PROJECTS, type Project } from './projects'
 
+const SHOW_TAGS_AND_LINKS = false
+
 /** Resolve project media path with the app base URL (e.g. /sblprojects/). */
 function mediaUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path
@@ -14,6 +16,11 @@ function mediaUrl(path: string): string {
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
+}
+
+/** True when the item is the only one in the grid or the last item in an odd-sized list (lone in row). */
+function isLoneInTwoColGrid(index: number, total: number): boolean {
+  return total === 1 || (total % 2 === 1 && index === total - 1)
 }
 
 function ProjectDescription({ text }: { text: string }) {
@@ -110,16 +117,11 @@ function ProjectGallery({
     [images],
   )
 
-  const isLoneInRow = (index: number) => {
-    const count = images.length
-    return count === 1 || (count % 2 === 1 && index === count - 1)
-  }
-
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
         {images.map((img, idx) => {
-          const lone = isLoneInRow(idx)
+          const lone = isLoneInTwoColGrid(idx, images.length)
           return (
             <figure
               key={img.src}
@@ -161,6 +163,55 @@ function ProjectGallery({
   )
 }
 
+function ProjectVideoGrid({
+  videos,
+  projectTitle,
+}: {
+  videos: NonNullable<Project['videos']>
+  projectTitle: string
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {videos.map((v, idx) => {
+        const lone = isLoneInTwoColGrid(idx, videos.length)
+        const isHorizontal = v.orientation === 'horizontal'
+        const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
+        return (
+          <div
+            key={v.src}
+            className={cx(
+              'min-w-0 overflow-hidden rounded border border-red-500/40 bg-black/40',
+              lone && 'col-span-2',
+            )}
+          >
+            {v.kind === 'embed' ? (
+              <div className={`${aspectClass} w-full`}>
+                <iframe
+                  className="h-full w-full"
+                  src={mediaUrl(v.src)}
+                  title={v.title ?? `${projectTitle} video`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <video
+                className={`${aspectClass} w-full`}
+                controls
+                preload="metadata"
+                poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
+              >
+                <source src={mediaUrl(v.src)} />
+              </video>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function ProjectModal({
   project,
   onClose,
@@ -184,13 +235,13 @@ function ProjectModal({
       />
 
       <div className="absolute inset-0 p-0 sm:p-6">
-          <div
-            className={cx(
-              'relative h-full min-w-0 w-full overflow-hidden sm:mx-auto sm:max-w-7xl',
-              'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
-              'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
-            )}
-          >
+        <div
+          className={cx(
+            'relative h-full min-w-0 w-full overflow-hidden sm:mx-auto sm:max-w-7xl',
+            'border-y sm:border border-red-500/60 bg-[#070707] text-white/90',
+            'shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_20px_60px_rgba(0,0,0,0.7)]',
+          )}
+        >
           <div className="flex items-start justify-between gap-3 border-b border-red-500/40 bg-black/40 px-4 py-3 sm:px-5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -226,45 +277,7 @@ function ProjectModal({
             <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
               <section className="min-w-0 space-y-4">
                 {project.videos?.length ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {project.videos.map((v, idx) => {
-                      const count = project.videos!.length
-                      const lone = count === 1 || (count % 2 === 1 && idx === count - 1)
-                      const isHorizontal = v.orientation === 'horizontal'
-                      const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
-                      return (
-                        <div
-                          key={v.src}
-                          className={cx(
-                            'min-w-0 overflow-hidden rounded border border-red-500/40 bg-black/40',
-                            lone && 'col-span-2',
-                          )}
-                        >
-                          {v.kind === 'embed' ? (
-                            <div className={`${aspectClass} w-full`}>
-                              <iframe
-                                className="h-full w-full"
-                                src={mediaUrl(v.src)}
-                                title={v.title ?? `${project.title} video`}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                referrerPolicy="strict-origin-when-cross-origin"
-                                allowFullScreen
-                              />
-                            </div>
-                          ) : (
-                            <video
-                              className={`${aspectClass} w-full`}
-                              controls
-                              preload="metadata"
-                              poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
-                            >
-                              <source src={mediaUrl(v.src)} />
-                            </video>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <ProjectVideoGrid videos={project.videos} projectTitle={project.title} />
                 ) : null}
 
                 {project.images?.length ? (
@@ -276,7 +289,7 @@ function ProjectModal({
               </section>
 
               <aside className="min-w-0 space-y-4">
-                {false && project.tags?.length ? (
+                {SHOW_TAGS_AND_LINKS && project.tags && project.tags.length > 0 ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       tags
@@ -296,16 +309,13 @@ function ProjectModal({
 
                 {project.description ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
-                    {/* <div className="text-xs font-semibold tracking-wide text-white/80">
-                      notes
-                    </div> */}
                     <div className="mt-2">
                       <ProjectDescription text={project.description} />
                     </div>
                   </div>
                 ) : null}
 
-                {false && project.links?.length ? (
+                {SHOW_TAGS_AND_LINKS && project.links && project.links.length > 0 ? (
                   <div className="rounded border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
                       links
