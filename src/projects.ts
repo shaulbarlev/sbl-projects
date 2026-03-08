@@ -174,5 +174,28 @@ With a bit of help from my dad, we drilled a hole into the lever of the shade. I
 
 In terms of electronics, it was pretty straightforward: I used a buck converter, an H-bridge to control the actuator's direction, and an ESP8266 for Wi-Fi connectivity and control.`,
   },
+  {
+    id: 'midi-controller',
+    title: 'Custom MIDI Controller',
+    subtitle: 'One knob and three programmable buttons on an Arduino Leonardo, sending MIDI over USB for Ableton Live.',
+    year: '2025',
+    tags: ['arduino', 'midi', 'usb', 'diy', 'ableton'],
+    thumbnail: {
+      src: '/midi-controller/IMG_9666.jpg',
+      alt: 'Custom MIDI controller with knob and three buttons',
+    },
+    videos: [
+      { kind: 'file', src: '/midi-controller/IMG_9666.MP4', title: 'MIDI controller' },
+      { kind: 'file', src: '/midi-controller/IMG_9670.MOV', title: 'MIDI controller' },
+    ],
+    images: [
+      { src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
+      { src: '/midi-controller/IMG_9670-0001.png', alt: 'MIDI controller' },
+    ],
+    description:
+      `A musician friend needed a simple MIDI peripheral custom-fitted to his needs, with just one knob and three programmable buttons.
+
+I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set it up. The Leonardo is capable of sending MIDI over USB, so I programmed the buttons to act as MIDI channels. That way, my friend could easily assign each channel to whatever function he wanted in his DAW of choice, which was Ableton Live. For the buttons, I used mechanical keyboard switches and printed custom keycaps.`,
+  },
 ]
 
