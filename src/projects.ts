@@ -24,7 +24,7 @@ export type Project = {
 export const PROJECTS: Project[] = [
   {
     id: 'doorlock',
-    title: 'Smart Door Lock',
+    title: 'The Smartest Lock',
     subtitle: 'A custom door lock add-on with ESP32 and ESPHome—key still works when power is off.',
     year: '2025',
     tags: ['esp32', 'esphome', 'home-assistant', 'diy', '3d-printing'],
