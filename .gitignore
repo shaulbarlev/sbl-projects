@@ -43,3 +43,8 @@ logs/
 coverage/
 *.tgz
 
+package-lock.json
+node_modules/.package-lock.json
+node_modules/.vite/deps/_metadata.json
+.gitignore
+.DS_Store

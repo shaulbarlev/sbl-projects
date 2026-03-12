@@ -267,5 +267,53 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
 
 I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set it up. The Leonardo is capable of sending MIDI over USB, so I programmed the buttons to act as MIDI channels. That way, my friend could easily assign each channel to whatever function he wanted in his DAW of choice, which was Ableton Live. For the buttons, I used mechanical keyboard switches and printed custom keycaps.`,
   },
+  {
+    id: 'pikud-haoled',
+    title: 'Pikud HaOLED',
+    subtitle: 'A dead simple IoT light pre-connected to the official Pikud Haoref API for visual alert indication.',
+    year: '2026',
+    tags: ['iot', 'esp', 'led', 'alerting'],
+    thumbnail: {
+      src: '/pikudhaoled/led-end.jpg',
+      alt: 'Pikud HaOLED alert light',
+    },
+    videos: [
+      {
+        kind: 'file',
+        src: '/pikudhaoled/led-end.mp4',
+        title: 'Pikud HaOLED in action',
+        thumbnail: '/pikudhaoled/led-end.jpg',
+        orientation: 'vertical',
+      },
+    ],
+    images: [
+      { src: '/pikudhaoled/IMG_6254.jpg', alt: 'Pikud HaOLED light' },
+      { src: '/pikudhaoled/IMG_6255.jpg', alt: 'Pikud HaOLED light close-up' },
+    ],
+    description:
+      `A dead simple IOT light, pre connected to official Pikud Haoref API for visual indication of alerts.
+
+What started as a complex project involving a Raspberry Pi, VPN, Home Assistant and Oref Alert HACS addon, is becoming its own self contained project based on ESP32 architecture.
+Simply connect to WiFi during initial setup, and forget about it.
+
+Allows configuring Pre Alert, Alert, End (safe) indicators.
+
+I’d love to share more as it develops. If this sounds interesting, join our newsletter group to follow along and get updates!
+
+סטריפ לדים חכם המחובר ישירות לפיקוד העורף, לחיווי ויזאולי של התרעות חירום.
+
+מה שהתחיל כפרויקט מורכב רק עבורי ועבור שכניי לבניין, הופך להיות מוצר קל לתפעול, מוכל ופשוט לחיבור.
+לאחר החיבור הראשוני לשרת, אפשר לשכוח ממנו.
+
+ניתן להגדיר שהאור יפעל בעת הודעה מקדימה, בעת אזעקה ובעת זמן יציאה מהמרחב המוגן.
+
+אשמח לשתף עוד ככל שהפרויקט מתקדם. אם זה נשמע מעניין מוזמנים להצטרף לקבוצת הניוזלטר שלנו בווצאפ!`,
+    links: [
+      {
+        label: 'Click here for Whatsapp Newsletter Group',
+        href: 'https://chat.whatsapp.com/BhLWAVLMEVcLHHAkfKGeqp?mode=hq1tcli',
+      },
+    ],
+  },
 ]
 

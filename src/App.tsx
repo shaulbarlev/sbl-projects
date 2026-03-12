@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { FaWhatsapp } from 'react-icons/fa'
 import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
@@ -22,6 +23,11 @@ function mediaUrl(path: string): string {
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
+}
+
+const HEBREW_REGEX = /[\u0590-\u05FF]/
+function containsHebrew(s: string) {
+  return HEBREW_REGEX.test(s)
 }
 
 /** True when the item is the only one in the grid or the last item in an odd-sized list (lone in row). */
@@ -172,9 +178,11 @@ function ProjectGallery({
 function ProjectVideoGrid({
   videos,
   projectTitle,
+  projectId,
 }: {
   videos: NonNullable<Project['videos']>
   projectTitle: string
+  projectId: string
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -207,6 +215,7 @@ function ProjectVideoGrid({
                 controls
                 preload="metadata"
                 poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
+                muted={projectId === 'pikud-haoled'}
               >
                 <source src={mediaUrl(v.src)} type="video/mp4" />
               </video>
@@ -225,6 +234,32 @@ function ProjectModal({
   project: Project
   onClose: () => void
 }) {
+  const pikudNewsletter =
+    project.id === 'pikud-haoled'
+      ? project.links?.find((l) => l.label.toLowerCase().includes('whatsapp'))
+      : undefined
+
+  const [hebrewDescription, englishDescription] = useMemo(() => {
+    if (!project.description) return ['', '']
+    const lines = project.description.split('\n')
+    const hebrewLines: string[] = []
+    const englishLines: string[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) {
+        hebrewLines.push('')
+        englishLines.push('')
+        continue
+      }
+      if (containsHebrew(trimmed)) {
+        hebrewLines.push(line)
+      } else {
+        englishLines.push(line)
+      }
+    }
+    return [hebrewLines.join('\n').trim(), englishLines.join('\n').trim()]
+  }, [project.description])
+
   useEscapeToClose(onClose, true)
   useLockBodyScroll(true)
 
@@ -280,9 +315,18 @@ function ProjectModal({
 
           <div className="h-[calc(100%-52px)] min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom)+80px)] sm:px-5 sm:py-5 sm:pb-5">
             <div className="grid min-w-0 gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <section className="min-w-0 space-y-4">
+              <section
+                className={cx(
+                  'min-w-0 space-y-4',
+                  project.id === 'pikud-haoled' && 'order-2 lg:order-1',
+                )}
+              >
                 {project.videos?.length ? (
-                  <ProjectVideoGrid videos={project.videos} projectTitle={project.title} />
+                  <ProjectVideoGrid
+                    videos={project.videos}
+                    projectTitle={project.title}
+                    projectId={project.id}
+                  />
                 ) : null}
 
                 {project.images?.length ? (
@@ -293,7 +337,43 @@ function ProjectModal({
                 ) : null}
               </section>
 
-              <aside className="min-w-0 space-y-4">
+              <aside
+                className={cx(
+                  'min-w-0 space-y-4',
+                  project.id === 'pikud-haoled' && 'order-1 lg:order-2',
+                )}
+              >
+                {project.id === 'pikud-haoled' ? (
+                  <div className="border border-red-500/30 bg-black/30 p-3">
+                    <figure className="overflow-hidden border border-green-500/60 bg-black/40">
+                      <img
+                        src={mediaUrl('/pikudhaoled/pikudhaoled-1.jpg')}
+                        alt="Pikud HaOLED sign"
+                        className="block w-full object-cover"
+                        loading="lazy"
+                      />
+                    </figure>
+                  </div>
+                ) : null}
+
+                {pikudNewsletter ? (
+                  <div className="border border-red-500/30 bg-black/30 p-3">
+                    <a
+                      href={pikudNewsletter.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cx(
+                        'inline-flex w-full items-center justify-center gap-2 no-underline',
+                        'border border-green-500/70 bg-green-600/90 px-3 py-2 text-sm font-semibold',
+                        'text-black hover:bg-green-500/90 focus:outline-none focus:ring-2 focus:ring-green-400',
+                      )}
+                    >
+                      <FaWhatsapp className="text-lg text-black" style={{ color: 'black' }} aria-hidden />
+                      <span className="text-black">Join Newsletter</span>
+                    </a>
+                  </div>
+                ) : null}
+
                 {SHOW_TAGS_AND_LINKS && project.tags && project.tags.length > 0 ? (
                   <div className="border border-red-500/30 bg-black/30 p-3">
                     <div className="text-xs font-semibold tracking-wide text-white/80">
@@ -312,10 +392,18 @@ function ProjectModal({
                   </div>
                 ) : null}
 
-                {project.description ? (
+                {hebrewDescription ? (
+                  <div className="border border-red-500/30 bg-black/30 p-3" dir="rtl">
+                    <div className="mt-2 text-right font-semibold">
+                      <ProjectDescription text={hebrewDescription} />
+                    </div>
+                  </div>
+                ) : null}
+
+                {englishDescription ? (
                   <div className="border border-red-500/30 bg-black/30 p-3">
                     <div className="mt-2">
-                      <ProjectDescription text={project.description} />
+                      <ProjectDescription text={englishDescription} />
                     </div>
                   </div>
                 ) : null}
