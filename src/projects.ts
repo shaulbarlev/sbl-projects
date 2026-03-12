@@ -269,26 +269,26 @@ I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set i
   },
   {
     id: 'pikud-haoled',
-    title: 'Pikud HaOLED',
+    title: 'Pikud HaoLED',
     subtitle: 'A dead simple IoT light pre-connected to the official Pikud Haoref API for visual alert indication.',
     year: '2026',
     tags: ['iot', 'esp', 'led', 'alerting'],
     thumbnail: {
       src: '/pikudhaoled/led-end.jpg',
-      alt: 'Pikud HaOLED alert light',
+      alt: 'Pikud HaoLED alert light',
     },
     videos: [
       {
         kind: 'file',
         src: '/pikudhaoled/led-end.mp4',
-        title: 'Pikud HaOLED in action',
+        title: 'Pikud HaoLED in action',
         thumbnail: '/pikudhaoled/led-end.jpg',
         orientation: 'vertical',
       },
     ],
     images: [
-      { src: '/pikudhaoled/IMG_6254.jpg', alt: 'Pikud HaOLED light' },
-      { src: '/pikudhaoled/IMG_6255.jpg', alt: 'Pikud HaOLED light close-up' },
+      { src: '/pikudhaoled/IMG_6254.jpg', alt: 'Pikud HaoLED light' },
+      { src: '/pikudhaoled/IMG_6255.jpg', alt: 'Pikud HaoLED light close-up' },
     ],
     description:
       `A dead simple IOT light, pre connected to official Pikud Haoref API for visual indication of alerts.
@@ -303,7 +303,7 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
 סטריפ לדים חכם המחובר ישירות לפיקוד העורף, לחיווי ויזאולי של התרעות חירום.
 
 מה שהתחיל כפרויקט מורכב רק עבורי ועבור שכניי לבניין, הופך להיות מוצר קל לתפעול, מוכל ופשוט לחיבור.
-לאחר החיבור הראשוני לשרת, אפשר לשכוח ממנו.
+לאחר החיבור הראשוני לרשת, אפשר לשכוח ממנו.
 
 ניתן להגדיר שהאור יפעל בעת הודעה מקדימה, בעת אזעקה ובעת זמן יציאה מהמרחב המוגן.
 

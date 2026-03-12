@@ -240,7 +240,7 @@ function ProjectVideoGrid({
   )
 }
 
-function ProjectModal({
+export function ProjectModal({
   project,
   onClose,
 }: {
@@ -272,6 +272,17 @@ function ProjectModal({
     }
     return [hebrewLines.join('\n').trim(), englishLines.join('\n').trim()]
   }, [project.description])
+
+  const hebrewParagraphs = useMemo(
+    () =>
+      hebrewDescription
+        ? hebrewDescription
+            .split(/\n{2,}/)
+            .map((p) => p.trim())
+            .filter(Boolean)
+        : [],
+    [hebrewDescription],
+  )
 
   useEscapeToClose(onClose, true)
   useLockBodyScroll(true)
@@ -360,8 +371,8 @@ function ProjectModal({
                   <div className="border border-red-500/30 bg-black/30 p-3">
                     <figure className="overflow-hidden border border-green-500/60 bg-black/40">
                       <img
-                        src={mediaUrl('/pikudhaoled/pikudhaoled-1.jpg')}
-                        alt="Pikud HaOLED sign"
+                        src={mediaUrl('/pikudhaoled/pikudhaoled-0.jpg')}
+                        alt="Pikud HaoLED sign"
                         className="block w-full object-cover"
                         loading="lazy"
                       />
@@ -370,19 +381,30 @@ function ProjectModal({
                 ) : null}
 
                 {pikudNewsletter ? (
-                  <div className="border border-red-500/30 bg-black/30 p-3">
+                  <div className="border border-red-500/30 bg-black/30 p-3" dir="rtl">
+                    <p
+                      className="mb-3 text-center text-base font-bold leading-relaxed"
+                      style={{ fontFamily: 'Arial, system-ui, sans-serif' }}
+                    >
+                      אנחנו מפתחים ערכת תאורה פשוטה שמגיבה ונדלקת בהתאם להתראות פיקוד העורף.
+                    </p>
                     <a
                       href={pikudNewsletter.href}
                       target="_blank"
                       rel="noreferrer"
                       className={cx(
                         'inline-flex w-full items-center justify-center gap-2 no-underline',
-                        'border border-green-500/70 bg-green-600/90 px-3 py-2 text-sm font-semibold',
+                        'border border-green-500/70 bg-green-600/90 px-3 py-2 text-base font-bold',
                         'text-black hover:bg-green-500/90 focus:outline-none focus:ring-2 focus:ring-green-400',
                       )}
                     >
                       <FaWhatsapp className="text-lg text-black" style={{ color: 'black' }} aria-hidden />
-                      <span className="text-black">Join Newsletter</span>
+                      <span
+                        className="text-black"
+                        style={{ fontFamily: 'Arial, system-ui, sans-serif', fontWeight: 700 }}
+                      >
+                        הצטרפו לקבוצת העדכונים
+                      </span>
                     </a>
                   </div>
                 ) : null}
@@ -405,10 +427,21 @@ function ProjectModal({
                   </div>
                 ) : null}
 
-                {hebrewDescription ? (
-                  <div className="border border-red-500/30 bg-black/30 p-3" dir="rtl">
-                    <div className="mt-2 text-right font-semibold">
-                      <ProjectDescription text={hebrewDescription} />
+                {hebrewParagraphs.length ? (
+                  <div
+                    className="border border-red-500/30 bg-black/30 p-3"
+                    dir="rtl"
+                    style={{ fontFamily: 'Arial, system-ui, sans-serif' }}
+                  >
+                    <div className="mt-2 text-right font-semibold space-y-2">
+                      {hebrewParagraphs.map((para, idx) => (
+                        <p
+                          key={idx}
+                          className={idx === 0 ? 'text-base leading-relaxed' : 'text-sm leading-relaxed'}
+                        >
+                          {para}
+                        </p>
+                      ))}
                     </div>
                   </div>
                 ) : null}
