@@ -10,6 +10,19 @@ import { PROJECTS, type Project } from './projects'
 const SHOW_TAGS_AND_LINKS = false
 const SHOW_YEAR = false
 
+// Adjust this list to control project order in the grid.
+// Any projects not listed here will appear after these, in their default order.
+const PROJECT_ORDER: string[] = [
+  'doorlock',
+  'pikud-haoled',
+  'pacman-controller',
+  'levitating-bulb',
+  'comfy-keyboard',
+  'zigbee-bell',
+  'wifi-shades',
+  'midi-controller',
+]
+
 // const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
 const LINKEDIN_URL = 'https://www.linkedin.com/in/shaul-bar-lev/'
 const CV_URL = '/shaul-bar-lev-cv.pdf'
@@ -447,7 +460,25 @@ function ProjectModal({
 }
 
 function App() {
-  const projects = useMemo(() => PROJECTS, [])
+  const projects = useMemo(() => {
+    const byId = new Map(PROJECTS.map((p) => [p.id, p] as const))
+    const ordered: Project[] = []
+
+    for (const id of PROJECT_ORDER) {
+      const p = byId.get(id)
+      if (p) {
+        ordered.push(p)
+        byId.delete(id)
+      }
+    }
+
+    // Append any projects that weren't explicitly ordered
+    for (const p of byId.values()) {
+      ordered.push(p)
+    }
+
+    return ordered
+  }, [])
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     const raw = window.location.hash.replace('#', '')
