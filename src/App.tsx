@@ -203,6 +203,7 @@ function ProjectVideoGrid({
         const lone = isLoneInTwoColGrid(idx, videos.length)
         const isHorizontal = v.orientation === 'horizontal'
         const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
+        const isFirst = idx === 0
         return (
           <div
             key={v.src}
@@ -228,7 +229,9 @@ function ProjectVideoGrid({
                 controls
                 preload="metadata"
                 poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
-                muted={projectId === 'pikud-haoled'}
+                muted={isFirst || projectId === 'pikud-haoled'}
+                autoPlay={isFirst}
+                playsInline
               >
                 <source src={mediaUrl(v.src)} type="video/mp4" />
               </video>
