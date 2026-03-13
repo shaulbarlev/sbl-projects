@@ -23,7 +23,7 @@ const PROJECT_ORDER: string[] = [
   'midi-controller',
 ]
 
-// const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
+const INSTAGRAM_URL = 'https://www.instagram.com/barlevshaul'
 const LINKEDIN_URL = 'https://www.linkedin.com/in/shaul-bar-lev/'
 const CV_URL = '/shaul-bar-lev-cv.pdf'
 
@@ -565,7 +565,7 @@ function App() {
               <a href={"https://shaulbarlev.com"} target="_blank" rel="noreferrer" className="hover:underline cursor-pointer transition">film & art projects</a>
             </p>
             <div className="mt-2 flex items-center gap-3">
-              {/* <a
+              <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noreferrer"
@@ -573,7 +573,7 @@ function App() {
                 aria-label="Instagram"
               >
                 <i className="hn hn-instagram text-2xl text-red-500/40 hover:text-red-500/70" aria-hidden />
-              </a> */}
+              </a>
               <a
                 href={LINKEDIN_URL}
                 target="_blank"
