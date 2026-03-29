@@ -1,3 +1,27 @@
+/**
+ * Ordered media for the project detail grid (videos and images interleaved in one list).
+ * - Video: embed URL or file under /public; optional poster and orientation.
+ * - Image: static image with alt text.
+ */
+export type ProjectMediaVideo = {
+  type: 'video'
+  kind: 'embed' | 'file'
+  src: string
+  title?: string
+  thumbnail?: string
+  orientation?: 'vertical' | 'horizontal'
+}
+
+export type ProjectMediaImage = {
+  type: 'image'
+  src: string
+  alt: string
+  /** How the image fills its cell; default is cover (cropped). Use contain to show the full image letterboxed. */
+  objectFit?: 'cover' | 'contain'
+}
+
+export type ProjectMediaItem = ProjectMediaVideo | ProjectMediaImage
+
 export type Project = {
   id: string
   title: string
@@ -6,16 +30,8 @@ export type Project = {
   tags?: string[]
   /** Thumbnail image shown in the grid */
   thumbnail: { src: string; alt: string }
-  /**
-   * Videos for the detail view (any number).
-   * - Prefer YouTube/Vimeo embed URLs (kind: 'embed').
-   * - Or local files under /public (kind: 'file', e.g. mp4).
-   * - thumbnail: optional poster image (e.g. frame JPG alongside the video).
-   * - orientation: 'vertical' (default) or 'horizontal' for aspect ratio.
-   */
-  videos?: Array<{ kind: 'embed' | 'file'; src: string; title?: string; thumbnail?: string; orientation?: 'vertical' | 'horizontal' }>
-  /** Additional images for the detail view */
-  images?: Array<{ src: string; alt: string }>
+  /** Detail view: videos and images in display order */
+  media?: ProjectMediaItem[]
   /** Long-form description (supports simple line breaks) */
   description?: string
   links?: Array<{ label: string; href: string }>
@@ -32,13 +48,11 @@ export const PROJECTS: Project[] = [
       src: '/doorlock/IMG_6527-0001.png',
       alt: 'Smart door lock',
     },
-    videos: [
-      { kind: 'file', src: '/doorlock/IMG_4804-1.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
-      { kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
-      { kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
-    ],
-    images: [
-      { src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
+    media: [
+      { type: 'video', kind: 'file', src: '/doorlock/IMG_4804-1.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_4804.jpg' },
+      { type: 'video', kind: 'file', src: '/doorlock/IMG_6527-2.mp4', title: 'Smart door lock', thumbnail: '/doorlock/IMG_6527-2.jpg' },
+      { type: 'video', kind: 'file', src: '/doorlock/doorlockcad.mp4', title: 'Door lock CAD', thumbnail: '/doorlock/doorlockcad.jpg' },
+      { type: 'image', src: '/doorlock/IMG_6527-0001.png', alt: 'Smart door lock' },
     ],
     description:
       `I wanted to be able to leave the house without carrying a key. Sure, there are off-the-shelf products like Nuki that do this, but I thought it would be a cool project to build my own door lock add-on from scratch.
@@ -56,7 +70,7 @@ When the motor is unpowered, it's loose enough that the key can turn it freely. 
 ## Electronics and Control
 
 On the electronics side, the heart of the system is the ESP32 running ESPHome. I added an OLED screen to show the lock state and a button mounted on a 3D-printed case that lets you toggle the lock from inside the house.`,
-  },  
+  },
   {
     id: 'levitating-bulb',
     title: 'Adding WiFi to a magnetically levitating bulb',
@@ -67,14 +81,12 @@ On the electronics side, the heart of the system is the ESP32 running ESPHome. I
       src: '/bulb/IMG_6165.jpg',
       alt: 'Levitating bulb project',
     },
-    videos: [
-      { kind: 'file', src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4', title: 'Levitating bulb smart WiFi gadget', thumbnail: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.jpg' },
-    ],
-    images: [
-      { src: '/bulb/IMG_8898.jpg', alt: 'Levitating bulb' },
-      { src: '/bulb/IMG_6163.jpg', alt: 'Bulb base and wiring' },
-      { src: '/bulb/IMG_6164.jpg', alt: 'Bulb detail' },
-      { src: '/bulb/IMG_6165.jpg', alt: 'Bulb and base' },
+    media: [
+      { type: 'video', kind: 'file', src: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.mp4', title: 'Levitating bulb smart WiFi gadget', thumbnail: '/bulb/3BAAFDA7-5638-4767-AB94-CEA05092F11D.jpg' },
+      { type: 'image', src: '/bulb/IMG_8898.jpg', alt: 'Levitating bulb' },
+      { type: 'image', src: '/bulb/IMG_6163.jpg', alt: 'Bulb base and wiring' },
+      { type: 'image', src: '/bulb/IMG_6164.jpg', alt: 'Bulb detail' },
+      { type: 'image', src: '/bulb/IMG_6165.jpg', alt: 'Bulb and base' },
     ],
     description:
       `My roommate got this cool levitating bulb from AliExpress. It was a neat little showpiece for our living room. The only catch? We placed it somewhere that made its glow reflect on the TV whenever it was on, which was unacceptable for me.
@@ -116,16 +128,14 @@ I'm thinking about making the capacitive touch button usable again by routing it
       src: '/pacman/IMG_5093.jpg',
       alt: 'Pac-Man joystick controller',
     },
-    videos: [
-      { kind: 'file', src: '/pacman/IMG_0306.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0306.jpg' },
-      { kind: 'file', src: '/pacman/IMG_0310.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0310.jpg' },
-      { kind: 'file', src: '/pacman/IMG_0315.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0315.jpg' },
-      { kind: 'file', src: '/pacman/IMG_4296.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4296.jpg' },
-      { kind: 'file', src: '/pacman/IMG_4810.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4810.jpg' },
-      { kind: 'file', src: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.mp4', title: 'Pacman controller', thumbnail: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.jpg' },
-    ],
-    images: [
-      { src: '/pacman/IMG_5093.jpg', alt: 'Pac-Man joystick controller' },
+    media: [
+      { type: 'video', kind: 'file', src: '/pacman/IMG_0306.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0306.jpg' },
+      { type: 'video', kind: 'file', src: '/pacman/IMG_0310.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0310.jpg' },
+      { type: 'video', kind: 'file', src: '/pacman/IMG_0315.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_0315.jpg' },
+      { type: 'video', kind: 'file', src: '/pacman/IMG_4296.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4296.jpg' },
+      { type: 'video', kind: 'file', src: '/pacman/IMG_4810.mp4', title: 'Pacman controller', thumbnail: '/pacman/IMG_4810.jpg' },
+      { type: 'video', kind: 'file', src: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.mp4', title: 'Pacman controller', thumbnail: '/pacman/6ba31dce-68ea-4598-8884-aafd5ce831b2.jpg' },
+      { type: 'image', src: '/pacman/IMG_5093.jpg', alt: 'Pac-Man joystick controller' },
     ],
     description:
       `This little project started with an old plug-and-play video game joystick I used to have. It was a Pac-Man-themed joystick that output RCA straight to the TV, something I played with when I was little. I thought it would be fun to turn it into something my nephew could enjoy.
@@ -150,10 +160,10 @@ What started as a simple joystick hack turned into something bigger. We ended up
       src: '/comfy/comfythumb.jpg',
       alt: 'Comfy keyboard',
     },
-    videos: [
-      { kind: 'file', src: '/comfy/IMG_9080.mp4', title: 'Comfy keyboard smart home controller', thumbnail: '/comfy/IMG_9080.jpg' },
+    media: [
+      { type: 'video', kind: 'file', src: '/comfy/IMG_9080.mp4', title: 'Comfy keyboard smart home controller', thumbnail: '/comfy/IMG_9080.jpg' },
+      { type: 'image', src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' },
     ],
-    images: [{ src: '/comfy/IMG_6170.jpg', alt: 'Comfy keyboard' }],
     description:
       `## The Idea
 
@@ -196,11 +206,9 @@ I coded it up in Python and made a small proof of concept, and you can see it in
       src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg',
       alt: 'ZigBee bell',
     },
-    videos: [
-      { kind: 'file', src: '/bell/IMG_4696.mp4', title: 'ZigBee bell', thumbnail: '/bell/IMG_4696.jpg' },
-    ],
-    images: [
-      { src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
+    media: [
+      { type: 'video', kind: 'file', src: '/bell/IMG_4696.mp4', title: 'ZigBee bell', thumbnail: '/bell/IMG_4696.jpg' },
+      { type: 'image', src: '/bell/Screenshot%202026-03-08%20at%200.53.02.jpg', alt: 'ZigBee bell' },
     ],
     description:
       `We had a bell, and I wanted to make it trigger some smart home things.
@@ -225,14 +233,12 @@ I have a problem where the bell becomes a sort of antenna and is way too sensiti
       src: '/electric%20shades/IMG_0097.jpg',
       alt: 'WiFi motorized shades',
     },
-    videos: [
-      { kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.jpg' },
-      { kind: 'file', src: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.jpg' },
-    ],
-    images: [
-      { src: '/electric%20shades/IMG_0097.jpg', alt: 'WiFi shades' },
-      { src: '/electric%20shades/IMG_7392.jpg', alt: 'WiFi shades' },
-      { src: '/electric%20shades/IMG_9192.jpg', alt: 'Shades detail' },
+    media: [
+      { type: 'video', kind: 'file', src: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/AE817EB0-346B-44F5-B551-508E4ABA1E91.jpg' },
+      { type: 'video', kind: 'file', src: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.mp4', title: 'WiFi shades', thumbnail: '/electric%20shades/83D9716A-F87E-4EA0-83F0-4CA489240DEA.jpg' },
+      { type: 'image', src: '/electric%20shades/IMG_0097.jpg', alt: 'WiFi shades' },
+      { type: 'image', src: '/electric%20shades/IMG_7392.jpg', alt: 'WiFi shades' },
+      { type: 'image', src: '/electric%20shades/IMG_9192.jpg', alt: 'Shades detail' },
     ],
     description:
       `I used to live in a room which had lever shades, and I wanted them to open automatically with my alarm. The first step was to find a way to motorize them. I found a small linear actuator that had enough range and was small enough to fit inside the aluminum casing of the window.
@@ -255,12 +261,10 @@ In terms of electronics, it was pretty straightforward: I used a buck converter,
       src: '/midi-controller/IMG_9666.jpg',
       alt: 'Custom MIDI controller with knob and three buttons',
     },
-    videos: [
-      { kind: 'file', src: '/midi-controller/IMG_9666-1.mp4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
-    ],
-    images: [
-      { src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
-      { src: '/midi-controller/IMG_9670-0001.png', alt: 'MIDI controller' },
+    media: [
+      { type: 'video', kind: 'file', src: '/midi-controller/IMG_9666-1.mp4', title: 'MIDI controller', thumbnail: '/midi-controller/IMG_9666.jpg' },
+      { type: 'image', src: '/midi-controller/IMG_9666.jpg', alt: 'MIDI controller' },
+      { type: 'image', src: '/midi-controller/IMG_9670-0001.png', alt: 'MIDI controller' },
     ],
     description:
       `A musician friend needed a simple MIDI peripheral custom-fitted to his needs, with just one knob and three programmable buttons.
@@ -277,18 +281,23 @@ I used an Arduino Leonardo knockoff from AliExpress and the Arduino IDE to set i
       src: '/pikudhaoled/led-end.jpg',
       alt: 'Pikud HaoLED alert light',
     },
-    videos: [
+    media: [
       {
+        type: 'image',
+        src: '/pikudhaoled/news.jpg',
+        alt: 'Reshet 13 news segment with Shaul Bar Lev on Pikud Haoref-related tech (smart shelter headline)',
+        objectFit: 'contain',
+      },
+      {
+        type: 'video',
         kind: 'file',
         src: '/pikudhaoled/led-end.mp4',
         title: 'Pikud HaoLED in action',
         thumbnail: '/pikudhaoled/led-end.jpg',
         orientation: 'vertical',
       },
-    ],
-    images: [
-      { src: '/pikudhaoled/IMG_6254.jpg', alt: 'Pikud HaoLED light' },
-      { src: '/pikudhaoled/IMG_6255.jpg', alt: 'Pikud HaoLED light close-up' },
+      { type: 'image', src: '/pikudhaoled/IMG_6254.jpg', alt: 'Pikud HaoLED light' },
+      { type: 'image', src: '/pikudhaoled/IMG_6255.jpg', alt: 'Pikud HaoLED light close-up' },
     ],
     description:
       `A dead simple IOT light, pre connected to official Pikud Haoref API for visual indication of alerts.
@@ -316,4 +325,3 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     ],
   },
 ]
-

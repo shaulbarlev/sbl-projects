@@ -5,7 +5,7 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
 import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import { Logo } from './Logo'
-import { PROJECTS, type Project } from './projects'
+import { PROJECTS, type Project, type ProjectMediaImage } from './projects'
 
 const SHOW_TAGS_AND_LINKS = false
 const SHOW_YEAR = false
@@ -128,118 +128,135 @@ function useLockBodyScroll(locked: boolean) {
 }
 
 const GALLERY_IMAGE_ASPECT = 'aspect-[3/4]' as const
-function ProjectGallery({
-  images,
+
+function ProjectMediaGrid({
+  media,
+  projectTitle,
+  projectId,
   lightboxTitle,
 }: {
-  images: Array<{ src: string; alt: string }>
+  media: NonNullable<Project['media']>
+  projectTitle: string
+  projectId: string
   lightboxTitle: string
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
+
+  const imageItems = useMemo(
+    () => media.filter((m): m is ProjectMediaImage => m.type === 'image'),
+    [media],
+  )
   const slides = useMemo(
-    () => images.map((img) => ({ src: mediaUrl(img.src), alt: img.alt })),
-    [images],
+    () => imageItems.map((img) => ({ src: mediaUrl(img.src), alt: img.alt })),
+    [imageItems],
+  )
+  const imageCount = imageItems.length
+
+  const firstVideoIndex = useMemo(
+    () => media.findIndex((m) => m.type === 'video'),
+    [media],
   )
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        {images.map((img, idx) => {
-          const lone = isLoneInTwoColGrid(idx, images.length)
+        {media.map((item, idx) => {
+          const lone = isLoneInTwoColGrid(idx, media.length)
+
+          if (item.type === 'image') {
+            const imageOrdinal =
+              media.slice(0, idx).filter((m) => m.type === 'image').length
+            const fitContain = item.objectFit === 'contain'
+            return (
+              <figure
+                key={`image-${item.src}`}
+                className={cx(
+                  lone && 'col-span-2',
+                  !lone && GALLERY_IMAGE_ASPECT,
+                  'overflow-hidden border border-red-500/30',
+                  fitContain ? 'bg-black' : 'bg-black/30',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLightboxIndex(imageOrdinal)
+                    setLightboxOpen(true)
+                  }}
+                  className={
+                    lone
+                      ? 'block w-full cursor-pointer text-left sm:cursor-zoom-in'
+                      : 'flex h-full min-h-0 w-full cursor-pointer items-center justify-center text-left sm:cursor-zoom-in'
+                  }
+                  aria-label={`View image ${imageOrdinal + 1} of ${imageCount} full size`}
+                >
+                  <img
+                    src={mediaUrl(item.src)}
+                    alt={item.alt}
+                    loading="lazy"
+                    className={cx(
+                      fitContain ? 'object-contain' : 'object-cover',
+                      lone
+                        ? 'max-h-96 w-full'
+                        : 'h-full max-h-full w-full max-w-full',
+                    )}
+                  />
+                </button>
+              </figure>
+            )
+          }
+
+          const isHorizontal = item.orientation === 'horizontal'
+          const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
+          const isFirstVideo = idx === firstVideoIndex
           return (
-            <figure
-              key={img.src}
+            <div
+              key={`video-${item.src}`}
               className={cx(
+                'min-w-0 overflow-hidden border border-red-500/40 bg-black/40',
                 lone && 'col-span-2',
-                !lone && GALLERY_IMAGE_ASPECT,
-                'overflow-hidden border border-red-500/30 bg-black/30',
               )}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setLightboxIndex(idx)
-                  setLightboxOpen(true)
-                }}
-                className={lone ? 'block w-full cursor-pointer text-left sm:cursor-zoom-in' : 'h-full w-full cursor-pointer text-left sm:cursor-zoom-in'}
-                aria-label={`View image ${idx + 1} of ${images.length} full size`}
-              >
-                <img
-                  src={mediaUrl(img.src)}
-                  alt={img.alt}
-                  loading="lazy"
-                  className={lone ? 'max-h-96 w-full object-cover' : 'h-full w-full object-cover'}
-                />
-              </button>
-            </figure>
+              {item.kind === 'embed' ? (
+                <div className={`${aspectClass} w-full`}>
+                  <iframe
+                    className="h-full w-full"
+                    src={mediaUrl(item.src)}
+                    title={item.title ?? `${projectTitle} video`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <video
+                  className={`${aspectClass} w-full`}
+                  controls
+                  preload="metadata"
+                  poster={item.thumbnail ? mediaUrl(item.thumbnail) : undefined}
+                  muted={isFirstVideo || projectId === 'pikud-haoled'}
+                  autoPlay={isFirstVideo}
+                  playsInline
+                >
+                  <source src={mediaUrl(item.src)} type="video/mp4" />
+                </video>
+              )}
+            </div>
           )
         })}
       </div>
-      <Lightbox
-        open={lightboxOpen}
-        close={() => setLightboxOpen(false)}
-        index={lightboxIndex}
-        slides={slides}
-        plugins={[Zoom]}
-        aria-label={`${lightboxTitle} image gallery`}
-      />
+      {imageCount > 0 ? (
+        <Lightbox
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          index={lightboxIndex}
+          slides={slides}
+          plugins={[Zoom]}
+          aria-label={`${lightboxTitle} image gallery`}
+        />
+      ) : null}
     </>
-  )
-}
-
-function ProjectVideoGrid({
-  videos,
-  projectTitle,
-  projectId,
-}: {
-  videos: NonNullable<Project['videos']>
-  projectTitle: string
-  projectId: string
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {videos.map((v, idx) => {
-        const lone = isLoneInTwoColGrid(idx, videos.length)
-        const isHorizontal = v.orientation === 'horizontal'
-        const aspectClass = isHorizontal ? 'aspect-video' : 'aspect-[9/16]'
-        const isFirst = idx === 0
-        return (
-          <div
-            key={v.src}
-            className={cx(
-              'min-w-0 overflow-hidden border border-red-500/40 bg-black/40',
-              lone && 'col-span-2',
-            )}
-          >
-            {v.kind === 'embed' ? (
-              <div className={`${aspectClass} w-full`}>
-                <iframe
-                  className="h-full w-full"
-                  src={mediaUrl(v.src)}
-                  title={v.title ?? `${projectTitle} video`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <video
-                className={`${aspectClass} w-full`}
-                controls
-                preload="metadata"
-                poster={v.thumbnail ? mediaUrl(v.thumbnail) : undefined}
-                muted={isFirst || projectId === 'pikud-haoled'}
-                autoPlay={isFirst}
-                playsInline
-              >
-                <source src={mediaUrl(v.src)} type="video/mp4" />
-              </video>
-            )}
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -348,17 +365,11 @@ export function ProjectModal({
                   project.id === 'pikud-haoled' && 'order-2 lg:order-1',
                 )}
               >
-                {project.videos?.length ? (
-                  <ProjectVideoGrid
-                    videos={project.videos}
+                {project.media?.length ? (
+                  <ProjectMediaGrid
+                    media={project.media}
                     projectTitle={project.title}
                     projectId={project.id}
-                  />
-                ) : null}
-
-                {project.images?.length ? (
-                  <ProjectGallery
-                    images={project.images}
                     lightboxTitle={project.title}
                   />
                 ) : null}
