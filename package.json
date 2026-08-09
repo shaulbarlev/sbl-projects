@@ -1,0 +1,40 @@
+{
+  "name": "skin",
+  "version": "1.0.0",
+  "description": "Dynamic redirect target for q.shaulb.com, driven from an iPhone Action Button.",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaulbarlev/skin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shaulbarlev/skin/issues"
+  },
+  "homepage": "https://github.com/shaulbarlev/skin#readme",
+  "dependencies": {
+    "qrcode-generator": "^2.0.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.20.3",
+    "@cloudflare/workers-types": "^5.20260809.1",
+    "jsqr": "^1.4.0",
+    "playwright": "^1.62.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.120.0"
+  },
+  "private": true,
+  "type": "module"
+}
