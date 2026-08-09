@@ -7,10 +7,18 @@ import {
   sessionCookie,
 } from './auth';
 import { adminPage, loginPage, MANIFEST } from './admin/page';
+import { renderMessage } from './message';
 import { qrSvg } from './qr';
-import { resolve, targetToUrl } from './resolve';
+import {
+  describeTarget,
+  resolve,
+  sequenceLive,
+  stepsRemaining,
+  stepTarget,
+  targetToUrl,
+} from './resolve';
 import { DEFAULT_TEMPLATE_ID, renderSplash } from './splash';
-import type { Env, State, StoredFile, Target } from './types';
+import type { Env, Resolution, SequenceStep, State, StoredFile, Target } from './types';
 import { clampDuration, validateUrl } from './validate';
 
 export { RedirectState } from './state';
@@ -21,6 +29,30 @@ export { RedirectState } from './state';
  * a plain redirect and can unfurl the real destination instead.
  */
 const UNFURLER = /bot|crawler|spider|slack|discord|facebookexternalhit|twitterbot|whatsapp|telegram|linkedinbot|preview|skypeuripreview|embedly|quora link preview|redditbot|applebot|pinterest|vkshare|nuzzel|bitlybot|google-inspectiontool/i;
+
+/** Cookie holding a scanner's claim on one sequence step: `<runId>.<index>`. */
+const STEP_COOKIE = 'skin_step';
+const STEP_COOKIE_MAX_AGE = 12 * 60 * 60;
+
+/**
+ * A request that must never consume a sequence step.
+ *
+ * Browsers speculatively fetch links, and iOS/Chrome announce it with these
+ * headers. Without this check a prefetch would silently burn the step meant
+ * for the person actually standing in front of you.
+ */
+function isSpeculative(request: Request): boolean {
+  if (request.method === 'HEAD') return true;
+  const headers = request.headers;
+  const purpose = (
+    headers.get('sec-purpose') ??
+    headers.get('purpose') ??
+    headers.get('x-purpose') ??
+    headers.get('x-moz') ??
+    ''
+  ).toLowerCase();
+  return /prefetch|preview|prerender/.test(purpose);
+}
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -61,42 +93,132 @@ async function handleRedirect(
   ctx: ExecutionContext,
   url: URL,
 ): Promise<Response> {
+  const now = Date.now();
   const state = (await callState(env, 'get')) as State;
-  const resolution = resolve(state, Date.now(), env.FALLBACK_URL);
-  const destination = targetToUrl(resolution.target, url.origin);
+  const agent = request.headers.get('user-agent') ?? '';
+  const isRobot = UNFURLER.test(agent);
 
   // Counted after the response is on its way — telemetry never delays a scan.
   ctx.waitUntil(callState(env, 'hit', {}));
 
-  const agent = request.headers.get('user-agent') ?? '';
-  const wantsSplash = state.splash && !UNFURLER.test(agent);
+  let resolution: Resolution = resolve(state, now, env.FALLBACK_URL);
+  let claimCookie: string | null = null;
 
-  if (wantsSplash) {
+  if (sequenceLive(state, now) && !isRobot) {
+    const claimed = await claimStep(request, env, state, now);
+    if (claimed) {
+      resolution = {
+        source: 'sequence',
+        target: claimed.target,
+        stepIndex: claimed.index,
+        total: state.sequence!.steps.length,
+        expiresAt: state.sequence!.expiresAt,
+      };
+      claimCookie = claimed.cookie;
+    }
+  }
+
+  const headers = new Headers({
+    'cache-control': 'no-store',
+    'referrer-policy': 'no-referrer',
+  });
+  if (claimCookie) headers.append('set-cookie', claimCookie);
+
+  // A text target is the destination, so there is nothing to redirect to and
+  // nothing for a splash to precede.
+  if (resolution.target.kind === 'text') {
+    headers.set('content-type', 'text/html; charset=utf-8');
+    return new Response(renderMessage(resolution.target.text), { headers });
+  }
+
+  const destination = targetToUrl(resolution.target, url.origin);
+
+  if (state.splash && !isRobot) {
+    headers.set('content-type', 'text/html; charset=utf-8');
     return new Response(
       renderSplash(DEFAULT_TEMPLATE_ID, {
         targetUrl: destination,
-        label: resolution.target.kind === 'file' ? resolution.target.name : resolution.target.label,
+        label: describeTarget(resolution.target),
       }),
-      {
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store',
-          'referrer-policy': 'no-referrer',
-        },
-      },
+      { headers },
     );
   }
 
   // 302, never 301: a cached permanent redirect poisons the QR on every device
   // that ever scanned it, and there is no way to un-ring that bell.
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location: destination,
-      'cache-control': 'no-store',
-      'referrer-policy': 'no-referrer',
-    },
-  });
+  headers.set('location', destination);
+  return new Response(null, { status: 302, headers });
+}
+
+/**
+ * Work out which sequence step this visitor gets.
+ *
+ * A step is claimed once per device and then sticks: reloading, locking the
+ * phone, or coming back later shows the same message, because the whole point
+ * is to hold the screen up while four phones get arranged. Only a genuinely new
+ * visitor consumes the next step.
+ */
+async function claimStep(
+  request: Request,
+  env: Env,
+  state: State,
+  now: number,
+): Promise<{ index: number; target: Target; cookie: string | null } | null> {
+  const sequence = state.sequence!;
+
+  const existing = readRequestCookie(request, STEP_COOKIE);
+  if (existing) {
+    const separator = existing.lastIndexOf('.');
+    const runId = existing.slice(0, separator);
+    const index = Number(existing.slice(separator + 1));
+    if (runId === sequence.runId) {
+      const target = stepTarget(state, index);
+      // A stale or forged index falls through to normal resolution rather than
+      // claiming a fresh step, so a tampered cookie cannot drain the queue.
+      if (target) return { index, target, cookie: null };
+      return null;
+    }
+  }
+
+  if (isSpeculative(request)) {
+    // Serve what the next real scanner would get, but do not consume it.
+    const target = stepTarget(state, sequence.cursor);
+    return target ? { index: sequence.cursor, target, cookie: null } : null;
+  }
+
+  const claimed = (await callState(env, 'burn-step', { now })) as {
+    index: number | null;
+    runId?: string;
+  };
+  if (claimed.index === null) return null;
+
+  const target = stepTarget(state, claimed.index);
+  if (!target) return null;
+
+  return {
+    index: claimed.index,
+    target,
+    cookie: [
+      `${STEP_COOKIE}=${claimed.runId}.${claimed.index}`,
+      'Path=/',
+      'HttpOnly',
+      'Secure',
+      // Lax, not Strict: a scan often arrives as a cross-site navigation from
+      // the camera or another app, and Strict would drop the claim.
+      'SameSite=Lax',
+      `Max-Age=${STEP_COOKIE_MAX_AGE}`,
+    ].join('; '),
+  };
+}
+
+function readRequestCookie(request: Request, name: string): string | null {
+  const header = request.headers.get('cookie');
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) return rest.join('=');
+  }
+  return null;
 }
 
 async function serveFile(request: Request, env: Env, path: string): Promise<Response> {
@@ -238,6 +360,33 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     return json(await view(env));
   }
 
+  if (route === 'sequence/steps' && request.method === 'POST') {
+    const body = (await request.json()) as { steps: { target: Target }[] };
+    if (!Array.isArray(body.steps)) return json({ error: 'Malformed steps' }, 400);
+    if (body.steps.length > 24) return json({ error: 'Too many steps (max 24)' }, 400);
+
+    const steps: SequenceStep[] = [];
+    for (const [position, step] of body.steps.entries()) {
+      const target = normaliseTarget(step.target);
+      if ('error' in target) return json({ error: `Step ${position + 1}: ${target.error}` }, 400);
+      steps.push({ id: crypto.randomUUID(), target: target.value });
+    }
+    await callState(env, 'set-steps', { steps });
+    return json(await view(env));
+  }
+
+  if (route === 'sequence/arm' && request.method === 'POST') {
+    const body = (await request.json()) as { durationMs?: number };
+    const expiresAt = now + clampDuration(body.durationMs ?? DEFAULT_SEQUENCE_MS);
+    await callState(env, 'arm-sequence', { now, expiresAt, runId: crypto.randomUUID() });
+    return json(await view(env));
+  }
+
+  if (route === 'sequence/arm' && request.method === 'DELETE') {
+    await callState(env, 'disarm-sequence', {});
+    return json(await view(env));
+  }
+
   if (route === 'splash' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
     await callState(env, 'set-splash', { on: body.on });
@@ -301,18 +450,52 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   return json({ error: 'Not found' }, 404);
 }
 
-/** State plus the resolver's current verdict, so the panel shows live truth. */
+/** Default life of an armed sequence, if the panel does not say otherwise. */
+const DEFAULT_SEQUENCE_MS = 60 * 60 * 1000;
+
+/**
+ * State plus the resolver's current verdict, so the panel shows live truth.
+ *
+ * The sequence is reported separately from `resolution` because a live
+ * sequence has not resolved to anything yet — it resolves per scanner. The
+ * panel needs to show both "the next scan gets step 3 of 4" and "when this is
+ * done, scans go back to main".
+ */
 async function view(env: Env) {
+  const now = Date.now();
   const state = (await callState(env, 'get')) as State;
-  return { ...state, resolution: resolve(state, Date.now(), env.FALLBACK_URL) };
+  return {
+    ...state,
+    resolution: resolve(state, now, env.FALLBACK_URL),
+    sequenceStatus: {
+      live: sequenceLive(state, now),
+      remaining: stepsRemaining(state, now),
+      cursor: state.sequence?.cursor ?? 0,
+      total: state.sequence?.steps.length ?? 0,
+      expiresAt: state.sequence?.expiresAt ?? 0,
+    },
+  };
 }
+
+const MAX_MESSAGE_LENGTH = 280;
 
 function normaliseTarget(target: Target): { value: Target } | { error: string } {
   if (!target || typeof target !== 'object') return { error: 'Missing target' };
+
   if (target.kind === 'file') {
     if (!target.key || !target.name) return { error: 'Malformed file target' };
     return { value: { kind: 'file', key: target.key, name: target.name, label: target.label } };
   }
+
+  if (target.kind === 'text') {
+    const text = String(target.text ?? '').trim();
+    if (!text) return { error: 'Message is empty' };
+    if (text.length > MAX_MESSAGE_LENGTH) {
+      return { error: `Message is longer than ${MAX_MESSAGE_LENGTH} characters` };
+    }
+    return { value: { kind: 'text', text, label: target.label } };
+  }
+
   const result = validateUrl(String(target.url ?? ''));
   if (!result.ok) return { error: result.error! };
   return { value: { kind: 'url', url: result.url!, label: target.label } };

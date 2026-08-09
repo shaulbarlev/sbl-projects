@@ -9,20 +9,25 @@ R2.
 
 ## The model
 
-Two slots:
-
-| slot | lifetime | wins? |
+| layer | lifetime | wins? |
 | --- | --- | --- |
-| **main** | until you change it | served when no temp is live |
+| **sequence** | until spent, or its deadline | intercepts while it has steps left |
 | **temp** | until its deadline | served whenever it is live |
+| **main** | until you change it | the default |
+| fallback | — | only when main was never set |
 
 The resolver is `src/resolve.ts` and it is the whole product:
 
 ```
-temp is set and not expired  ->  temp
-otherwise, main is set       ->  main
-otherwise                    ->  FALLBACK_URL
+sequence armed, unexpired, steps left  ->  next step, one per scanner
+otherwise, temp set and not expired    ->  temp
+otherwise, main is set                 ->  main
+otherwise                              ->  FALLBACK_URL
 ```
+
+A destination is one of three things: a **link**, an uploaded **file**, or a
+**message** — text rendered full-screen. A message is a destination in its own
+right, not a waypoint, so nothing on that page navigates anywhere.
 
 Three things about this are deliberate:
 
@@ -33,6 +38,40 @@ Three things about this are deliberate:
   platform failed, the redirect would still be correct.
 - **The fallback is never an error.** A QR that resolves to a 404 is worse than
   one that resolves somewhere boring.
+
+## Sequence
+
+Hand a different destination to each consecutive scanner. Four friends scan in
+turn, each sees their own message, and when the list runs out scans go back to
+whatever they were doing before.
+
+The counter is the easy part. What makes it usable is what does **not** consume
+a step:
+
+- **A claimed step sticks to that device.** The scanner gets a cookie carrying
+  the run id and their index, so reloading, locking the phone, or coming back
+  later shows the same message. Without this, friend #1 unlocking their phone
+  would start showing friend #2's message and friend #4 would get nothing —
+  which defeats the entire point of holding four phones up at once.
+- **Browser prefetch peeks without claiming.** iOS and Chrome speculatively
+  fetch links and announce it via `Sec-Purpose: prefetch` and friends. Left
+  unhandled, a prefetch eats the step meant for the person in front of you.
+- **`HEAD` requests and link unfurlers never claim.**
+- **A forged or stale cookie falls through** to normal resolution rather than
+  grabbing a fresh step, so tampering cannot drain the queue.
+
+Claims are handed out inside the Durable Object, which is single-threaded, so
+four people scanning at the same instant get four different steps rather than
+racing for the same one.
+
+An armed sequence carries a deadline (default 1 hour, same clamps as temp)
+because one left armed by accident would ambush a stranger scanning the code
+next week. Disarming — or running out of steps — keeps the steps so the same
+sequence can be re-armed for the next group without retyping it. Re-arming
+mints a new run id, which voids every claim from the previous run.
+
+Editing steps mid-run leaves already-claimed positions alone, so you can fix a
+typo in step 4 while steps 1 and 2 are out in the world.
 
 ## Behaviour worth knowing
 
@@ -51,6 +90,23 @@ Three things about this are deliberate:
   panel.
 - **Only main asks for confirmation.** A temp expires on its own; main is the
   one that is still wrong three weeks later.
+
+## The panel
+
+Four tabs, at the bottom of the screen because this is used one-handed on a
+large phone and the top is out of thumb reach. Above them, a status bar that is
+present on every tab — you open this app to *check* as often as to change, and
+the answer should never be more than a glance away.
+
+| tab | what lives there |
+| --- | --- |
+| **Now** | live state, End now / +15m, durations, custom link or message, recents |
+| **Library** | bookmarks and uploaded files, each settable as temp or main |
+| **Sequence** | step editor, arm and disarm, live progress |
+| **Settings** | splash toggle, the QR itself, scan count, export, sign out |
+
+The order is by how often you reach for something. The tab is kept in the URL
+hash, so reload and the back button both behave.
 
 ## Splash
 
@@ -136,7 +192,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 45 tests: resolver truth table, validation, auth, files
+npm test          # 79 tests: resolver truth table, sequence claiming, validation, auth, files
 npm run typecheck
 ```
 
@@ -156,3 +212,7 @@ inconvenience in local testing.
 
 Cloudflare Access, CI/CD, multiple slugs, per-template configuration, and any
 splash template you would actually want a stranger to see.
+
+Sequence steps cannot yet be uploaded files chosen from the Library (links and
+messages only), and a scanner with cookies blocked will claim a new step on
+every reload.

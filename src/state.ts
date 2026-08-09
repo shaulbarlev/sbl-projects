@@ -1,8 +1,10 @@
-import type { Bookmark, MruEntry, State, StoredFile, Target } from './types';
+import { targetKey } from './resolve';
+import type { Bookmark, MruEntry, SequenceStep, State, StoredFile, Target } from './types';
 
 const EMPTY: State = {
   main: null,
   temp: null,
+  sequence: null,
   splash: false,
   bookmarks: [],
   mru: [],
@@ -89,6 +91,81 @@ export class RedirectState implements DurableObject {
         return json(s);
       }
 
+      /* ---------------------------------------------------------- sequence */
+
+      case 'set-steps': {
+        // Editing steps never touches the cursor of a live run, so you can fix
+        // a typo in step 4 while steps 1 and 2 are already claimed.
+        const s = await this.load();
+        const steps = body.steps as SequenceStep[];
+        if (s.sequence) {
+          s.sequence.steps = steps;
+          if (s.sequence.cursor > steps.length) s.sequence.cursor = steps.length;
+        } else {
+          s.sequence = {
+            steps,
+            cursor: steps.length,
+            armedAt: 0,
+            expiresAt: 0,
+            runId: 'idle',
+          };
+        }
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'arm-sequence': {
+        const s = await this.load();
+        if (!s.sequence || s.sequence.steps.length === 0) return json(s);
+        s.sequence = {
+          steps: s.sequence.steps,
+          cursor: 0,
+          armedAt: body.now,
+          expiresAt: body.expiresAt,
+          // A fresh run id: everyone holding a claim from the previous run
+          // loses it, so re-arming really does start over.
+          runId: body.runId,
+        };
+        await this.save(s);
+        await this.state.storage.setAlarm(body.expiresAt);
+        return json(s);
+      }
+
+      case 'disarm-sequence': {
+        const s = await this.load();
+        if (s.sequence) {
+          // Steps survive: disarming is "stop", not "throw away the script".
+          s.sequence.cursor = s.sequence.steps.length;
+          s.sequence.expiresAt = 0;
+        }
+        await this.save(s);
+        return json(s);
+      }
+
+      /**
+       * Claim the next step.
+       *
+       * The Durable Object runs single-threaded, so four friends scanning at
+       * the same instant serialise here and get four different indices. This
+       * is the reason the state lives in a DO and not in KV.
+       */
+      case 'burn-step': {
+        const s = await this.load();
+        const seq = s.sequence;
+        if (
+          !seq ||
+          seq.steps.length === 0 ||
+          seq.expiresAt <= body.now ||
+          seq.cursor >= seq.steps.length
+        ) {
+          return json({ index: null });
+        }
+        const index = seq.cursor;
+        seq.cursor += 1;
+        await this.save(s);
+        return json({ index, runId: seq.runId, total: seq.steps.length });
+      }
+
       case 'set-splash': {
         const s = await this.load();
         s.splash = Boolean(body.on);
@@ -162,19 +239,26 @@ export class RedirectState implements DurableObject {
    * stopped serving this temp the instant it expired.
    */
   async alarm(): Promise<void> {
+    const now = Date.now();
     const s = await this.load();
-    if (s.temp && s.temp.expiresAt <= Date.now()) {
+    let changed = false;
+
+    if (s.temp && s.temp.expiresAt <= now) {
       s.temp = null;
-      await this.save(s);
+      changed = true;
     }
+    if (s.sequence && s.sequence.expiresAt > 0 && s.sequence.expiresAt <= now) {
+      s.sequence.expiresAt = 0;
+      s.sequence.cursor = s.sequence.steps.length;
+      changed = true;
+    }
+    if (changed) await this.save(s);
   }
 }
 
 function pushMru(mru: MruEntry[], target: Target, now: number): MruEntry[] {
-  const id = target.kind === 'url' ? target.url : target.key;
-  const without = mru.filter((e) =>
-    e.target.kind === 'url' ? e.target.url !== id : e.target.key !== id,
-  );
+  const id = targetKey(target);
+  const without = mru.filter((entry) => targetKey(entry.target) !== id);
   return [{ target, at: now }, ...without].slice(0, MRU_MAX);
 }
 

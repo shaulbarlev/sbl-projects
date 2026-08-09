@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolve, targetToUrl } from '../src/resolve';
-import type { State, Target } from '../src/types';
+import { resolve, sequenceLive, stepsRemaining, stepTarget, targetKey, targetToUrl } from '../src/resolve';
+import type { Sequence, State, Target } from '../src/types';
 
 const FALLBACK = 'https://fallback.example.com/';
 const NOW = 1_000_000;
@@ -11,6 +11,7 @@ function state(partial: Partial<State> = {}): State {
   return {
     main: null,
     temp: null,
+    sequence: null,
     splash: false,
     bookmarks: [],
     mru: [],
@@ -79,6 +80,91 @@ describe('resolve', () => {
       FALLBACK,
     );
     expect(result.source).toBe('fallback');
+  });
+});
+
+describe('sequenceLive', () => {
+  const armed = (partial: Partial<Sequence> = {}): Sequence => ({
+    steps: [
+      { id: 'a', target: { kind: 'text', text: 'one' } },
+      { id: 'b', target: { kind: 'text', text: 'two' } },
+    ],
+    cursor: 0,
+    armedAt: 0,
+    expiresAt: NOW + 1,
+    runId: 'run-1',
+    ...partial,
+  });
+
+  it('is live when armed, unexpired, and unspent', () => {
+    expect(sequenceLive(state({ sequence: armed() }), NOW)).toBe(true);
+    expect(stepsRemaining(state({ sequence: armed() }), NOW)).toBe(2);
+  });
+
+  // The deadline exists so a forgotten sequence cannot ambush a stranger
+  // scanning the code next week.
+  it('goes dormant the instant its deadline passes', () => {
+    const sequence = armed({ expiresAt: NOW });
+    expect(sequenceLive(state({ sequence }), NOW - 1)).toBe(true);
+    expect(sequenceLive(state({ sequence }), NOW)).toBe(false);
+    expect(stepsRemaining(state({ sequence }), NOW)).toBe(0);
+  });
+
+  it('goes dormant once every step is claimed', () => {
+    expect(sequenceLive(state({ sequence: armed({ cursor: 2 }) }), NOW)).toBe(false);
+  });
+
+  it('is not live with no steps, and not live when absent', () => {
+    expect(sequenceLive(state({ sequence: armed({ steps: [] }) }), NOW)).toBe(false);
+    expect(sequenceLive(state(), NOW)).toBe(false);
+  });
+
+  it('an expired sequence leaves main resolution untouched', () => {
+    const result = resolve(
+      state({
+        sequence: armed({ expiresAt: NOW - 1 }),
+        main: { target: urlTarget('https://main.example.com/'), setAt: 0 },
+      }),
+      NOW,
+      FALLBACK,
+    );
+    expect(result.source).toBe('main');
+  });
+});
+
+describe('stepTarget', () => {
+  const withSteps = state({
+    sequence: {
+      steps: [
+        { id: 'a', target: { kind: 'text', text: 'one' } },
+        { id: 'b', target: { kind: 'text', text: 'two' } },
+      ],
+      cursor: 0,
+      armedAt: 0,
+      expiresAt: NOW + 1,
+      runId: 'run-1',
+    },
+  });
+
+  it('returns the target at an in-range index', () => {
+    expect(stepTarget(withSteps, 1)).toEqual({ kind: 'text', text: 'two' });
+  });
+
+  // A forged or stale cookie must fall through, never crash and never claim.
+  it.each([-1, 2, 99, 1.5, Number.NaN])('returns null for out-of-range index %s', (index) => {
+    expect(stepTarget(withSteps, index)).toBeNull();
+  });
+
+  it('returns null when there is no sequence at all', () => {
+    expect(stepTarget(state(), 0)).toBeNull();
+  });
+});
+
+describe('targetKey', () => {
+  it('separates the three kinds so recents de-duplicate correctly', () => {
+    expect(targetKey({ kind: 'url', url: 'x' })).toBe('url:x');
+    expect(targetKey({ kind: 'file', key: 'x', name: 'n' })).toBe('file:x');
+    expect(targetKey({ kind: 'text', text: 'x' })).toBe('text:x');
   });
 });
 

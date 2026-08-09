@@ -1,7 +1,8 @@
 import type { Resolution, State, Target } from './types';
 
 /**
- * The single source of truth for "what does the QR point at right now".
+ * The single source of truth for "what does the QR point at right now", for
+ * everything except the sequence.
  *
  * Expiry is evaluated lazily on every read. This is deliberate: the alarm in
  * the Durable Object is a convenience, not a correctness mechanism. If every
@@ -18,8 +19,57 @@ export function resolve(state: State, now: number, fallbackUrl: string): Resolut
   return { source: 'fallback', target: { kind: 'url', url: fallbackUrl } };
 }
 
+/**
+ * Whether a sequence should be intercepting scans right now.
+ *
+ * Same lazy discipline as temp expiry: a sequence is live only if it is armed,
+ * unexpired, and has steps left. Nothing has to have run for this to be true.
+ */
+export function sequenceLive(state: State, now: number): boolean {
+  const sequence = state.sequence;
+  return (
+    !!sequence &&
+    sequence.steps.length > 0 &&
+    sequence.expiresAt > now &&
+    sequence.cursor < sequence.steps.length
+  );
+}
+
+/** How many steps are left to claim. Zero when no sequence is live. */
+export function stepsRemaining(state: State, now: number): number {
+  if (!sequenceLive(state, now)) return 0;
+  return state.sequence!.steps.length - state.sequence!.cursor;
+}
+
+/**
+ * The target for an already-claimed step index, or for a peek at the next one.
+ * Returns null if the index is out of range — a forged or stale cookie must
+ * fall through to normal resolution, never crash.
+ */
+export function stepTarget(state: State, index: number): Target | null {
+  const steps = state.sequence?.steps;
+  if (!steps || !Number.isInteger(index) || index < 0 || index >= steps.length) return null;
+  return steps[index].target;
+}
+
 /** The absolute URL a target resolves to, given the request's own origin. */
 export function targetToUrl(target: Target, origin: string): string {
   if (target.kind === 'url') return target.url;
-  return `${origin}/f/${target.key}/${encodeURIComponent(target.name)}`;
+  if (target.kind === 'file') return `${origin}/f/${target.key}/${encodeURIComponent(target.name)}`;
+  // Text targets are rendered in place; they have no URL to go to.
+  return origin;
+}
+
+/** Stable identity for a target, used to de-duplicate the recents list. */
+export function targetKey(target: Target): string {
+  if (target.kind === 'url') return `url:${target.url}`;
+  if (target.kind === 'file') return `file:${target.key}`;
+  return `text:${target.text}`;
+}
+
+/** A short human description, used in the admin panel and log lines. */
+export function describeTarget(target: Target): string {
+  if (target.kind === 'url') return target.url;
+  if (target.kind === 'file') return target.name;
+  return target.text;
 }
