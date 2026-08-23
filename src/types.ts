@@ -9,7 +9,8 @@
 export type Target =
   | { kind: 'url'; url: string; label?: string }
   | { kind: 'file'; key: string; name: string; label?: string }
-  | { kind: 'text'; text: string; label?: string };
+  | { kind: 'text'; text: string; label?: string }
+  | { kind: 'pool'; poolId: string; label?: string };
 
 export interface Slot {
   target: Target;
@@ -58,6 +59,26 @@ export interface Bookmark {
   createdAt: number;
 }
 
+/**
+ * A set of uploaded images, one of which is served at random per scan.
+ *
+ * `bag` is what makes it feel random rather than merely be random: keys are
+ * drawn from a shuffled bag and not returned until the bag empties, so a set
+ * of three images cannot show the same one twice in a row — which pure random
+ * selection would do a third of the time.
+ */
+export interface Pool {
+  id: string;
+  name: string;
+  /** R2 keys, each also present in `State.files`. */
+  items: string[];
+  /** Keys not yet drawn in the current pass. Refilled and reshuffled when empty. */
+  bag: string[];
+  /** Last key handed out, so a reshuffle cannot repeat across the seam. */
+  lastDrawn?: string;
+  createdAt: number;
+}
+
 export interface StoredFile {
   key: string;
   name: string;
@@ -80,6 +101,7 @@ export interface State {
   bookmarks: Bookmark[];
   mru: MruEntry[];
   files: StoredFile[];
+  pools: Pool[];
   hits: number;
 }
 

@@ -126,6 +126,18 @@ export function adminPage(host: string): string {
     </section>
 
     <section>
+      <h2>Image sets</h2>
+      <p class="sub">Point the code at a set and every scan serves a different image from it.
+        Each image comes up once before any repeats.</p>
+      <div class="list" id="pools"></div>
+      <div class="card stack" style="margin-top:10px">
+        <input type="text" id="pool-name" placeholder="Set name, e.g. Party photos">
+        <button id="pool-add">Create set</button>
+      </div>
+      <input type="file" id="pool-upload" accept="image/*" multiple hidden>
+    </section>
+
+    <section>
       <h2>Files</h2>
       <p class="sub">Uploaded and served from this domain. Nothing is deleted automatically.</p>
       <label class="btn" for="upload-input" style="display:block">Upload a file</label>

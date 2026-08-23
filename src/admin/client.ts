@@ -57,10 +57,18 @@ export const ADMIN_JS = String.raw`
     });
   }
 
+  function findPool(id) {
+    return (state.pools || []).filter(function (p) { return p.id === id; })[0] || null;
+  }
+
   function describe(target) {
     if (!target) return '—';
     if (target.kind === 'url') return target.url;
     if (target.kind === 'file') return target.name;
+    if (target.kind === 'pool') {
+      var pool = findPool(target.poolId);
+      return pool ? pool.name + ' (' + pool.items.length + ' images)' : 'Image set';
+    }
     return '“' + target.text + '”';
   }
 
@@ -68,7 +76,13 @@ export const ADMIN_JS = String.raw`
     if (!target) return '';
     if (target.kind === 'url') return 'link';
     if (target.kind === 'file') return 'file';
+    if (target.kind === 'pool') return 'random image';
     return 'message';
+  }
+
+  function fileName(key) {
+    var file = state.files.filter(function (f) { return f.key === key; })[0];
+    return file ? file.name : key;
   }
 
   function remaining(ms) {
@@ -319,9 +333,90 @@ export const ADMIN_JS = String.raw`
     });
   }
 
+  /**
+   * Image sets. Rendered by hand rather than through renderList because a set
+   * is worth showing as its contents — a wall of filenames tells you nothing
+   * about which photos are in there.
+   */
+  function renderPools() {
+    var host = $('pools');
+    host.innerHTML = '';
+    var pools = state.pools || [];
+
+    if (!pools.length) {
+      var empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No sets yet. Create one, then add images to it.';
+      host.appendChild(empty);
+      return;
+    }
+
+    pools.forEach(function (pool) {
+      var card = document.createElement('div');
+      card.className = 'card pool';
+
+      var head = document.createElement('div');
+      head.className = 'item';
+      head.style.border = '0';
+      head.style.padding = '0';
+
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.innerHTML = esc(pool.name) +
+        '<span class="sub">' + pool.items.length +
+        (pool.items.length === 1 ? ' image' : ' images') + '</span>';
+      head.appendChild(name);
+
+      var target = { kind: 'pool', poolId: pool.id };
+      var temp = button('temp', '', function () { applyTarget(target, 'temp'); });
+      var main = button('main', '', function () { applyTarget(target, 'main'); });
+      // A set with nothing in it cannot serve anything, so offering to point
+      // the code at it would just be a way to break the QR.
+      temp.disabled = main.disabled = pool.items.length === 0;
+      head.appendChild(temp);
+      head.appendChild(main);
+      head.appendChild(button('✕', 'ghost', function () {
+        if (confirm('Delete set "' + pool.name + '"? The images stay in Files.')) {
+          act(api('pools/' + encodeURIComponent(pool.id), null, 'DELETE'), 'Set deleted');
+        }
+      }));
+      card.appendChild(head);
+
+      if (pool.items.length) {
+        var strip = document.createElement('div');
+        strip.className = 'strip';
+        pool.items.forEach(function (key) {
+          var cell = document.createElement('div');
+          cell.className = 'thumb';
+          var img = document.createElement('img');
+          img.src = '/f/' + key + '/' + encodeURIComponent(fileName(key));
+          img.alt = fileName(key);
+          img.loading = 'lazy';
+          cell.appendChild(img);
+          cell.appendChild(button('✕', 'ghost', function () {
+            act(api('pools/' + encodeURIComponent(pool.id) + '/items/' + encodeURIComponent(key),
+              null, 'DELETE'), 'Removed from set');
+          }));
+          strip.appendChild(cell);
+        });
+        card.appendChild(strip);
+      }
+
+      var add = button('Add images', '', function () {
+        uploadingToPool = pool.id;
+        $('pool-upload').click();
+      });
+      add.style.width = '100%';
+      add.style.marginTop = '10px';
+      card.appendChild(add);
+      host.appendChild(card);
+    });
+  }
+
   function render() {
     renderLive();
     renderSequence();
+    renderPools();
     $('splash-toggle').checked = state.splash;
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
@@ -482,6 +577,54 @@ export const ADMIN_JS = String.raw`
       $('step-text').value = '';
       $('step-url').value = '';
     });
+  };
+
+  var uploadingToPool = null;
+
+  function uploadOne(file, poolId) {
+    var query = '?name=' + encodeURIComponent(file.name) +
+      (poolId ? '&pool=' + encodeURIComponent(poolId) : '');
+    return fetch('/_/api/upload' + query, {
+      method: 'POST',
+      headers: { 'x-skin-request': '1', 'content-type': file.type || 'application/octet-stream' },
+      body: file
+    }).then(function (r) {
+      return r.json().then(function (d) {
+        if (!r.ok) throw new Error(d.error || 'Upload failed');
+        return d;
+      });
+    });
+  }
+
+  $('pool-add').onclick = function () {
+    var name = $('pool-name');
+    if (!name.value.trim()) { toast('Name the set first', true); return; }
+    act(api('pools', { name: name.value.trim() }), 'Set created')
+      .then(function () { name.value = ''; });
+  };
+
+  $('pool-upload').onchange = function (event) {
+    var files = Array.prototype.slice.call(event.target.files || []);
+    var poolId = uploadingToPool;
+    event.target.value = '';
+    if (!files.length || !poolId) return;
+
+    // Sequential, not parallel: a dozen phone photos uploaded at once from a
+    // phone connection is a good way to have several of them fail.
+    var done = 0;
+    var status = $('upload-status');
+    var next = function () {
+      if (!files.length) {
+        status.textContent = '';
+        refresh().then(function () { toast(done + ' image' + (done === 1 ? '' : 's') + ' added'); });
+        return;
+      }
+      var file = files.shift();
+      status.textContent = 'Uploading ' + file.name + ' (' + (done + 1) + ' of ' + (done + 1 + files.length) + ')…';
+      uploadOne(file, poolId).then(function () { done++; next(); })
+        .catch(function (err) { status.textContent = ''; toast(err.message, true); });
+    };
+    next();
   };
 
   $('upload-input').onchange = function (event) {

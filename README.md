@@ -25,9 +25,10 @@ otherwise, main is set                 ->  main
 otherwise                              ->  FALLBACK_URL
 ```
 
-A destination is one of three things: a **link**, an uploaded **file**, or a
-**message** — text rendered full-screen. A message is a destination in its own
-right, not a waypoint, so nothing on that page navigates anywhere.
+A destination is one of four things: a **link**, an uploaded **file**, a
+**message** — text rendered full-screen — or an **image set**, which serves a
+different image on every scan. A message is a destination in its own right, not
+a waypoint, so nothing on that page navigates anywhere.
 
 Three things about this are deliberate:
 
@@ -73,6 +74,39 @@ mints a new run id, which voids every claim from the previous run.
 Editing steps mid-run leaves already-claimed positions alone, so you can fix a
 typo in step 4 while steps 1 and 2 are out in the world.
 
+## Image sets
+
+Upload a pile of images, point the code at the set, and every scan serves a
+different one. Create the set in **Library**, then *Add images* — the picker
+takes several at once and uploads them one after another, because a dozen phone
+photos fired off in parallel over a phone connection is a good way to have
+several of them fail.
+
+Images are drawn from a **shuffled bag**, not picked at random: every image in
+the set comes up once before any repeats, and a reshuffle cannot put the same
+image on both sides of the seam. Pure random selection would show a three-image
+set the same picture twice running about a third of the time, which reads as a
+bug rather than as randomness.
+
+The draw happens inside the Durable Object and counts the scan in the same
+round trip, so a set costs no more latency than any other destination and
+concurrent scanners advance one shared bag instead of racing it.
+
+A set is just a fourth kind of destination, so it works anywhere one does —
+including as a sequence step, which gives each person in the queue their own
+random image.
+
+Two things a set must never do, both enforced:
+
+- **An empty set is skipped**, not served. A temp pointing at an empty set
+  falls through to main rather than dead-ending; main pointing at one falls
+  through to the fallback.
+- **Deleting a file removes it from every set that held it**, so a set can
+  never hand out the key of an object that is gone.
+
+Sets reference files in the Library rather than owning them, so deleting a set
+leaves its images alone, and removing an image from a set does not delete it.
+
 ## Behaviour worth knowing
 
 - **302, never 301.** A permanent redirect is cached near-indefinitely by every
@@ -101,7 +135,7 @@ the answer should never be more than a glance away.
 | tab | what lives there |
 | --- | --- |
 | **Now** | live state, End now / +15m, durations, custom link or message, recents |
-| **Library** | bookmarks and uploaded files, each settable as temp or main |
+| **Library** | bookmarks, image sets, and uploaded files, each settable as temp or main |
 | **Sequence** | step editor, arm and disarm, live progress |
 | **Settings** | splash toggle, the QR itself, scan count, export, sign out |
 
@@ -149,6 +183,9 @@ animation entirely, and performs the redirect itself — a template must not.
 | `/_/qr.svg` | you | the QR, always encoding https |
 | `/_/export.json` | you | full state dump |
 
+A scan of an image set redirects to `/f/<key>/<name>` like any other file, so
+sets add no new public route.
+
 State is keyed by slug internally, defaulting to `""`, so a second independent
 QR is a new key rather than a schema migration. There is no UI for that yet.
 
@@ -192,7 +229,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 79 tests: resolver truth table, sequence claiming, validation, auth, files
+npm test          # 95 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
 npm run typecheck
 ```
 
