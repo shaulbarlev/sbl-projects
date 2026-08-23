@@ -118,7 +118,7 @@ export function adminPage(host: string): string {
       <p class="sub">Saved destinations. Tap <b>temp</b> to send there for a while, <b>main</b> to make it the default.</p>
       <div class="list" id="bookmarks"></div>
       <div class="card stack" style="margin-top:10px">
-        <input type="text" id="bm-label" placeholder="Label">
+        <input type="text" id="bm-label" placeholder="Label (optional)">
         <input type="text" id="bm-url" inputmode="url" autocapitalize="off"
                autocorrect="off" spellcheck="false" placeholder="example.com">
         <button id="bm-add">Add bookmark</button>

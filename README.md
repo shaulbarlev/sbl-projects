@@ -197,7 +197,7 @@ cp .dev.vars.example .dev.vars     # local password + session secret
 npm run dev
 ```
 
-Deploying:
+First deploy:
 
 ```sh
 npx wrangler r2 bucket create skin-files
@@ -206,8 +206,15 @@ npx wrangler secret put SESSION_SECRET   # any long random string
 npm run deploy
 ```
 
-Then point `sbl.cx` at the Worker in the Cloudflare dashboard, and set
-`FALLBACK_URL` in `wrangler.toml` to wherever an unconfigured scan should land.
+`FALLBACK_URL` lives in `wrangler.toml`; the `custom_domain` route there
+creates the DNS record, so there is nothing to click in the dashboard.
+
+After that, **pushing to `main` deploys**. `.github/workflows/deploy.yml` runs
+the typecheck and the suite first and stops on a failure — a bad deploy here is
+not a page you roll back before anyone notices, it is a printed card in
+someone's pocket pointing at the wrong place. It needs two repository secrets,
+`CLOUDFLARE_API_TOKEN` (Workers Scripts + Workers R2 + Workers Routes on the
+one zone) and `CLOUDFLARE_ACCOUNT_ID`.
 
 ### Action Button
 
@@ -229,7 +236,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 101 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
+npm test          # 103 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
 npm run typecheck
 ```
 
@@ -247,8 +254,8 @@ inconvenience in local testing.
 
 ## Not built yet
 
-Cloudflare Access, CI/CD, multiple slugs, per-template configuration, and any
-splash template you would actually want a stranger to see.
+Cloudflare Access, multiple slugs, per-template configuration, and any splash
+template you would actually want a stranger to see.
 
 Sequence steps cannot yet be uploaded files chosen from the Library (links and
 messages only), and a scanner with cookies blocked will claim a new step on

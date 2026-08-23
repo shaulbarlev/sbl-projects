@@ -420,7 +420,14 @@ export const ADMIN_JS = String.raw`
     $('splash-toggle').checked = state.splash;
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
-      return { title: b.label, subtitle: describe(b.target), target: b.target, id: b.id };
+      // An unlabelled bookmark shows the destination as its name rather than a
+      // blank row; labelling it only adds the destination underneath.
+      return {
+        title: b.label || describe(b.target),
+        subtitle: b.label ? describe(b.target) : '',
+        target: b.target,
+        id: b.id
+      };
     }), {
       empty: 'No bookmarks yet.',
       onDelete: function (entry) {
@@ -556,7 +563,7 @@ export const ADMIN_JS = String.raw`
   $('bm-add').onclick = function () {
     var label = $('bm-label');
     var url = $('bm-url');
-    if (!label.value.trim() || !url.value.trim()) { toast('Label and URL required', true); return; }
+    if (!url.value.trim()) { toast('URL required', true); return; }
     act(api('bookmarks', { label: label.value.trim(), target: { kind: 'url', url: url.value.trim() } }),
       'Bookmark added').then(function () { label.value = ''; url.value = ''; });
   };

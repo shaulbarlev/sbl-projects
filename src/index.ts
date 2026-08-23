@@ -422,13 +422,15 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   }
 
   if (route === 'bookmarks' && request.method === 'POST') {
-    const body = (await request.json()) as { label: string; target: Target };
+    const body = (await request.json()) as { label?: string; target: Target };
     const target = normaliseTarget(body.target);
     if ('error' in target) return json({ error: target.error }, 400);
-    if (!body.label?.trim()) return json({ error: 'Label is required' }, 400);
+    // The label is optional. Most bookmarks are a URL you recognise on sight,
+    // and forcing a name on one is a second field to fill on a phone for no
+    // gain — the panel falls back to describing the target itself.
     await callState(env, 'add-bookmark', {
       id: crypto.randomUUID(),
-      label: body.label.trim(),
+      label: String(body.label ?? '').trim(),
       target: target.value,
       now,
     });

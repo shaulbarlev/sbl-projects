@@ -247,6 +247,20 @@ describe('bookmarks and qr', () => {
     expect(removed.bookmarks).toHaveLength(0);
   });
 
+  it('accepts a bookmark with no label at all', async () => {
+    const added = await (await SELF.fetch(`${ORIGIN}/_/api/bookmarks`,
+      authed(cookie, { target: { kind: 'url', url: 'example.com/unnamed' } }))).json() as any;
+    expect(added.bookmarks).toHaveLength(1);
+    expect(added.bookmarks[0].label).toBe('');
+    expect(added.bookmarks[0].target.url).toBe('https://example.com/unnamed');
+  });
+
+  it('still rejects a bookmark with no usable target', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/bookmarks`,
+      authed(cookie, { label: 'Nowhere', target: { kind: 'url', url: '' } }));
+    expect(response.status).toBe(400);
+  });
+
   it('records recently used targets', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/main`,
       authed(cookie, { target: { kind: 'url', url: 'https://recent.example.com/' } }));
