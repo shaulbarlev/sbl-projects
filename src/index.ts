@@ -120,11 +120,18 @@ async function handleRedirect(
 
   // An image set resolves to a different file on every scan. The draw happens
   // in the Durable Object so that concurrent scanners advance the same bag
-  // instead of racing, and it counts the hit in the same round trip so a set
-  // scan costs no more latency than any other.
+  // instead of racing over it.
+  //
+  // A draw is consumable, exactly like a sequence step, so it gets the same
+  // guards: an unfurler previewing the link in a chat, a browser prefetching
+  // it, and a HEAD request all *peek* at the image the next real scanner will
+  // get without taking it. Without this, pasting the code into a group chat
+  // burns an image per preview — and the person who then scans sees a repeat,
+  // which is precisely what the shuffled bag exists to prevent.
   let served: Target = resolution.target;
   if (served.kind === 'pool') {
-    const drawn = (await callState(env, 'pool-draw', { poolId: served.poolId })) as {
+    const peek = isRobot || isSpeculative(request);
+    const drawn = (await callState(env, 'pool-draw', { poolId: served.poolId, peek })) as {
       key: string | null;
     };
     const file = drawn.key ? state.files.find((f) => f.key === drawn.key) : null;
@@ -134,10 +141,10 @@ async function handleRedirect(
       // The set emptied out from under us between read and draw.
       served = { kind: 'url', url: env.FALLBACK_URL };
     }
-  } else {
-    // Counted after the response is on its way — telemetry never delays a scan.
-    ctx.waitUntil(callState(env, 'hit', {}));
   }
+
+  // Counted after the response is on its way — telemetry never delays a scan.
+  ctx.waitUntil(callState(env, 'hit', {}));
 
   const headers = new Headers({
     'cache-control': 'no-store',

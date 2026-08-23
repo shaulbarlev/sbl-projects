@@ -277,9 +277,13 @@ export class RedirectState implements DurableObject {
         const s = await this.load();
         const pool = s.pools.find((p) => p.id === body.poolId);
         if (!pool || pool.items.length === 0) {
-          s.hits += 1;
-          await this.save(s);
           return json({ key: null });
+        }
+        // A peek reports what the next real scan would get and changes
+        // nothing: no pop, no reshuffle, no write. Requests that must not
+        // consume a step must not consume a draw either.
+        if (body.peek) {
+          return json({ key: pool.bag[pool.bag.length - 1] ?? pool.items[0] });
         }
         if (pool.bag.length === 0) {
           pool.bag = pool.items.slice();
@@ -293,7 +297,6 @@ export class RedirectState implements DurableObject {
         }
         const key = pool.bag.pop()!;
         pool.lastDrawn = key;
-        s.hits += 1;
         await this.save(s);
         return json({ key, remaining: pool.bag.length });
       }

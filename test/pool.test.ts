@@ -26,10 +26,11 @@ function authed(cookie: string, body?: unknown, method?: string): RequestInit {
   };
 }
 
-function scan(): Promise<Response> {
+function scan(extraHeaders: Record<string, string> = {}, method = 'GET'): Promise<Response> {
   return SELF.fetch(ORIGIN, {
+    method,
     redirect: 'manual',
-    headers: { 'user-agent': 'Mozilla/5.0 (iPhone) Safari/605.1' },
+    headers: { 'user-agent': 'Mozilla/5.0 (iPhone) Safari/605.1', ...extraHeaders },
   });
 }
 
@@ -265,6 +266,60 @@ describe('managing sets', () => {
     const response = await SELF.fetch(`${ORIGIN}/_/api/main`,
       authed(cookie, { target: { kind: 'pool' } }));
     expect(response.status).toBe(400);
+  });
+});
+
+describe('what must not consume a draw', () => {
+  /**
+   * A draw is consumable in exactly the way a sequence step is, so it carries
+   * the same guards. `peekedKey` asks what the next real scanner would get
+   * without taking it, which is also the assertion these tests need.
+   */
+  async function peekedKey(): Promise<string | null> {
+    const response = await scan({ 'sec-purpose': 'prefetch' });
+    return (response.headers.get('location') ?? '').match(/\/f\/([0-9a-f]+)\//)?.[1] ?? null;
+  }
+
+  async function pointAtSet(images: number): Promise<void> {
+    const poolId = await makePool('Photos', images);
+    await SELF.fetch(`${ORIGIN}/_/api/temp`,
+      authed(cookie, { target: { kind: 'pool', poolId }, durationMs: 3600_000 }));
+  }
+
+  it('a browser prefetch peeks at the next image without taking it', async () => {
+    await pointAtSet(4);
+    const peeked = await peekedKey();
+    expect(await scannedKey()).toBe(peeked);
+  });
+
+  it('link unfurlers preview the image the next scanner will get', async () => {
+    await pointAtSet(4);
+    const peeked = await peekedKey();
+
+    // Pasting the code into a group chat can fire several of these at once.
+    await scan({ 'user-agent': 'WhatsApp/2.0' });
+    await scan({ 'user-agent': 'Slackbot-LinkExpanding 1.0' });
+    await scan({ 'user-agent': 'facebookexternalhit/1.1' });
+
+    expect(await scannedKey()).toBe(peeked);
+  });
+
+  it('a HEAD request does not consume an image', async () => {
+    await pointAtSet(4);
+    const peeked = await peekedKey();
+    await scan({}, 'HEAD');
+    expect(await scannedKey()).toBe(peeked);
+  });
+
+  it('a peek does not disturb the no-repeat guarantee of the pass', async () => {
+    await pointAtSet(3);
+    const drawn: (string | null)[] = [];
+    for (let i = 0; i < 3; i++) {
+      await scan({ 'sec-purpose': 'prefetch' });
+      await scan({ 'user-agent': 'Twitterbot/1.0' });
+      drawn.push(await scannedKey());
+    }
+    expect(new Set(drawn).size).toBe(3);
   });
 });
 

@@ -229,7 +229,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 97 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
+npm test          # 101 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
 npm run typecheck
 ```
 
