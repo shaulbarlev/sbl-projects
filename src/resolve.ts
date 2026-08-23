@@ -20,19 +20,30 @@ export function resolve(state: State, now: number, fallbackUrl: string): Resolut
 }
 
 /**
- * Whether a sequence should be intercepting scans right now.
+ * Whether a sequence *run* is still current: armed and unexpired, whether or
+ * not any steps are left to hand out.
  *
- * Same lazy discipline as temp expiry: a sequence is live only if it is armed,
- * unexpired, and has steps left. Nothing has to have run for this to be true.
+ * This is the gate for serving a scan, and it is deliberately looser than
+ * `sequenceLive`. The last step being claimed does not end the run — the three
+ * people already holding a claim must keep seeing their own message until the
+ * deadline. Gating on `sequenceLive` here meant friend #4 scanning yanked the
+ * message off friends #1-#3 the moment they locked and unlocked their phone,
+ * which is the exact failure the sticky claim exists to prevent.
+ */
+export function sequenceRunOpen(state: State, now: number): boolean {
+  const sequence = state.sequence;
+  return !!sequence && sequence.steps.length > 0 && sequence.expiresAt > now;
+}
+
+/**
+ * Whether a sequence still has a step to give the next new scanner.
+ *
+ * Same lazy discipline as temp expiry: nothing has to have run for this to be
+ * true. This is what the panel means by "armed"; it is not what decides
+ * whether a given request is served from the sequence.
  */
 export function sequenceLive(state: State, now: number): boolean {
-  const sequence = state.sequence;
-  return (
-    !!sequence &&
-    sequence.steps.length > 0 &&
-    sequence.expiresAt > now &&
-    sequence.cursor < sequence.steps.length
-  );
+  return sequenceRunOpen(state, now) && state.sequence!.cursor < state.sequence!.steps.length;
 }
 
 /** How many steps are left to claim. Zero when no sequence is live. */

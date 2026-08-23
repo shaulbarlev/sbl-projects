@@ -13,6 +13,7 @@ import {
   describeTarget,
   resolve,
   sequenceLive,
+  sequenceRunOpen,
   stepsRemaining,
   stepTarget,
   targetToUrl,
@@ -104,7 +105,9 @@ async function handleRedirect(
   let resolution: Resolution = resolve(state, now, env.FALLBACK_URL);
   let claimCookie: string | null = null;
 
-  if (sequenceLive(state, now) && !isRobot) {
+  // sequenceRunOpen, not sequenceLive: a scanner who already holds a claim
+  // keeps their step even after the last one has been handed out.
+  if (sequenceRunOpen(state, now) && !isRobot) {
     const claimed = await claimStep(request, env, state, now);
     if (claimed) {
       resolution = {

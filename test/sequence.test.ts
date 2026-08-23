@@ -105,6 +105,24 @@ describe('the four-friends scenario', () => {
     expect(await second.text()).toContain('second!');
   });
 
+  it('keeps a claimed step after the last step has been handed out', async () => {
+    await setUpFourStepSequence();
+
+    const first = await scan();
+    expect(await first.text()).toContain('you are first');
+    const claim = claimOf(first);
+
+    // Friends 2, 3 and 4 scan. The sequence is now spent — but the run is not
+    // over, and #1 is still holding their phone up.
+    await scan();
+    await scan();
+    await scan();
+
+    const reload = await scan({ cookie: claim });
+    expect(await reload.text()).toContain('you are first');
+    expect(reload.headers.get('set-cookie')).toBeNull();
+  });
+
   it('gives four simultaneous scanners four different steps', async () => {
     await setUpFourStepSequence();
 
@@ -241,6 +259,26 @@ describe('arming, disarming, expiry', () => {
     const status = await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json() as any;
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
     expect(status.sequenceStatus.expiresAt - Date.now()).toBeLessThanOrEqual(sevenDays + 1000);
+  });
+
+  it('adding a step to a spent run does not silently re-arm it', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/sequence/steps`, authed(cookie, {
+      steps: [{ target: { kind: 'text', text: 'only one' } }],
+    }));
+    await SELF.fetch(`${ORIGIN}/_/api/sequence/arm`, authed(cookie, { durationMs: 3600_000 }));
+    await scan();
+
+    const edited = await (await SELF.fetch(`${ORIGIN}/_/api/sequence/steps`, authed(cookie, {
+      steps: [
+        { target: { kind: 'text', text: 'only one' } },
+        { target: { kind: 'text', text: 'added later' } },
+      ],
+    }))).json() as any;
+    expect(edited.sequenceStatus.live).toBe(false);
+
+    // The deadline has not passed, so without the guard this scan would be
+    // ambushed by a step nobody armed.
+    expect((await scan()).status).toBe(302);
   });
 
   it('editing steps mid-run leaves already-claimed positions alone', async () => {
