@@ -321,7 +321,7 @@ const { file } = await uploaded.json();
 // Deliberately a `url` target pinned to BASE rather than a `file` target:
 // under `wrangler dev` the configured custom_domain route makes the Worker see
 // its production hostname, so a file target would resolve to
-// https://q.shaulb.com/f/... and be unreachable from here. That origin
+// https://sbl.cx/f/... and be unreachable from here. That origin
 // derivation is correct in production; this sidesteps it so the check measures
 // the splash handoff itself.
 const destination = `${BASE}/f/${file.key}/${file.name}`;

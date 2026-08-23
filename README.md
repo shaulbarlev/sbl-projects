@@ -1,6 +1,6 @@
 # skin
 
-A dynamic redirect for one QR code. `q.shaulb.com` is a printed, permanent
+A dynamic redirect for one QR code. `sbl.cx` is a printed, permanent
 address; where it *points* is changed in a couple of taps from an iPhone Action
 Button.
 
@@ -111,7 +111,7 @@ leaves its images alone, and removing an image from a set does not delete it.
 
 - **302, never 301.** A permanent redirect is cached near-indefinitely by every
   device that ever scanned the code, and cannot be taken back.
-- **Unknown paths resolve too.** `q.shaulb.com/anything` goes where `/` goes, so
+- **Unknown paths resolve too.** `sbl.cx/anything` goes where `/` goes, so
   a stray character in a scan still lands.
 - **Link unfurlers skip the splash** and get a plain 302, so pasting the URL
   into a chat previews the real destination.
@@ -206,12 +206,12 @@ npx wrangler secret put SESSION_SECRET   # any long random string
 npm run deploy
 ```
 
-Then point `q.shaulb.com` at the Worker in the Cloudflare dashboard, and set
+Then point `sbl.cx` at the Worker in the Cloudflare dashboard, and set
 `FALLBACK_URL` in `wrangler.toml` to wherever an unconfigured scan should land.
 
 ### Action Button
 
-Shortcuts → new shortcut → *Open URL* → `https://q.shaulb.com/_/` → assign to
+Shortcuts → new shortcut → *Open URL* → `https://sbl.cx/_/` → assign to
 the Action Button. The session cookie lasts 30 days, so it opens straight into
 the panel. Use `/_/?reset=1` instead for a shortcut that kills a live temp on
 sight.
@@ -229,7 +229,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 95 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
+npm test          # 97 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
 npm run typecheck
 ```
 
@@ -242,7 +242,7 @@ node scripts/ui-check.mjs http://127.0.0.1:8787 <your-dev-password>
 
 Note that under `wrangler dev` the configured `custom_domain` route makes the
 Worker see its production hostname, so locally-resolved file targets point at
-`https://q.shaulb.com/f/...`. That is correct in production and only an
+`https://sbl.cx/f/...`. That is correct in production and only an
 inconvenience in local testing.
 
 ## Not built yet

@@ -1,7 +1,7 @@
 {
   "name": "skin",
   "version": "1.0.0",
-  "description": "Dynamic redirect target for q.shaulb.com, driven from an iPhone Action Button.",
+  "description": "Dynamic redirect target for sbl.cx, driven from an iPhone Action Button.",
   "directories": {
     "test": "test"
   },

@@ -8,13 +8,13 @@ const HEAD = `<meta charset="utf-8">
 <meta name="theme-color" content="#09090b">
 <link rel="manifest" href="/_/manifest.webmanifest">`;
 
-export function loginPage(error?: string): string {
+export function loginPage(host: string, error?: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>${HEAD}<title>skin · sign in</title><style>${ADMIN_CSS}</style></head>
 <body style="padding-bottom:0">
 <form class="login card" method="POST" action="/_/login">
-  <h2 style="margin:0;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)">q.shaulb.com</h2>
+  <h2 style="margin:0;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)">${escapeHtml(host)}</h2>
   ${error ? `<p style="color:var(--warn);font-size:14px;margin:0">${escapeHtml(error)}</p>` : ''}
   <label class="field">Password
     <input type="password" name="password" autocomplete="current-password" autofocus required>

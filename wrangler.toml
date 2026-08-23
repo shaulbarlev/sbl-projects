@@ -2,9 +2,9 @@ name = "q-redirect"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 
-# The QR points here. One DNS record on the existing shaulb.com zone.
+# The QR points here. One DNS record on the existing sbl.cx zone.
 routes = [
-  { pattern = "q.shaulb.com", custom_domain = true }
+  { pattern = "sbl.cx", custom_domain = true }
 ]
 
 [vars]

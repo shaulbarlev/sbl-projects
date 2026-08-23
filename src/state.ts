@@ -100,8 +100,12 @@ export class RedirectState implements DurableObject {
         const s = await this.load();
         const steps = body.steps as SequenceStep[];
         if (s.sequence) {
+          // A spent run stays spent. Otherwise appending a step to a sequence
+          // that has already run out — but whose deadline has not passed —
+          // would silently re-arm it and ambush the next scanner.
+          const spent = s.sequence.cursor >= s.sequence.steps.length;
           s.sequence.steps = steps;
-          if (s.sequence.cursor > steps.length) s.sequence.cursor = steps.length;
+          if (spent || s.sequence.cursor > steps.length) s.sequence.cursor = steps.length;
         } else {
           s.sequence = {
             steps,
