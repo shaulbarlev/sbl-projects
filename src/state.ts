@@ -1,5 +1,5 @@
 import { targetKey } from './resolve';
-import type { Bookmark, MruEntry, SequenceStep, State, StoredFile, Target } from './types';
+import type { Bookmark, MruEntry, Pool, SequenceStep, State, StoredFile, Target } from './types';
 
 const EMPTY: State = {
   main: null,
@@ -9,6 +9,7 @@ const EMPTY: State = {
   bookmarks: [],
   mru: [],
   files: [],
+  pools: [],
   hits: 0,
 };
 
@@ -207,8 +208,97 @@ export class RedirectState implements DurableObject {
       case 'remove-file': {
         const s = await this.load();
         s.files = s.files.filter((f) => f.key !== body.key);
+        // A set holding a key whose object is gone would serve a 404 to
+        // whoever draws it, so deletion has to reach into the sets too.
+        for (const pool of s.pools) {
+          pool.items = pool.items.filter((key) => key !== body.key);
+          pool.bag = pool.bag.filter((key) => key !== body.key);
+        }
         await this.save(s);
         return json(s);
+      }
+
+      /* ------------------------------------------------------- image sets */
+
+      case 'add-pool': {
+        const s = await this.load();
+        const pool: Pool = {
+          id: body.id,
+          name: body.name,
+          items: [],
+          bag: [],
+          createdAt: body.now,
+        };
+        s.pools = [...s.pools, pool];
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'remove-pool': {
+        const s = await this.load();
+        s.pools = s.pools.filter((pool) => pool.id !== body.id);
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'pool-add-item': {
+        const s = await this.load();
+        const pool = s.pools.find((p) => p.id === body.poolId);
+        if (pool && !pool.items.includes(body.key)) {
+          pool.items.push(body.key);
+          // Drop it into the current bag too, so a newly added image can come
+          // up before the whole pass finishes rather than waiting it out.
+          pool.bag.push(body.key);
+          shuffle(pool.bag);
+        }
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'pool-remove-item': {
+        const s = await this.load();
+        const pool = s.pools.find((p) => p.id === body.poolId);
+        if (pool) {
+          pool.items = pool.items.filter((key) => key !== body.key);
+          pool.bag = pool.bag.filter((key) => key !== body.key);
+        }
+        await this.save(s);
+        return json(s);
+      }
+
+      /**
+       * Draw the next image, and count the scan in the same round trip.
+       *
+       * Drawing from a shuffled bag rather than picking at random means every
+       * image in the set is shown once before any repeats — with three images,
+       * pure random would show the same one twice running a third of the time.
+       */
+      case 'pool-draw': {
+        const s = await this.load();
+        const pool = s.pools.find((p) => p.id === body.poolId);
+        if (!pool || pool.items.length === 0) {
+          return json({ key: null });
+        }
+        // A peek reports what the next real scan would get and changes
+        // nothing: no pop, no reshuffle, no write. Requests that must not
+        // consume a step must not consume a draw either.
+        if (body.peek) {
+          return json({ key: pool.bag[pool.bag.length - 1] ?? pool.items[0] });
+        }
+        if (pool.bag.length === 0) {
+          pool.bag = pool.items.slice();
+          shuffle(pool.bag);
+          // Guard the seam between passes. Without this the last image of one
+          // pass and the first of the next can be the same, which is the one
+          // repeat a bag is supposed to rule out.
+          if (pool.items.length > 1 && pool.bag[pool.bag.length - 1] === pool.lastDrawn) {
+            pool.bag.unshift(pool.bag.pop()!);
+          }
+        }
+        const key = pool.bag.pop()!;
+        pool.lastDrawn = key;
+        await this.save(s);
+        return json({ key, remaining: pool.bag.length });
       }
 
       case 'login-guard': {
@@ -257,6 +347,14 @@ export class RedirectState implements DurableObject {
       changed = true;
     }
     if (changed) await this.save(s);
+  }
+}
+
+/** Fisher-Yates, in place, seeded from the platform CSPRNG. */
+function shuffle(items: string[]): void {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [items[i], items[j]] = [items[j], items[i]];
   }
 }
 

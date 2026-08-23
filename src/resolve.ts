@@ -1,4 +1,22 @@
-import type { Resolution, State, Target } from './types';
+import type { Pool, Resolution, State, Target } from './types';
+
+export function findPool(state: State, poolId: string): Pool | null {
+  return state.pools?.find((pool) => pool.id === poolId) ?? null;
+}
+
+/**
+ * Whether a target can actually produce something to serve.
+ *
+ * Only image sets can fail this: a set that is empty, or whose every image has
+ * since been deleted, has nothing to hand a scanner. Such a target is skipped
+ * so resolution falls through to the next layer, rather than dead-ending on a
+ * slot that looks configured but cannot deliver.
+ */
+export function isServable(state: State, target: Target): boolean {
+  if (target.kind !== 'pool') return true;
+  const pool = findPool(state, target.poolId);
+  return !!pool && pool.items.length > 0;
+}
 
 /**
  * The single source of truth for "what does the QR point at right now", for
@@ -10,10 +28,10 @@ import type { Resolution, State, Target } from './types';
  */
 export function resolve(state: State, now: number, fallbackUrl: string): Resolution {
   const temp = state.temp;
-  if (temp && temp.expiresAt > now) {
+  if (temp && temp.expiresAt > now && isServable(state, temp.target)) {
     return { source: 'temp', target: temp.target, expiresAt: temp.expiresAt };
   }
-  if (state.main) {
+  if (state.main && isServable(state, state.main.target)) {
     return { source: 'main', target: state.main.target };
   }
   return { source: 'fallback', target: { kind: 'url', url: fallbackUrl } };
@@ -63,11 +81,22 @@ export function stepTarget(state: State, index: number): Target | null {
   return steps[index].target;
 }
 
-/** The absolute URL a target resolves to, given the request's own origin. */
+/** The URL that serves one stored file. */
+export function fileUrl(key: string, name: string, origin: string): string {
+  return `${origin}/f/${key}/${encodeURIComponent(name)}`;
+}
+
+/**
+ * The absolute URL a target resolves to, given the request's own origin.
+ *
+ * Pool targets are not resolvable here — which image they serve is decided by
+ * drawing from the bag in the Durable Object, so the caller must do that first
+ * and pass the drawn file as a `file` target.
+ */
 export function targetToUrl(target: Target, origin: string): string {
   if (target.kind === 'url') return target.url;
-  if (target.kind === 'file') return `${origin}/f/${target.key}/${encodeURIComponent(target.name)}`;
-  // Text targets are rendered in place; they have no URL to go to.
+  if (target.kind === 'file') return fileUrl(target.key, target.name, origin);
+  // Text is rendered in place and pool is resolved upstream; neither has a URL.
   return origin;
 }
 
@@ -75,12 +104,17 @@ export function targetToUrl(target: Target, origin: string): string {
 export function targetKey(target: Target): string {
   if (target.kind === 'url') return `url:${target.url}`;
   if (target.kind === 'file') return `file:${target.key}`;
+  if (target.kind === 'pool') return `pool:${target.poolId}`;
   return `text:${target.text}`;
 }
 
 /** A short human description, used in the admin panel and log lines. */
-export function describeTarget(target: Target): string {
+export function describeTarget(target: Target, state?: State): string {
   if (target.kind === 'url') return target.url;
   if (target.kind === 'file') return target.name;
+  if (target.kind === 'pool') {
+    const pool = state ? findPool(state, target.poolId) : null;
+    return pool ? `${pool.name} (${pool.items.length} images)` : 'Image set';
+  }
   return target.text;
 }

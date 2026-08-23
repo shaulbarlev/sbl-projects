@@ -199,6 +199,28 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
 .item.claimed .idx { background: var(--seq); color: #fff; }
 .item.next { border-color: var(--seq); box-shadow: 0 0 0 1px var(--seq); }
 
+/* ------------------------------------------------------------ image sets */
+.pool + .pool { margin-top: 8px; }
+.strip {
+  display: flex; gap: 6px; margin-top: 10px;
+  overflow-x: auto; padding-bottom: 4px;
+  /* The set can hold plenty; it scrolls sideways rather than pushing the
+     Files section off the bottom of the screen. */
+  -webkit-overflow-scrolling: touch;
+}
+.thumb { position: relative; flex: 0 0 auto; }
+.thumb img {
+  width: 64px; height: 64px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--line); display: block;
+  background: var(--field);
+}
+.thumb button {
+  position: absolute; top: -6px; right: -6px;
+  min-height: 22px; height: 22px; width: 22px; padding: 0;
+  border-radius: 50%; font-size: 12px; line-height: 1;
+  background: var(--ink); color: var(--bg); border-color: var(--ink);
+}
+
 .empty {
   font-size: 13px; color: var(--faint);
   padding: 10px; text-align: center;

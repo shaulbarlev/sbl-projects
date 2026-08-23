@@ -5,6 +5,7 @@
  *
  * Usage: node scripts/ui-check.mjs [baseUrl] [password]
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:8787';
@@ -58,6 +59,9 @@ await setup('sequence/arm', undefined, 'DELETE');
 await setup('sequence/steps', { steps: [] });
 await setup('temp', undefined, 'DELETE');
 await setup('splash', { on: false });
+for (const pool of (await (await setup('state')).json()).pools ?? []) {
+  await setup(`pools/${pool.id}`, undefined, 'DELETE');
+}
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.getElementById('live-url')?.textContent !== 'loading');
 
@@ -203,6 +207,88 @@ await page.waitForFunction(() =>
   !document.getElementById('seq-state')?.textContent?.includes('Armed'), null, { timeout: 10000 });
 check('disarm stops it without discarding the steps',
   (await page.locator('#steps .item').count()) === 4);
+
+// --- image sets -----------------------------------------------------------
+// Four real 1x1 PNGs in distinguishable colours, written to disk so the file
+// picker has something genuine to pick.
+const SWATCHES = {
+  'red.png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'green.png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhQGAWpvsMgAAAABJRU5ErkJggg==',
+  'blue.png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'white.png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADklEQVR42mP8//9/PQAJewN+0zEEkwAAAABJRU5ErkJggg==',
+};
+const swatchDir = `${OUT}/swatches`;
+mkdirSync(swatchDir, { recursive: true });
+const swatchPaths = Object.entries(SWATCHES).map(([name, b64]) => {
+  const path = `${swatchDir}/${name}`;
+  writeFileSync(path, Buffer.from(b64, 'base64'));
+  return path;
+});
+
+await page.click('#tab-library');
+await page.fill('#pool-name', 'Party photos');
+await page.click('#pool-add');
+await page.waitForFunction(() =>
+  document.querySelectorAll('#pools .pool').length > 0, null, { timeout: 10000 });
+check('a set can be created', true);
+
+// A set with nothing in it cannot serve a scan, so pointing the code at it
+// would just break the QR.
+check('an empty set cannot be set as a destination',
+  await page.locator('#pools .pool button:has-text("temp")').first().isDisabled());
+
+// Through the real button and the real file chooser: the handler needs to know
+// which set it is uploading into, and setting the input directly would skip
+// exactly that step.
+const chooser = page.waitForEvent('filechooser');
+await page.locator('#pools .pool button:has-text("Add images")').first().click();
+await (await chooser).setFiles(swatchPaths);
+await page.waitForFunction(() =>
+  document.querySelectorAll('#pools .thumb').length === 4, null, { timeout: 30000 });
+check('four images upload into the set in one go', true);
+check('the set is now selectable',
+  !(await page.locator('#pools .pool button:has-text("temp")').first().isDisabled()));
+await page.screenshot({ path: `${OUT}/09-image-set.png`, fullPage: true });
+
+await page.locator('#pools .pool button:has-text("temp")').first().click();
+await page.waitForFunction(() =>
+  document.getElementById('live-url')?.textContent?.includes('Party photos'), null,
+  { timeout: 10000 });
+check('the live card names the set and its size', true, await page.textContent('#live-url'));
+
+// Eight scans over a four-image set: every image once per pass, and never the
+// same image twice running.
+const drawn = [];
+for (let i = 0; i < 8; i++) {
+  const response = await context.request.get(`${BASE}/`, {
+    maxRedirects: 0,
+    headers: { 'user-agent': 'Mozilla/5.0 (iPhone) Safari/605.1' },
+  });
+  drawn.push((response.headers()['location'] ?? '').match(/\/f\/([0-9a-f]+)\//)?.[1]);
+}
+check('scans serve images from the set', drawn.every(Boolean));
+check('each pass shows all four images',
+  new Set(drawn.slice(0, 4)).size === 4 && new Set(drawn.slice(4)).size === 4);
+check('no image repeats back to back',
+  drawn.every((key, i) => i === 0 || key !== drawn[i - 1]),
+  drawn.map((k) => k?.slice(0, 4)).join(' '));
+
+// And the image really renders, rather than merely being redirected to.
+const viewer = await context.newPage();
+await viewer.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+const rendered = await viewer.evaluate(() => {
+  const img = document.querySelector('img');
+  return img ? { w: img.naturalWidth, h: img.naturalHeight } : null;
+});
+check('the drawn image actually decodes in the browser',
+  !!rendered && rendered.w > 0, JSON.stringify(rendered));
+await viewer.close();
+
+// Teardown, not an assertion — "End now" is exercised in the temp section
+// above. Clicking it here races the live card's re-render for no benefit.
+await setup('temp', undefined, 'DELETE');
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForFunction(() => document.getElementById('live-url')?.textContent !== 'loading');
 
 // --- splash toggle --------------------------------------------------------
 await page.click('#tab-settings');

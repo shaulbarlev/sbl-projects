@@ -99,9 +99,6 @@ async function handleRedirect(
   const agent = request.headers.get('user-agent') ?? '';
   const isRobot = UNFURLER.test(agent);
 
-  // Counted after the response is on its way — telemetry never delays a scan.
-  ctx.waitUntil(callState(env, 'hit', {}));
-
   let resolution: Resolution = resolve(state, now, env.FALLBACK_URL);
   let claimCookie: string | null = null;
 
@@ -121,6 +118,34 @@ async function handleRedirect(
     }
   }
 
+  // An image set resolves to a different file on every scan. The draw happens
+  // in the Durable Object so that concurrent scanners advance the same bag
+  // instead of racing over it.
+  //
+  // A draw is consumable, exactly like a sequence step, so it gets the same
+  // guards: an unfurler previewing the link in a chat, a browser prefetching
+  // it, and a HEAD request all *peek* at the image the next real scanner will
+  // get without taking it. Without this, pasting the code into a group chat
+  // burns an image per preview — and the person who then scans sees a repeat,
+  // which is precisely what the shuffled bag exists to prevent.
+  let served: Target = resolution.target;
+  if (served.kind === 'pool') {
+    const peek = isRobot || isSpeculative(request);
+    const drawn = (await callState(env, 'pool-draw', { poolId: served.poolId, peek })) as {
+      key: string | null;
+    };
+    const file = drawn.key ? state.files.find((f) => f.key === drawn.key) : null;
+    if (file) {
+      served = { kind: 'file', key: file.key, name: file.name };
+    } else {
+      // The set emptied out from under us between read and draw.
+      served = { kind: 'url', url: env.FALLBACK_URL };
+    }
+  }
+
+  // Counted after the response is on its way — telemetry never delays a scan.
+  ctx.waitUntil(callState(env, 'hit', {}));
+
   const headers = new Headers({
     'cache-control': 'no-store',
     'referrer-policy': 'no-referrer',
@@ -129,19 +154,19 @@ async function handleRedirect(
 
   // A text target is the destination, so there is nothing to redirect to and
   // nothing for a splash to precede.
-  if (resolution.target.kind === 'text') {
+  if (served.kind === 'text') {
     headers.set('content-type', 'text/html; charset=utf-8');
-    return new Response(renderMessage(resolution.target.text), { headers });
+    return new Response(renderMessage(served.text), { headers });
   }
 
-  const destination = targetToUrl(resolution.target, url.origin);
+  const destination = targetToUrl(served, url.origin);
 
   if (state.splash && !isRobot) {
     headers.set('content-type', 'text/html; charset=utf-8');
     return new Response(
       renderSplash(DEFAULT_TEMPLATE_ID, {
         targetUrl: destination,
-        label: describeTarget(resolution.target),
+        label: describeTarget(served, state),
       }),
       { headers },
     );
@@ -440,7 +465,43 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
       uploadedAt: now,
     };
     await callState(env, 'add-file', { file });
+
+    // Uploading straight into a set is the common case for this feature —
+    // otherwise adding twelve photos means twelve uploads plus twelve
+    // separate "add to set" taps.
+    const poolId = url.searchParams.get('pool');
+    if (poolId) await callState(env, 'pool-add-item', { poolId, key });
+
     return json({ state: await view(env), file });
+  }
+
+  if (route === 'pools' && request.method === 'POST') {
+    const body = (await request.json()) as { name?: string };
+    const name = String(body.name ?? '').trim();
+    if (!name) return json({ error: 'Name is required' }, 400);
+    await callState(env, 'add-pool', { id: crypto.randomUUID(), name, now });
+    return json(await view(env));
+  }
+
+  if (route.startsWith('pools/') && request.method === 'DELETE') {
+    const rest = route.slice('pools/'.length);
+    const [poolId, section, key] = rest.split('/').map(decodeURIComponent);
+
+    if (section === 'items' && key) {
+      // Removing an image from a set leaves the file itself in the Library.
+      await callState(env, 'pool-remove-item', { poolId, key });
+      return json(await view(env));
+    }
+    await callState(env, 'remove-pool', { id: poolId });
+    return json(await view(env));
+  }
+
+  if (route.startsWith('pools/') && route.endsWith('/items') && request.method === 'POST') {
+    const poolId = decodeURIComponent(route.slice('pools/'.length, -'/items'.length));
+    const body = (await request.json()) as { key?: string };
+    if (!body.key) return json({ error: 'Missing file key' }, 400);
+    await callState(env, 'pool-add-item', { poolId, key: body.key });
+    return json(await view(env));
   }
 
   if (route.startsWith('files/') && request.method === 'DELETE') {
@@ -488,6 +549,11 @@ function normaliseTarget(target: Target): { value: Target } | { error: string } 
   if (target.kind === 'file') {
     if (!target.key || !target.name) return { error: 'Malformed file target' };
     return { value: { kind: 'file', key: target.key, name: target.name, label: target.label } };
+  }
+
+  if (target.kind === 'pool') {
+    if (!target.poolId) return { error: 'Malformed image set target' };
+    return { value: { kind: 'pool', poolId: target.poolId, label: target.label } };
   }
 
   if (target.kind === 'text') {
