@@ -187,7 +187,7 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
   background: var(--card);
 }
 .item .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
-.item .sub { display: block; font-size: 12px; color: var(--faint); }
+.item .sub, .sheet-head .sub { display: block; font-size: 12px; color: var(--faint); }
 .item button { min-height: 36px; padding: 6px 10px; flex: 0 0 auto; font-size: 14px; }
 .item .idx {
   flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
@@ -268,6 +268,39 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
   font-size: 10px; line-height: 16px;
 }
 
+/* ------------------------------------------------------------ send sheet */
+/* Anchored to the bottom, above the tab bar: this is the one control the
+   thumb has to reach on a large phone held one-handed. */
+#sheet-backdrop {
+  position: fixed; inset: 0; z-index: 9;
+  background: rgba(0,0,0,.45);
+}
+#sheet {
+  position: fixed; left: 0; right: 0; z-index: 10;
+  bottom: calc(var(--bar) + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 32px rgba(0,0,0,.35);
+  transform: translateY(100%);
+  transition: transform .18s ease-out;
+  max-height: 78vh; overflow-y: auto;
+}
+#sheet.open { transform: translateY(0); }
+.sheet-grab {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--line); margin: 2px auto 10px;
+}
+.sheet-head {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding-bottom: 12px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-head .name { flex: 1 1 auto; min-width: 0; }
+.sheet-head .ghost { flex: 0 0 auto; }
+#sheet .row > button { flex: 1 1 0; }
+
 /* ---------------------------------------------------------------- toast */
 #toast {
   position: fixed; left: 50%; z-index: 20;
@@ -275,9 +308,19 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
   transform: translateX(-50%) translateY(180%);
   background: var(--ink); color: var(--bg);
   padding: 10px 16px; border-radius: 999px; font-size: 14px;
-  transition: transform .2s; max-width: 90vw; text-align: center;
+  max-width: 90vw; text-align: center;
+  /* Slid out of the way is not the same as gone: an empty toast is still a
+     black lozenge, and 180% of its own small height did not clear the tab
+     bar. Visibility hides it outright between messages, delayed so the slide
+     out still plays. */
+  visibility: hidden; pointer-events: none;
+  transition: transform .2s, visibility 0s .2s;
 }
-#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.show {
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
+  transition: transform .2s;
+}
 #toast.err { background: var(--warn); color: #fff; }
 
 /* ---------------------------------------------------------------- login */

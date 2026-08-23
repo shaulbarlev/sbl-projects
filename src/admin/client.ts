@@ -12,7 +12,8 @@ export const ADMIN_JS = String.raw`
   var duration = 60;
   var seqDuration = 60;
   var customMode = 'link';
-  var stepMode = 'message';
+  var sheetTarget = null;
+  var sheetOnDone = null;
   var TABS = ['now', 'library', 'sequence', 'settings'];
 
   /* ------------------------------------------------------------- plumbing */
@@ -104,6 +105,7 @@ export const ADMIN_JS = String.raw`
 
   function showTab(name) {
     if (TABS.indexOf(name) < 0) name = 'now';
+    if (typeof closeSheet === 'function' && !$('sheet').hidden) closeSheet();
     TABS.forEach(function (id) {
       $('panel-' + id).hidden = id !== name;
       $('tab-' + id).setAttribute('aria-selected', String(id === name));
@@ -250,8 +252,7 @@ export const ADMIN_JS = String.raw`
         (entry.subtitle ? '<span class="sub">' + esc(entry.subtitle) + '</span>' : '');
       row.appendChild(name);
 
-      row.appendChild(button('temp', '', function () { applyTarget(entry.target, 'temp'); }));
-      row.appendChild(button('main', '', function () { applyTarget(entry.target, 'main'); }));
+      row.appendChild(button('Send', '', function () { openSheet(entry.target); }));
 
       if (options.onDelete) {
         row.appendChild(button('✕', 'ghost', function () { options.onDelete(entry); }));
@@ -297,7 +298,7 @@ export const ADMIN_JS = String.raw`
     if (!steps.length) {
       var empty = document.createElement('p');
       empty.className = 'empty';
-      empty.textContent = 'No steps. Add one below.';
+      empty.textContent = 'No steps yet. Pick one in Destinations and choose "Add to sequence".';
       host.appendChild(empty);
       return;
     }
@@ -368,13 +369,11 @@ export const ADMIN_JS = String.raw`
       head.appendChild(name);
 
       var target = { kind: 'pool', poolId: pool.id };
-      var temp = button('temp', '', function () { applyTarget(target, 'temp'); });
-      var main = button('main', '', function () { applyTarget(target, 'main'); });
+      var send = button('Send', '', function () { openSheet(target); });
       // A set with nothing in it cannot serve anything, so offering to point
       // the code at it would just be a way to break the QR.
-      temp.disabled = main.disabled = pool.items.length === 0;
-      head.appendChild(temp);
-      head.appendChild(main);
+      send.disabled = pool.items.length === 0;
+      head.appendChild(send);
       head.appendChild(button('✕', 'ghost', function () {
         if (confirm('Delete set "' + pool.name + '"? The images stay in Files.')) {
           act(api('pools/' + encodeURIComponent(pool.id), null, 'DELETE'), 'Set deleted');
@@ -465,12 +464,52 @@ export const ADMIN_JS = String.raw`
       // Main is the slot that is still wrong three weeks later. Temp expires on
       // its own, so only this one earns a confirmation step.
       if (!confirm('Set MAIN destination to:\n\n' + describe(target) +
-        '\n\nThis persists until you change it.')) return;
-      act(api('main', { target: target }), 'Main set');
-    } else {
-      act(api('temp', { target: target, durationMs: duration * 60000 }),
-        'Temporary for ' + duration + 'm');
+        '\n\nThis persists until you change it.')) return null;
+      return act(api('main', { target: target }), 'Main set');
     }
+    return act(api('temp', { target: target, durationMs: duration * 60000 }),
+      'Temporary for ' + duration + 'm');
+  }
+
+  /* ----------------------------------------------------------------- sheet */
+
+  /**
+   * Open the send sheet for a target.
+   *
+   * Everything that can be pointed at goes through here, so "where does this
+   * go" is asked once, in one place, in thumb reach — rather than each list
+   * growing its own pair of slot buttons and each slot growing its own
+   * composer. onDone lets the caller clean up after a successful send; the
+   * composer uses it to clear its inputs.
+   */
+  function openSheet(target, onDone) {
+    if (!target) return;
+    sheetTarget = target;
+    sheetOnDone = onDone || null;
+    $('sheet-target').innerHTML = esc(describe(target)) +
+      '<span class="sub" id="sheet-kind">' + kindLabel(target) + '</span>';
+    $('sheet-backdrop').hidden = false;
+    $('sheet').hidden = false;
+    // Next frame, so the transform transition has a start state to move from.
+    requestAnimationFrame(function () { $('sheet').className = 'open'; });
+  }
+
+  function closeSheet() {
+    $('sheet').className = '';
+    $('sheet').hidden = true;
+    $('sheet-backdrop').hidden = true;
+    sheetTarget = null;
+    sheetOnDone = null;
+  }
+
+  /** Run one of the sheet's actions, then close and let the caller tidy up. */
+  function sheetAction(run) {
+    if (!sheetTarget) return;
+    var target = sheetTarget;
+    var done = sheetOnDone;
+    var result = run(target);
+    closeSheet();
+    if (done && result && result.then) result.then(done);
   }
 
   function currentCustomTarget() {
@@ -480,14 +519,6 @@ export const ADMIN_JS = String.raw`
     }
     var url = $('custom-url').value.trim();
     return url ? { kind: 'url', url: url } : null;
-  }
-
-  function sendCustom(slot) {
-    var target = currentCustomTarget();
-    if (!target) { toast('Nothing to send', true); return; }
-    applyTarget(target, slot);
-    $('custom-url').value = '';
-    $('custom-text').value = '';
   }
 
   function saveSteps(steps, okMessage) {
@@ -534,9 +565,19 @@ export const ADMIN_JS = String.raw`
     });
   }
 
+  /** The sheet's primary button states the duration it is about to commit. */
+  function labelTempButton() {
+    var minutes = duration;
+    var text = minutes % 1440 === 0 ? (minutes / 1440) + 'd'
+      : minutes % 60 === 0 ? (minutes / 60) + 'h'
+      : minutes + 'm';
+    $('sheet-temp').textContent = 'Set temporary \u00b7 ' + text;
+  }
+
   pickGroup('[data-duration]', function (btn) {
     duration = Number(btn.dataset.duration);
     $('duration').value = btn.dataset.duration;
+    labelTempButton();
   });
   pickGroup('[data-seqduration]', function (btn) {
     seqDuration = Number(btn.dataset.seqduration);
@@ -546,19 +587,39 @@ export const ADMIN_JS = String.raw`
     $('custom-url').hidden = customMode !== 'link';
     $('custom-text').hidden = customMode !== 'message';
   });
-  pickGroup('[data-stepmode]', function (btn) {
-    stepMode = btn.dataset.stepmode;
-    $('step-text').hidden = stepMode !== 'message';
-    $('step-url').hidden = stepMode !== 'link';
-  });
-
   $('duration').oninput = function () {
     var value = Number($('duration').value);
-    if (value > 0) duration = value;
+    if (value > 0) { duration = value; labelTempButton(); }
   };
 
-  $('send-temp').onclick = function () { sendCustom('temp'); };
-  $('send-main').onclick = function () { sendCustom('main'); };
+  $('custom-send').onclick = function () {
+    var target = currentCustomTarget();
+    if (!target) { toast('Nothing to send', true); return; }
+    openSheet(target, function () {
+      $('custom-url').value = '';
+      $('custom-text').value = '';
+    });
+  };
+
+  $('sheet-temp').onclick = function () {
+    sheetAction(function (target) { return applyTarget(target, 'temp'); });
+  };
+  $('sheet-main').onclick = function () {
+    // applyTarget returns null when the confirm is declined, so the sheet
+    // closes without the composer being cleared behind a cancelled action.
+    sheetAction(function (target) { return applyTarget(target, 'main'); });
+  };
+  $('sheet-seq').onclick = function () {
+    sheetAction(function (target) {
+      var steps = (state.sequence ? state.sequence.steps : []).concat([{ target: target }]);
+      return saveSteps(steps, 'Added as step ' + steps.length);
+    });
+  };
+  $('sheet-close').onclick = closeSheet;
+  $('sheet-backdrop').onclick = closeSheet;
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
+  });
 
   $('bm-add').onclick = function () {
     var label = $('bm-label');
@@ -566,24 +627,6 @@ export const ADMIN_JS = String.raw`
     if (!url.value.trim()) { toast('URL required', true); return; }
     act(api('bookmarks', { label: label.value.trim(), target: { kind: 'url', url: url.value.trim() } }),
       'Bookmark added').then(function () { label.value = ''; url.value = ''; });
-  };
-
-  $('step-add').onclick = function () {
-    var target;
-    if (stepMode === 'message') {
-      var text = $('step-text').value.trim();
-      if (!text) { toast('Message is empty', true); return; }
-      target = { kind: 'text', text: text };
-    } else {
-      var url = $('step-url').value.trim();
-      if (!url) { toast('Link is empty', true); return; }
-      target = { kind: 'url', url: url };
-    }
-    var steps = (state.sequence ? state.sequence.steps : []).concat([{ target: target }]);
-    saveSteps(steps, 'Step added').then(function () {
-      $('step-text').value = '';
-      $('step-url').value = '';
-    });
   };
 
   var uploadingToPool = null;
@@ -652,7 +695,7 @@ export const ADMIN_JS = String.raw`
       state = data.state;
       render();
       status.textContent = '';
-      toast('Uploaded — pick temp or main below');
+      toast('Uploaded — Send it from the list below');
     }).catch(function (err) { status.textContent = ''; toast(err.message, true); });
     event.target.value = '';
   };

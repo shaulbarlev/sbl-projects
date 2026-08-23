@@ -73,23 +73,17 @@ export function adminPage(host: string): string {
     </section>
 
     <section>
-      <h2>Send somewhere temporarily</h2>
-      <p class="sub">Reverts on its own. Pick how long, then choose a destination.</p>
-      <div class="card">
-        <div class="grid4">
-          <button class="chip" data-duration="15">15m</button>
-          <button class="chip primary" data-duration="60">1h</button>
-          <button class="chip" data-duration="240">4h</button>
-          <button class="chip" data-duration="1440">24h</button>
-        </div>
-        <label class="field" style="margin-top:10px">Or minutes (max 7 days)
-          <input type="text" id="duration" inputmode="numeric" value="60">
-        </label>
-      </div>
+      <h2>Recent</h2>
+      <p class="sub">The last few things this code pointed at. Tap one to send it again.</p>
+      <div class="list" id="mru"></div>
     </section>
+  </div>
 
+  <!-- ================================================= LIBRARY ========= -->
+  <div class="panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden>
     <section>
-      <h2>Custom destination</h2>
+      <h2>Something new</h2>
+      <p class="sub">Type a destination and send it without saving it first.</p>
       <div class="card stack">
         <div class="row">
           <button id="mode-link" class="primary" data-mode="link">Link</button>
@@ -98,24 +92,13 @@ export function adminPage(host: string): string {
         <input type="text" id="custom-url" inputmode="url" autocapitalize="off"
                autocorrect="off" spellcheck="false" placeholder="example.com/page">
         <textarea id="custom-text" hidden placeholder="Text shown full-screen to whoever scans"></textarea>
-        <div class="row">
-          <button id="send-temp" class="primary">Set temporary</button>
-          <button id="send-main">Set as main</button>
-        </div>
+        <button id="custom-send" class="primary">Send&hellip;</button>
       </div>
     </section>
 
     <section>
-      <h2>Recent</h2>
-      <div class="list" id="mru"></div>
-    </section>
-  </div>
-
-  <!-- ================================================= LIBRARY ========= -->
-  <div class="panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden>
-    <section>
       <h2>Bookmarks</h2>
-      <p class="sub">Saved destinations. Tap <b>temp</b> to send there for a while, <b>main</b> to make it the default.</p>
+      <p class="sub">Saved destinations. <b>Send</b> chooses where it goes: temporarily, as the default, or into the sequence.</p>
       <div class="list" id="bookmarks"></div>
       <div class="card stack" style="margin-top:10px">
         <input type="text" id="bm-label" placeholder="Label (optional)">
@@ -157,40 +140,25 @@ export function adminPage(host: string): string {
         <div class="src" id="seq-state">Not armed</div>
         <div class="pips" id="seq-pips" hidden></div>
         <div class="meta" id="seq-meta" style="margin-top:6px"></div>
+        <!-- The deadline belongs to the act of arming, so it sits with the
+             Arm button rather than in a section of its own. -->
+        <p class="hint" style="margin-top:12px">How long it stays armed. A sequence
+          left armed by accident would ambush a stranger scanning next week.</p>
+        <div class="grid4" style="margin-top:6px">
+          <button class="chip" data-seqduration="15">15m</button>
+          <button class="chip primary" data-seqduration="60">1h</button>
+          <button class="chip" data-seqduration="240">4h</button>
+          <button class="chip" data-seqduration="1440">24h</button>
+        </div>
         <div class="row" id="seq-actions" style="margin-top:12px"></div>
       </div>
     </section>
 
     <section>
       <h2>Steps</h2>
+      <p class="sub">Add one from <b>Destinations</b> &mdash; anything you can point the code
+        at can be a step, including a file or an image set.</p>
       <div class="list" id="steps"></div>
-    </section>
-
-    <section>
-      <h2>Add a step</h2>
-      <div class="card stack">
-        <div class="row">
-          <button id="step-mode-message" class="primary" data-stepmode="message">Message</button>
-          <button id="step-mode-link" data-stepmode="link">Link</button>
-        </div>
-        <textarea id="step-text" placeholder="e.g. you are first"></textarea>
-        <input type="text" id="step-url" hidden inputmode="url" autocapitalize="off"
-               autocorrect="off" spellcheck="false" placeholder="example.com/page">
-        <button id="step-add">Add step</button>
-      </div>
-    </section>
-
-    <section>
-      <h2>Arm for</h2>
-      <p class="sub">A safety deadline, so a forgotten sequence cannot ambush a stranger next week.</p>
-      <div class="card">
-        <div class="grid4">
-          <button class="chip" data-seqduration="15">15m</button>
-          <button class="chip primary" data-seqduration="60">1h</button>
-          <button class="chip" data-seqduration="240">4h</button>
-          <button class="chip" data-seqduration="1440">24h</button>
-        </div>
-      </div>
     </section>
   </div>
 
@@ -236,10 +204,40 @@ export function adminPage(host: string): string {
 
 <nav id="tabs" role="tablist" aria-label="Sections">
   ${tab('now', 'Now', ICONS.now, true)}
-  ${tab('library', 'Library', ICONS.library)}
+  ${tab('library', 'Destinations', ICONS.library)}
   ${tab('sequence', 'Sequence', ICONS.sequence)}
   ${tab('settings', 'Settings', ICONS.settings)}
 </nav>
+
+<!--
+  The one place a destination is committed, from wherever it was chosen.
+  Static markup: render() rewrites lists on a 20s timer, and a sheet rebuilt
+  underneath a thumb mid-decision would be worse than no sheet. The target it
+  is acting on lives in a variable, not in the DOM.
+-->
+<div id="sheet-backdrop" hidden></div>
+<div id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-target" hidden>
+  <div class="sheet-grab"></div>
+  <div class="sheet-head">
+    <div class="name" id="sheet-target">&mdash;<span class="sub" id="sheet-kind"></span></div>
+    <button id="sheet-close" class="ghost" aria-label="Close">&#10005;</button>
+  </div>
+
+  <div class="grid4">
+    <button class="chip" data-duration="15">15m</button>
+    <button class="chip primary" data-duration="60">1h</button>
+    <button class="chip" data-duration="240">4h</button>
+    <button class="chip" data-duration="1440">24h</button>
+  </div>
+  <label class="field" style="margin-top:10px">Or minutes (max 7 days)
+    <input type="text" id="duration" inputmode="numeric" value="60">
+  </label>
+  <button id="sheet-temp" class="primary" style="width:100%;margin-top:10px">Set temporary &middot; 1h</button>
+  <div class="row" style="margin-top:8px">
+    <button id="sheet-main">Set as main</button>
+    <button id="sheet-seq" class="seq">Add to sequence</button>
+  </div>
+</div>
 
 <div id="toast" role="status" aria-live="polite"></div>
 <form id="logout-form" method="POST" action="/_/logout" hidden></form>

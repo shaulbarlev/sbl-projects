@@ -132,12 +132,23 @@ large phone and the top is out of thumb reach. Above them, a status bar that is
 present on every tab — you open this app to *check* as often as to change, and
 the answer should never be more than a glance away.
 
+**Tabs hold nouns; there is one verb.** Every destination — typed, bookmarked,
+uploaded, or a whole image set — is committed through a single **Send** sheet
+that rises above the tab bar. That is the only place a slot is chosen, so
+"where does this go" is asked once instead of every list growing its own pair
+of slot buttons and every slot growing its own composer.
+
 | tab | what lives there |
 | --- | --- |
-| **Now** | live state, End now / +15m, durations, custom link or message, recents |
-| **Library** | bookmarks, image sets, and uploaded files, each settable as temp or main |
-| **Sequence** | step editor, arm and disarm, live progress |
+| **Now** | live state, End now / +15m, and recents |
+| **Destinations** | the composer, bookmarks, image sets, uploaded files |
+| **Sequence** | the queue: live progress, arm deadline, arm and disarm, step order |
 | **Settings** | splash toggle, the QR itself, scan count, export, sign out |
+
+The sheet offers temporary (with the duration chips, so the duration lives with
+the act it belongs to), main, and *add to sequence*. Which means a step can now
+be anything a destination can be — a file or an image set, not just a link or a
+message.
 
 The order is by how often you reach for something. The tab is kept in the URL
 hash, so reload and the back button both behave.
@@ -257,6 +268,4 @@ inconvenience in local testing.
 Cloudflare Access, multiple slugs, per-template configuration, and any splash
 template you would actually want a stranger to see.
 
-Sequence steps cannot yet be uploaded files chosen from the Library (links and
-messages only), and a scanner with cookies blocked will claim a new step on
-every reload.
+A scanner with cookies blocked will claim a new step on every reload.

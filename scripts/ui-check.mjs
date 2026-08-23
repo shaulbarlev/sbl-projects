@@ -12,8 +12,13 @@ const BASE = process.argv[2] ?? 'http://127.0.0.1:8787';
 const PASSWORD = process.argv[3] ?? 'devpassword';
 const OUT = process.env.UI_CHECK_OUT ?? '/tmp/ui';
 
-const EXECUTABLE = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const browser = await chromium.launch({ executablePath: EXECUTABLE, args: ['--no-sandbox'] });
+// Playwright's own managed build by default — the previous hard-coded Linux
+// path meant this script only ran on one machine. CHROMIUM_PATH still wins,
+// for a CI image that ships its own browser.
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH || undefined,
+  args: ['--no-sandbox'],
+});
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
@@ -77,10 +82,29 @@ check('tab is reflected in the URL so reload and back work',
   page.url().endsWith('#now'), page.url());
 check('status bar is visible from every tab', await page.isVisible('#status'));
 
-// --- set a temp via the custom field -------------------------------------
-await page.click('[data-duration="15"]');
+/**
+ * Every destination is committed through the one send sheet, so the check
+ * drives it the way a thumb would: Send on the row, then the slot.
+ */
+async function sendVia(openSelector, slot, minutes) {
+  await page.click(openSelector);
+  await page.waitForSelector('#sheet.open', { timeout: 10000 });
+  if (minutes) await page.click(`#sheet [data-duration="${minutes}"]`);
+  await page.click(`#sheet-${slot}`);
+  await page.waitForSelector('#sheet', { state: 'hidden', timeout: 10000 });
+}
+
+// --- set a temp by typing one, then sending it ----------------------------
+await page.click('#tab-library');
 await page.fill('#custom-url', 'example.com/from-ui');
-await page.click('#send-temp');
+await sendVia('#custom-send', 'temp', 15);
+check('the sheet closes after committing', !(await page.isVisible('#sheet')));
+// Cleared on success, not on submit: a rejected URL must leave what you typed
+// on screen rather than making you retype it.
+await page.waitForFunction(() =>
+  document.getElementById('custom-url')?.value === '', null, { timeout: 10000 });
+check('the composer clears itself once the send succeeds', true);
+await page.click('#tab-now');
 await page.waitForFunction(() =>
   document.getElementById('live-url')?.textContent?.includes('from-ui'), null, { timeout: 10000 });
 check('temp set from the custom field', true,
@@ -131,7 +155,7 @@ check('bookmark appears in the list', true);
 // --- main requires a confirmation, temp does not --------------------------
 const dialogsBeforeMain = dialogs.length;
 await page.click('#tab-library');
- await page.click('#bookmarks .item button:has-text("main")');
+await sendVia('#bookmarks .item button:has-text("Send")', 'main');
 await page.waitForTimeout(900);
 check('setting main asks for confirmation', dialogs.length > dialogsBeforeMain,
   dialogs.at(-1)?.split('\n')[0]);
@@ -140,18 +164,20 @@ check('main took effect',
   await page.textContent('#live-url'));
 
 // --- sequence, built and run entirely through the UI ----------------------
-await page.click('#tab-sequence');
+// Steps are composed on Destinations and pushed into the queue through the
+// same sheet as everything else — there is no separate step editor any more.
 const MESSAGES = ['you are first', 'second!', 'third', 'last one'];
+await page.click('#tab-library');
+await page.click('#mode-message');
 for (const message of MESSAGES) {
-  await page.fill('#step-text', message);
-  await page.click('#step-add');
-  await page.waitForFunction(
-    (n) => document.querySelectorAll('#steps .item').length === n,
-    MESSAGES.indexOf(message) + 1,
-    { timeout: 10000 },
-  );
+  await page.fill('#custom-text', message);
+  await sendVia('#custom-send', 'seq');
+  await page.waitForTimeout(250);
 }
-check('four steps added through the editor',
+await page.click('#tab-sequence');
+await page.waitForFunction(() =>
+  document.querySelectorAll('#steps .item').length === 4, null, { timeout: 10000 });
+check('four message steps built from the Destinations tab',
   (await page.locator('#steps .item').count()) === 4);
 await page.screenshot({ path: `${OUT}/06-sequence-ready.png`, fullPage: true });
 
@@ -235,7 +261,7 @@ check('a set can be created', true);
 // A set with nothing in it cannot serve a scan, so pointing the code at it
 // would just break the QR.
 check('an empty set cannot be set as a destination',
-  await page.locator('#pools .pool button:has-text("temp")').first().isDisabled());
+  await page.locator('#pools .pool button:has-text("Send")').first().isDisabled());
 
 // Through the real button and the real file chooser: the handler needs to know
 // which set it is uploading into, and setting the input directly would skip
@@ -247,10 +273,10 @@ await page.waitForFunction(() =>
   document.querySelectorAll('#pools .thumb').length === 4, null, { timeout: 30000 });
 check('four images upload into the set in one go', true);
 check('the set is now selectable',
-  !(await page.locator('#pools .pool button:has-text("temp")').first().isDisabled()));
+  !(await page.locator('#pools .pool button:has-text("Send")').first().isDisabled()));
 await page.screenshot({ path: `${OUT}/09-image-set.png`, fullPage: true });
 
-await page.locator('#pools .pool button:has-text("temp")').first().click();
+await sendVia('#pools .pool button:has-text("Send")', 'temp');
 await page.waitForFunction(() =>
   document.getElementById('live-url')?.textContent?.includes('Party photos'), null,
   { timeout: 10000 });
