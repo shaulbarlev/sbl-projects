@@ -255,19 +255,19 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
   if (path === '/_' ) return Response.redirect(`${url.origin}/_/`, 302);
 
   if (path === '/_/login') {
-    if (request.method === 'GET') return html(loginPage());
+    if (request.method === 'GET') return html(loginPage(url.host));
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
     const guard = await callState(env, 'login-guard', { action: 'check', now });
     if (guard.locked) {
-      return html(loginPage('Too many attempts. Try again later.'), 429);
+      return html(loginPage(url.host, 'Too many attempts. Try again later.'), 429);
     }
 
     const form = await request.formData();
     const supplied = String(form.get('password') ?? '');
     if (!(await checkPassword(supplied, env))) {
       await callState(env, 'login-guard', { action: 'fail', now });
-      return html(loginPage('Incorrect password.'), 401);
+      return html(loginPage(url.host, 'Incorrect password.'), 401);
     }
 
     await callState(env, 'login-guard', { action: 'reset', now });
