@@ -153,6 +153,18 @@ message.
 The order is by how often you reach for something. The tab is kept in the URL
 hash, so reload and the back button both behave.
 
+The look is neobrutalist — hard edges, offset shadows with no blur, square
+corners, heavy type. Two rules keep the style from fighting the product:
+
+- **State is a filled tag, never coloured text.** Small bold uppercase in a
+  mid-tone green or amber is exactly where coloured type fails contrast. Black
+  on a bright fill passes in both schemes and is louder anyway. In dark mode
+  the hard edge inverts to near-white, or every border and shadow would vanish
+  into the background.
+- **No web fonts.** This loads on the critical path of a phone in a hurry, and
+  the whole app is built to cost zero extra round trips. The system grotesque
+  at weight 800 does the job.
+
 ## Splash
 
 Off by default; one global toggle. When on, scanners get an inlined HTML page

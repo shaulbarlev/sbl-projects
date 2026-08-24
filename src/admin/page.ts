@@ -14,8 +14,8 @@ export function loginPage(host: string, error?: string): string {
 <head>${HEAD}<title>skin · sign in</title><style>${ADMIN_CSS}</style></head>
 <body style="padding-bottom:0">
 <form class="login card" method="POST" action="/_/login">
-  <h2 style="margin:0;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)">${escapeHtml(host)}</h2>
-  ${error ? `<p style="color:var(--warn);font-size:14px;margin:0">${escapeHtml(error)}</p>` : ''}
+  <h2 style="margin:0"><span class="tag">${escapeHtml(host)}</span></h2>
+  ${error ? `<p class="tag" style="background:var(--warn);margin:0;font-size:12px;white-space:normal">${escapeHtml(error)}</p>` : ''}
   <label class="field">Password
     <input type="password" name="password" autocomplete="current-password" autofocus required>
   </label>

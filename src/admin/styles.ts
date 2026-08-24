@@ -4,39 +4,61 @@
  * Layout is a fixed status bar, a scrolling panel, and a bottom tab bar. The
  * tabs are at the bottom because this is used one-handed on a large phone and
  * the top of the screen is out of thumb reach.
+ *
+ * The look is neobrutalist: hard black edges, offset shadows with no blur,
+ * square corners, heavy type, flat saturated colour. Two rules keep that from
+ * fighting the product:
+ *
+ * - **State is carried by a filled tag, never by coloured text.** Small bold
+ *   uppercase in a mid-tone green or amber is exactly the case where thin
+ *   coloured type fails contrast. Black on a bright fill passes everywhere and
+ *   is louder anyway.
+ * - **No web fonts.** This ships on the critical path of a phone in a hurry,
+ *   and the whole app is built to cost zero extra round trips. The system
+ *   grotesque at weight 800 does the job.
  */
 export const ADMIN_CSS = `
 :root {
   color-scheme: light dark;
-  --bg: #f4f4f5;
+  --bg: #fdf6e3;
   --card: #ffffff;
-  --ink: #18181b;
-  --muted: #71717a;
-  --faint: #a1a1aa;
-  --line: #e4e4e7;
-  --field: #f4f4f5;
-  --accent: #2563eb;
-  --live: #059669;
-  --seq: #7c3aed;
-  --warn: #dc2626;
-  --amber: #b45309;
-  --radius: 14px;
-  --bar: 60px;
+  --ink: #000000;
+  --muted: #3f3f46;
+  --faint: #52525b;
+  /* Every border and every shadow is this colour. It is the whole style. */
+  --edge: #000000;
+  --line: #000000;
+  --field: #ffffff;
+  --sunk: #ebe7d9;
+  /* Tags always print black text, so their neutral fill has to stay light in
+     both schemes — --sunk goes near-black in dark and would swallow it. */
+  --tag: #e6e1cd;
+  --accent: #2b5cff;
+  --live: #22c55e;
+  --seq: #a855f7;
+  --warn: #ff4d4d;
+  --amber: #fbbf24;
+  --radius: 0px;
+  --bar: 62px;
+  --edge-w: 2.5px;
+  --drop: 4px;
+  --shadow: var(--drop) var(--drop) 0 var(--edge);
+  --shadow-sm: 3px 3px 0 var(--edge);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #09090b;
-    --card: #18181b;
+    --bg: #121214;
+    --card: #1e1e22;
     --ink: #fafafa;
-    --muted: #a1a1aa;
-    --faint: #71717a;
-    --line: #27272a;
-    --field: #232326;
-    --accent: #60a5fa;
-    --live: #34d399;
-    --seq: #a78bfa;
-    --warn: #f87171;
-    --amber: #fbbf24;
+    --muted: #d4d4d8;
+    --faint: #a1a1aa;
+    /* Inverted: on a dark ground the hard edge has to be the light one, or
+       the borders and the shadows both vanish into the background. */
+    --edge: #fafafa;
+    --line: #fafafa;
+    --field: #2a2a30;
+    --sunk: #0b0b0d;
+    --tag: #d4d4d8;
   }
 }
 * { box-sizing: border-box; }
@@ -47,9 +69,29 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
   -webkit-text-size-adjust: 100%;
-  padding-bottom: calc(var(--bar) + env(safe-area-inset-bottom) + 16px);
+  padding-bottom: calc(var(--bar) + env(safe-area-inset-bottom) + 20px);
+}
+
+/* Keyboard focus has to survive a design with no soft states left in it. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A filled, bordered tag. Carries every bit of state colour in the app. */
+.tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border: var(--edge-w) solid var(--edge);
+  background: var(--tag);
+  color: #000;
+  font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase;
+  max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ------------------------------------------------------------ status bar */
@@ -62,15 +104,16 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px calc(10px + env(safe-area-inset-top));
+  padding: 10px 14px;
   padding-top: max(10px, env(safe-area-inset-top));
   background: var(--card);
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--edge-w) solid var(--edge);
   cursor: pointer;
 }
 #status .dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--muted); flex: 0 0 auto;
+  width: 14px; height: 14px; flex: 0 0 auto;
+  border: var(--edge-w) solid var(--edge);
+  background: var(--sunk);
 }
 #status.is-temp .dot { background: var(--live); }
 #status.is-sequence .dot { background: var(--seq); }
@@ -79,193 +122,250 @@ body {
 #status .kicker {
   /* Block, not inline: overflow and text-overflow do nothing on an inline box,
      so a long URL would run off the edge instead of truncating. */
-  display: block;
-  font-size: 10px; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--muted);
+  display: inline-block;
+  padding: 1px 6px;
+  border: 2px solid var(--edge);
+  background: var(--tag);
+  color: #000;
+  font-size: 10px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase;
+  max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-#status.is-temp .kicker { color: var(--live); }
-#status.is-sequence .kicker { color: var(--seq); }
-#status.is-fallback .kicker { color: var(--amber); }
+#status.is-temp .kicker { background: var(--live); }
+#status.is-sequence .kicker { background: var(--seq); }
+#status.is-fallback .kicker { background: var(--amber); }
 #status .now {
   display: block;
-  font-size: 14px; font-weight: 600;
+  margin-top: 3px;
+  font-size: 14px; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 #status .timer {
-  font-size: 13px; font-variant-numeric: tabular-nums;
-  color: var(--muted); flex: 0 0 auto;
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--ink); flex: 0 0 auto;
 }
 
 /* ---------------------------------------------------------------- layout */
-main { max-width: 560px; margin: 0 auto; padding: 14px; }
-.panel { display: grid; gap: 18px; }
+main { max-width: 560px; margin: 0 auto; padding: 16px 16px 8px; }
+.panel { display: grid; gap: 22px; }
 .panel[hidden] { display: none; }
 
 section > h2 {
-  margin: 0 0 8px 2px;
-  font-size: 11px; font-weight: 700; letter-spacing: .09em;
-  text-transform: uppercase; color: var(--muted);
+  margin: 0 0 10px 0;
+  font-size: 13px; font-weight: 900; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink);
 }
 section > .sub {
-  margin: -4px 2px 8px;
-  font-size: 12px; color: var(--faint);
+  margin: -6px 0 10px;
+  font-size: 12.5px; color: var(--faint); font-weight: 500;
 }
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: var(--edge-w) solid var(--edge);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
   padding: 14px;
 }
-.card + .card { margin-top: 8px; }
+/* Offset shadows need room to land, or the next block sits on top of them. */
+.card + .card { margin-top: 14px; }
 
 /* ------------------------------------------------------------- live card */
-.live { border-left: 4px solid var(--muted); }
+.live { border-left-width: 12px; }
 .live.is-temp { border-left-color: var(--live); }
 .live.is-sequence { border-left-color: var(--seq); }
 .live.is-fallback { border-left-color: var(--amber); }
-.live .src {
-  font-size: 11px; font-weight: 700; letter-spacing: .09em;
-  text-transform: uppercase; color: var(--muted);
+.live .src, #seq-state {
+  display: inline-block;
+  padding: 2px 7px;
+  border: var(--edge-w) solid var(--edge);
+  background: var(--tag);
+  color: #000;
+  font-size: 11px; font-weight: 900; letter-spacing: .1em;
+  text-transform: uppercase;
 }
-.live.is-temp .src { color: var(--live); }
-.live.is-sequence .src { color: var(--seq); }
-.live.is-fallback .src { color: var(--amber); }
+.live.is-temp .src { background: var(--live); }
+.live.is-sequence .src { background: var(--seq); }
+.live.is-fallback .src { background: var(--amber); }
 .live .url {
-  margin: 6px 0; font-size: 20px; font-weight: 650;
-  overflow-wrap: anywhere; line-height: 1.2;
+  margin: 10px 0 6px; font-size: 21px; font-weight: 800;
+  overflow-wrap: anywhere; line-height: 1.15; letter-spacing: -.01em;
 }
-.live .meta { font-size: 13px; color: var(--muted); }
-.live .meta b { color: var(--ink); font-weight: 600; }
-#countdown { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.live .meta, #seq-meta { font-size: 13px; color: var(--faint); }
+.live .meta b, #seq-meta b { color: var(--ink); font-weight: 800; }
+#countdown { font-variant-numeric: tabular-nums; font-weight: 900; color: var(--ink); }
 
 /* Progress pips for a live sequence: how many of the four have scanned. */
-.pips { display: flex; gap: 5px; margin: 10px 0 2px; }
-.pip { height: 5px; flex: 1; border-radius: 3px; background: var(--line); }
+.pips { display: flex; gap: 5px; margin: 12px 0 2px; }
+.pip {
+  height: 12px; flex: 1;
+  border: 2px solid var(--edge); background: var(--sunk);
+}
 .pip.done { background: var(--seq); }
 
 /* -------------------------------------------------------------- controls */
+/* The press is the whole interaction: the button travels into its own shadow
+   and the shadow disappears, so it reads as physically pushed down. */
 button, .btn {
   font: inherit;
-  border: 1px solid var(--line);
+  font-weight: 800;
+  border: var(--edge-w) solid var(--edge);
   background: var(--field);
   color: var(--ink);
-  border-radius: 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   padding: 11px 14px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 46px;
   text-align: center;
   text-decoration: none;
+  transition: transform .06s, box-shadow .06s;
 }
-button:active { transform: translateY(1px); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.danger  { background: var(--warn); border-color: var(--warn); color: #fff; }
-button.seq     { background: var(--seq); border-color: var(--seq); color: #fff; }
-button.ghost   { background: transparent; }
-button[disabled] { opacity: .45; cursor: default; }
+button:active, .btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--edge);
+}
+button.primary { background: var(--accent); border-color: var(--edge); color: #fff; }
+button.danger  { background: var(--warn); border-color: var(--edge); color: #000; }
+button.seq     { background: var(--seq); border-color: var(--edge); color: #000; }
+button.ghost   { background: var(--card); }
+button[disabled] {
+  opacity: 1;
+  background: var(--sunk); color: var(--faint);
+  box-shadow: none; transform: none;
+  cursor: default;
+}
 
-.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
 .row > * { flex: 1 1 auto; }
-.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.chip { padding: 10px 6px; font-size: 15px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.chip { padding: 10px 4px; font-size: 15px; font-weight: 800; }
 
 input[type=text], input[type=password], textarea {
-  font: inherit; width: 100%; padding: 11px 12px; min-height: 44px;
-  border: 1px solid var(--line); border-radius: 10px;
+  font: inherit; font-weight: 600;
+  width: 100%; padding: 11px 12px; min-height: 46px;
+  border: var(--edge-w) solid var(--edge); border-radius: var(--radius);
   background: var(--field); color: var(--ink);
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,.07);
   -webkit-appearance: none;
 }
-textarea { min-height: 76px; resize: vertical; line-height: 1.35; }
-label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
-.stack { display: grid; gap: 8px; }
+input::placeholder, textarea::placeholder { color: var(--faint); font-weight: 500; }
+textarea { min-height: 78px; resize: vertical; line-height: 1.35; }
+label.field {
+  display: grid; gap: 6px;
+  font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--faint);
+}
+.stack { display: grid; gap: 10px; }
 
 /* ----------------------------------------------------------------- lists */
-.list { display: grid; gap: 6px; }
+.list { display: grid; gap: 10px; }
 .item {
-  display: flex; align-items: center; gap: 8px;
-  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+  display: flex; align-items: center; gap: 10px;
+  border: var(--edge-w) solid var(--edge); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 10px;
   background: var(--card);
 }
-.item .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
-.item .sub, .sheet-head .sub { display: block; font-size: 12px; color: var(--faint); }
-.item button { min-height: 36px; padding: 6px 10px; flex: 0 0 auto; font-size: 14px; }
-.item .idx {
-  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--field); color: var(--muted);
-  font-size: 11px; font-weight: 700;
+.item .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 700; }
+.item .sub, .sheet-head .sub {
+  display: block; margin-top: 2px;
+  font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--faint);
 }
-.item.claimed { opacity: .5; }
-.item.claimed .idx { background: var(--seq); color: #fff; }
-.item.next { border-color: var(--seq); box-shadow: 0 0 0 1px var(--seq); }
+.item button { min-height: 40px; padding: 7px 12px; flex: 0 0 auto; font-size: 14px; }
+.item .idx {
+  flex: 0 0 auto; width: 26px; height: 26px;
+  border: 2px solid var(--edge);
+  display: grid; place-items: center;
+  background: var(--sunk); color: var(--ink);
+  font-size: 12px; font-weight: 900;
+}
+.item.claimed { opacity: .55; }
+.item.claimed .idx { background: var(--seq); color: #000; }
+.item.next { box-shadow: var(--drop) var(--drop) 0 var(--seq); }
 
 /* ------------------------------------------------------------ image sets */
-.pool + .pool { margin-top: 8px; }
+.pool + .pool { margin-top: 14px; }
 .strip {
-  display: flex; gap: 6px; margin-top: 10px;
-  overflow-x: auto; padding-bottom: 4px;
+  display: flex; gap: 10px; margin-top: 12px;
+  overflow-x: auto; padding: 2px 4px 6px 2px;
   /* The set can hold plenty; it scrolls sideways rather than pushing the
      Files section off the bottom of the screen. */
   -webkit-overflow-scrolling: touch;
 }
 .thumb { position: relative; flex: 0 0 auto; }
 .thumb img {
-  width: 64px; height: 64px; object-fit: cover;
-  border-radius: 8px; border: 1px solid var(--line); display: block;
-  background: var(--field);
+  width: 66px; height: 66px; object-fit: cover;
+  border: var(--edge-w) solid var(--edge); display: block;
+  box-shadow: var(--shadow-sm);
+  background: var(--sunk);
 }
 .thumb button {
-  position: absolute; top: -6px; right: -6px;
-  min-height: 22px; height: 22px; width: 22px; padding: 0;
-  border-radius: 50%; font-size: 12px; line-height: 1;
-  background: var(--ink); color: var(--bg); border-color: var(--ink);
+  position: absolute; top: -8px; right: -8px;
+  min-height: 24px; height: 24px; width: 24px; padding: 0;
+  border: 2px solid var(--edge); box-shadow: none;
+  font-size: 12px; font-weight: 900; line-height: 1;
+  background: var(--warn); color: #000;
 }
 
 .empty {
-  font-size: 13px; color: var(--faint);
-  padding: 10px; text-align: center;
-  border: 1px dashed var(--line); border-radius: 10px;
+  font-size: 13px; font-weight: 700; color: var(--faint);
+  padding: 14px; text-align: center;
+  border: var(--edge-w) dashed var(--edge);
+  background: var(--card);
 }
 
 /* ---------------------------------------------------------------- toggle */
 .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.toggle .desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
-.switch { position: relative; width: 56px; height: 32px; flex: 0 0 auto; }
+.toggle strong { font-weight: 900; }
+.toggle .desc { font-size: 13px; color: var(--faint); margin-top: 4px; }
+.switch { position: relative; width: 62px; height: 34px; flex: 0 0 auto; }
 .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .switch span {
-  position: absolute; inset: 0; border-radius: 999px;
-  background: var(--line); transition: background .15s; pointer-events: none;
+  position: absolute; inset: 0;
+  border: var(--edge-w) solid var(--edge);
+  background: var(--sunk); transition: background .12s; pointer-events: none;
 }
+/* Solid ink knob, not a pale one: against a cream "off" track a white knob
+   is the same value as its groove and the state stops being readable. */
 .switch span::after {
-  content: ""; position: absolute; top: 3px; left: 3px;
-  width: 26px; height: 26px; border-radius: 50%; background: #fff;
-  transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 24px; height: 24px; background: var(--edge);
+  transition: transform .12s;
 }
 .switch input:checked + span { background: var(--live); }
-.switch input:checked + span::after { transform: translateX(24px); }
+.switch input:checked + span::after { transform: translateX(28px); }
+.switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* -------------------------------------------------------------- tab bar */
 #tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
   display: grid; grid-template-columns: repeat(4, 1fr);
   background: var(--card);
-  border-top: 1px solid var(--line);
+  border-top: var(--edge-w) solid var(--edge);
   padding-bottom: env(safe-area-inset-bottom);
 }
 #tabs button {
-  border: 0; background: none; border-radius: 0;
-  display: grid; gap: 2px; justify-items: center;
+  border: 0; border-right: 2px solid var(--edge);
+  background: none; border-radius: 0; box-shadow: none;
+  display: grid; gap: 3px; justify-items: center; align-content: center;
   padding: 8px 2px; min-height: var(--bar);
-  color: var(--muted); font-size: 10px; font-weight: 600;
-  letter-spacing: .02em;
+  color: var(--faint); font-size: 10px; font-weight: 800;
+  letter-spacing: .04em; text-transform: uppercase;
 }
-#tabs button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-#tabs button[aria-selected="true"] { color: var(--accent); }
+#tabs button:last-child { border-right: 0; }
+#tabs button:active { transform: none; box-shadow: none; }
+#tabs button svg { width: 23px; height: 23px; stroke: currentColor; fill: none; stroke-width: 2.4; }
+/* The current tab is a filled block, not a tint — at 10px, colour alone is
+   not a strong enough signal to find with a thumb. */
+#tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
 #tabs button .badge {
-  position: absolute; transform: translate(14px, -4px);
-  min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 8px; background: var(--seq); color: #fff;
-  font-size: 10px; line-height: 16px;
+  position: absolute; transform: translate(15px, -6px);
+  min-width: 20px; height: 20px; padding: 0 4px;
+  border: 2px solid var(--edge);
+  background: var(--seq); color: #000;
+  font-size: 11px; font-weight: 900; line-height: 16px;
 }
 
 /* ------------------------------------------------------------ send sheet */
@@ -273,46 +373,49 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
    thumb has to reach on a large phone held one-handed. */
 #sheet-backdrop {
   position: fixed; inset: 0; z-index: 9;
-  background: rgba(0,0,0,.45);
+  background: rgba(0,0,0,.5);
 }
 #sheet {
   position: fixed; left: 0; right: 0; z-index: 10;
   bottom: calc(var(--bar) + env(safe-area-inset-bottom));
   background: var(--card);
-  border-top: 1px solid var(--line);
-  border-radius: 16px 16px 0 0;
-  padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
-  box-shadow: 0 -12px 32px rgba(0,0,0,.35);
+  /* A hard offset shadow pointing up would read as a second panel; the slab
+     edge does the lifting instead. */
+  border-top: 5px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
   transform: translateY(100%);
   transition: transform .18s ease-out;
   max-height: 78vh; overflow-y: auto;
 }
 #sheet.open { transform: translateY(0); }
 .sheet-grab {
-  width: 36px; height: 4px; border-radius: 2px;
-  background: var(--line); margin: 2px auto 10px;
+  width: 46px; height: 6px;
+  background: var(--edge); margin: 4px auto 12px;
 }
 .sheet-head {
   display: flex; align-items: flex-start; gap: 10px;
-  padding-bottom: 12px; margin-bottom: 12px;
-  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px; margin-bottom: 14px;
+  border-bottom: var(--edge-w) dashed var(--edge);
 }
-.sheet-head .name { flex: 1 1 auto; min-width: 0; }
+.sheet-head .name { flex: 1 1 auto; min-width: 0; font-weight: 800; overflow-wrap: anywhere; }
 .sheet-head .ghost { flex: 0 0 auto; }
 #sheet .row > button { flex: 1 1 0; }
 
 /* ---------------------------------------------------------------- toast */
 #toast {
   position: fixed; left: 50%; z-index: 20;
-  bottom: calc(var(--bar) + env(safe-area-inset-bottom) + 14px);
-  transform: translateX(-50%) translateY(180%);
-  background: var(--ink); color: var(--bg);
-  padding: 10px 16px; border-radius: 999px; font-size: 14px;
+  bottom: calc(var(--bar) + env(safe-area-inset-bottom) + 16px);
+  transform: translateX(-50%) translateY(200%);
+  background: var(--amber); color: #000;
+  border: var(--edge-w) solid var(--edge);
+  box-shadow: var(--shadow);
+  padding: 11px 16px; font-size: 14px; font-weight: 800;
   max-width: 90vw; text-align: center;
   /* Slid out of the way is not the same as gone: an empty toast is still a
-     black lozenge, and 180% of its own small height did not clear the tab
-     bar. Visibility hides it outright between messages, delayed so the slide
-     out still plays. */
+     bordered slab, and translating it by its own small height did not clear
+     the tab bar. Visibility hides it outright between messages, delayed so
+     the slide out still plays. */
   visibility: hidden; pointer-events: none;
   transition: transform .2s, visibility 0s .2s;
 }
@@ -321,13 +424,16 @@ label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
   visibility: visible;
   transition: transform .2s;
 }
-#toast.err { background: var(--warn); color: #fff; }
+#toast.err { background: var(--warn); color: #000; }
 
 /* ---------------------------------------------------------------- login */
-.login { max-width: 340px; margin: 18vh auto; display: grid; gap: 12px; }
-.hint { font-size: 12px; color: var(--faint); margin: 6px 2px 0; }
-.qr { width: 100%; max-width: 220px; display: block; margin: 0 auto;
-      border-radius: 10px; background: #fff; padding: 8px; }
+.login { max-width: 340px; margin: 16vh auto; display: grid; gap: 14px; }
+.hint { font-size: 12px; color: var(--faint); margin: 8px 0 0; font-weight: 500; }
+.qr {
+  width: 100%; max-width: 220px; display: block; margin: 0 auto;
+  border: var(--edge-w) solid var(--edge); box-shadow: var(--shadow);
+  background: #fff; padding: 10px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
