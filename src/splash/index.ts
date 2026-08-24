@@ -48,7 +48,7 @@ export function renderSplash(templateId: string, ctx: SplashContext): string {
 ${prefetch}
 <title>redirecting</title>
 <style>${parts.css}
-.skip { position: fixed; bottom: 1rem; right: 1rem; font: 12px monospace; color: inherit; opacity: .6; }
+.skip { position: fixed; bottom: 1rem; right: 1rem; font: 12px "Helvetica Neue", Helvetica, Arial, sans-serif; color: inherit; opacity: .6; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>

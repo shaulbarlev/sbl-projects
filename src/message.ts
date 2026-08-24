@@ -35,7 +35,7 @@ export function renderMessage(text: string, footer?: string): string {
     padding: 8vw;
     background: var(--bg);
     color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     text-align: center;
     -webkit-text-size-adjust: 100%;
   }

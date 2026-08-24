@@ -20,7 +20,7 @@ export const thanks: SplashTemplate = {
           display: grid;
           place-items: center;
           background: #00ff88;
-          font-family: monospace;
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
         }
         .t {
           font-size: 7vw;

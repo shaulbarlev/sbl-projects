@@ -161,9 +161,12 @@ corners, heavy type. Two rules keep the style from fighting the product:
   on a bright fill passes in both schemes and is louder anyway. In dark mode
   the hard edge inverts to near-white, or every border and shadow would vanish
   into the background.
-- **No web fonts.** This loads on the critical path of a phone in a hurry, and
-  the whole app is built to cost zero extra round trips. The system grotesque
-  at weight 800 does the job.
+- **Helvetica, and no web fonts.** This loads on the critical path of a phone
+  in a hurry and the app is built to cost zero extra round trips; Helvetica is
+  already on every Apple device this is opened from. It ships Regular, Medium
+  and Bold and nothing between — 600, 700, 800 and 900 all render as the same
+  Bold face — so the weight ladder is 500/700 and hierarchy is carried by
+  size, tracking and case instead.
 
 ## Splash
 
