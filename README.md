@@ -269,12 +269,42 @@ the Action Button. The session cookie lasts 30 days, so it opens straight into
 the panel. Use `/_/?reset=1` instead for a shortcut that kills a live temp on
 sight.
 
+## API
+
+Everything the panel does goes through `/_/api/`, and a script can do the same
+with `Authorization: Bearer <API_TOKEN>` in place of the session cookie. The
+one write that matters is `POST /_/api/send`:
+
+```sh
+curl https://sbl.cx/_/api/send -H "Authorization: Bearer $API_TOKEN" \
+  -H 'content-type: application/json' -d '{"text": "back in 10"}'
+```
+
+`slot` is `temp` (default), `main` or `sequence`. A target is either a nested
+`target` object, or one of the flat fields `text`, `url` or `query` (a GIF
+feed). For a temp, `minutes` (default 60) or `durationMs`. Every response is
+the same JSON the panel renders from, so a script can read back what a scan
+will get from `resolution`.
+
+`scripts/make-shortcut.py` builds and signs an iOS Shortcut that asks for a
+line of text and sends it as a one-hour message. Set the token first:
+
+```sh
+npx wrangler secret put API_TOKEN            # any long random string
+scripts/make-shortcut.py sbl.cx "$API_TOKEN" ~/Desktop/sbl.cx\ text.shortcut
+```
+
+Open the file on the Mac to import it into Shortcuts; it syncs to the phone,
+where it can be assigned to the Action Button. The signed file carries the
+token, so do not commit it.
+
 ## Auth
 
-A single password, held in a Wrangler secret. Compared in constant time, never
-stored in the cookie — the cookie is an HMAC-signed expiry. Repeated failures
-lock the admin surface for 15 minutes. Writes require a custom header, so a
-cross-origin form post cannot repoint your QR.
+A single password, held in a Wrangler secret, or the bearer token above. Compared in constant time, never
+stored in the cookie — the cookie is an HMAC-signed expiry. Repeated failures,
+of either the password or the token, lock the admin surface for 15 minutes.
+Writes require a custom header, so a cross-origin form post cannot repoint your
+QR.
 
 This is the interim answer. Cloudflare Access on `/_/*` is the intended
 replacement.
@@ -282,7 +312,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 112 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
+npm test          # 114 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
 npm run typecheck
 ```
 

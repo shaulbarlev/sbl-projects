@@ -146,6 +146,31 @@ describe('auth', () => {
     expect(response.status).toBe(401);
   });
 
+  // The Shortcut path: no cookie, no CSRF header, just the token.
+  it('accepts the api token in place of a session, and sets a message with the flat form', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'hello from a shortcut' }),
+    });
+    expect(response.status).toBe(200);
+    const state = (await response.json()) as any;
+    expect(state.resolution.source).toBe('temp');
+    expect(state.resolution.target.text).toBe('hello from a shortcut');
+    // No duration given: an hour, not the one-minute floor.
+    expect(state.temp.expiresAt - state.temp.setAt).toBe(60 * 60_000);
+
+    const scan = await SELF.fetch(ORIGIN, { redirect: 'manual' });
+    expect(await scan.text()).toContain('hello from a shortcut');
+  });
+
+  it('rejects a wrong token', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/state`, {
+      headers: { authorization: 'Bearer nope' },
+    });
+    expect(response.status).toBe(401);
+  });
+
   it('rejects a wrong password', async () => {
     const response = await SELF.fetch(`${ORIGIN}/_/login`, {
       method: 'POST',

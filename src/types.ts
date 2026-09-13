@@ -140,4 +140,6 @@ export interface Env {
   FALLBACK_URL: string;
   /** Optional. Without it the GIF search in the panel reports itself unset. */
   GIPHY_API_KEY?: string;
+  /** Optional. Bearer token for scripts and Shortcuts; unset means no token auth. */
+  API_TOKEN?: string;
 }

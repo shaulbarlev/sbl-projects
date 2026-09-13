@@ -1,4 +1,5 @@
 import {
+  checkBearer,
   checkPassword,
   clearedCookie,
   hasCsrfHeader,
@@ -330,7 +331,17 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
     return new Response(MANIFEST, { headers: { 'content-type': 'application/manifest+json' } });
   }
 
-  if (!(await isAuthed(request, env, now))) {
+  const bearer = await checkBearer(request, env);
+  if (bearer !== null) {
+    // Scripts and Shortcuts. Under the same lockout as the login form, or the
+    // token would be the brute-force path around it.
+    const guard = await callState(env, 'login-guard', { action: 'check', now });
+    if (guard.locked) return json({ error: 'Too many attempts. Try again later.' }, 429);
+    if (!bearer) {
+      await callState(env, 'login-guard', { action: 'fail', now });
+      return json({ error: 'Bad token' }, 401);
+    }
+  } else if (!(await isAuthed(request, env, now))) {
     if (path.startsWith('/_/api/')) return json({ error: 'Unauthorised' }, 401);
     return Response.redirect(`${url.origin}/_/login`, 302);
   }
@@ -383,16 +394,28 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   // The one write for "point the code at this". Every action on the Send
   // sheet lands here; the slot is the only thing that differs between them.
   if (route === 'send' && request.method === 'POST') {
-    const body = (await request.json()) as { slot: string; target: Target; durationMs?: number };
-    const target = normaliseTarget(body.target);
+    const body = (await request.json()) as {
+      slot?: string;
+      target?: Target;
+      durationMs?: number;
+      minutes?: number;
+      text?: string;
+      url?: string;
+      query?: string;
+    };
+    // The flat form is for scripts and Shortcuts, where a nested object is a
+    // chore: `{"text": "hi"}` alone is a one-hour temporary message.
+    const target = normaliseTarget(body.target ?? flatTarget(body));
     if ('error' in target) return json({ error: target.error }, 400);
+    const slot = body.slot ?? 'temp';
 
-    if (body.slot === 'main') {
+    if (slot === 'main') {
       await callState(env, 'set-main', { target: target.value, now });
-    } else if (body.slot === 'temp') {
-      const expiresAt = now + clampDuration(body.durationMs as number);
+    } else if (slot === 'temp') {
+      const durationMs = body.durationMs ?? Number(body.minutes ?? 60) * 60_000;
+      const expiresAt = now + clampDuration(durationMs);
       await callState(env, 'set-temp', { target: target.value, now, expiresAt });
-    } else if (body.slot === 'sequence') {
+    } else if (slot === 'sequence') {
       const state = (await callState(env, 'get')) as State;
       const steps: SequenceStep[] = [
         ...(state.sequence?.steps ?? []),
@@ -621,7 +644,15 @@ async function view(env: Env) {
 
 const MAX_MESSAGE_LENGTH = 280;
 
-function normaliseTarget(target: Target): { value: Target } | { error: string } {
+/** A target from the flat send form: one of `text`, `url` or `query`. */
+function flatTarget(body: { text?: string; url?: string; query?: string }): Target | undefined {
+  if (body.text !== undefined) return { kind: 'text', text: String(body.text) };
+  if (body.url !== undefined) return { kind: 'url', url: String(body.url) };
+  if (body.query !== undefined) return { kind: 'giphy', query: String(body.query) };
+  return undefined;
+}
+
+function normaliseTarget(target: Target | undefined): { value: Target } | { error: string } {
   if (!target || typeof target !== 'object') return { error: 'Missing target' };
 
   if (target.kind === 'file') {

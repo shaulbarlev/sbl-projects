@@ -100,10 +100,26 @@ export async function isAuthed(request: Request, env: Env, now: number): Promise
 }
 
 /**
+ * Token auth for scripts and Shortcuts, from `Authorization: Bearer <token>`.
+ *
+ * A dedicated token rather than the password, so the thing pasted into a
+ * Shortcut can be rotated without changing what you type. Returns null when no
+ * bearer was offered, so the caller can fall through to the session cookie.
+ */
+export async function checkBearer(request: Request, env: Env): Promise<boolean | null> {
+  const header = request.headers.get('authorization') ?? '';
+  if (!/^bearer /i.test(header)) return null;
+  if (!env.API_TOKEN) return false;
+  return timingSafeEqual(header.slice(7).trim(), env.API_TOKEN);
+}
+
+/**
  * CSRF guard. The session cookie is SameSite=Strict, but a custom header that
  * a cross-origin form post cannot set is the belt to that suspenders — the
- * failure mode here is someone silently repointing the QR code.
+ * failure mode here is someone silently repointing the QR code. An
+ * Authorization header is such a header too, which is what lets a script skip
+ * the panel's own.
  */
 export function hasCsrfHeader(request: Request): boolean {
-  return request.headers.get('x-skin-request') === '1';
+  return request.headers.get('x-skin-request') === '1' || request.headers.has('authorization');
 }

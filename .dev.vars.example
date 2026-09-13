@@ -4,3 +4,6 @@ SESSION_SECRET=any-long-random-string
 
 # Optional. Enables the GIF search in Destinations.
 GIPHY_API_KEY=
+
+# Optional. Bearer token for scripts and the iOS Shortcut.
+API_TOKEN=
