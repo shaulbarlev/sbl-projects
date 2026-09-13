@@ -147,7 +147,7 @@ export function adminPage(host: string): string {
     <section>
       <h2>Sequence</h2>
       <p class="sub">Hand out a different destination to each person who scans, in order.
-        Each scanner keeps theirs on reload. When the list runs out, scans go back to normal.</p>
+        When the list runs out, scans go back to normal.</p>
       <div class="card" id="seq-status">
         <div class="src" id="seq-state">Not armed</div>
         <div class="pips" id="seq-pips" hidden></div>

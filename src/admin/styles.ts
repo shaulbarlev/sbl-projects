@@ -285,6 +285,10 @@ label.field {
   background: var(--sunk); color: var(--ink);
   font-size: 12px; font-weight: 700;
 }
+.item .preview {
+  flex: 0 0 auto; width: 44px; height: 44px; object-fit: cover; display: block;
+  border: var(--edge-w) solid var(--edge); background: var(--sunk);
+}
 .item.claimed { opacity: .55; }
 .item.claimed .idx { background: var(--seq); color: #000; }
 .item.next { box-shadow: var(--drop) var(--drop) 0 var(--seq); }

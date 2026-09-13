@@ -303,6 +303,15 @@ check('the set is now selectable',
   !(await page.locator('#pools .pool button:has-text("Send")').first().isDisabled()));
 await page.screenshot({ path: `${OUT}/09-image-set.png`, fullPage: true });
 
+// A set as a step shows its first image in the row, not just a name.
+await sendVia('#pools .pool button:has-text("Send")', 'seq');
+await page.click('#tab-sequence');
+await page.waitForSelector('#steps .item img.preview', { timeout: 10000 });
+check('an image step shows a preview in the sequence',
+  await page.locator('#steps .item img.preview').first().evaluate((img) => img.naturalWidth > 0));
+await page.screenshot({ path: `${OUT}/10-sequence-preview.png`, fullPage: true });
+await page.click('#tab-library');
+
 await sendVia('#pools .pool button:has-text("Send")', 'temp');
 await page.waitForFunction(() =>
   document.getElementById('live-url')?.textContent?.includes('Party photos'), null,

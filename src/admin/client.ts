@@ -261,6 +261,27 @@ export const ADMIN_JS = String.raw`
     });
   }
 
+  /**
+   * A thumbnail for a target that is an image, or a set of them. A filename
+   * says nothing about which picture a step will show; a set shows its first.
+   */
+  function thumbFor(target) {
+    var key = null;
+    if (target.kind === 'file') key = target.key;
+    if (target.kind === 'pool') {
+      var pool = findPool(target.poolId);
+      key = pool ? pool.items[0] : null;
+    }
+    var file = key && state.files.filter(function (f) { return f.key === key; })[0];
+    if (!file || !/^image\//.test(file.type)) return null;
+    var img = document.createElement('img');
+    img.className = 'preview';
+    img.src = '/f/' + file.key + '/' + encodeURIComponent(file.name);
+    img.alt = '';
+    img.loading = 'lazy';
+    return img;
+  }
+
   function renderSequence() {
     var seq = state.sequence;
     var status = state.sequenceStatus;
@@ -313,6 +334,9 @@ export const ADMIN_JS = String.raw`
       idx.className = 'idx';
       idx.textContent = claimed ? '✓' : String(index + 1);
       row.appendChild(idx);
+
+      var preview = thumbFor(step.target);
+      if (preview) row.appendChild(preview);
 
       var name = document.createElement('div');
       name.className = 'name';
