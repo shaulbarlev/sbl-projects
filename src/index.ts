@@ -394,38 +394,13 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   // The one write for "point the code at this". Every action on the Send
   // sheet lands here; the slot is the only thing that differs between them.
   if (route === 'send' && request.method === 'POST') {
-    const body = (await request.json()) as {
-      slot?: string;
-      target?: Target;
-      durationMs?: number;
-      minutes?: number;
-      text?: string;
-      url?: string;
-      query?: string;
-    };
+    const body = (await request.json()) as SendBody;
     // The flat form is for scripts and Shortcuts, where a nested object is a
     // chore: `{"text": "hi"}` alone is a one-hour temporary message.
-    const target = normaliseTarget(body.target ?? flatTarget(body));
+    const target = normaliseTarget(body.target ?? (await flatTarget(env, body)));
     if ('error' in target) return json({ error: target.error }, 400);
-    const slot = body.slot ?? 'temp';
-
-    if (slot === 'main') {
-      await callState(env, 'set-main', { target: target.value, now });
-    } else if (slot === 'temp') {
-      const durationMs = body.durationMs ?? Number(body.minutes ?? 60) * 60_000;
-      const expiresAt = now + clampDuration(durationMs);
-      await callState(env, 'set-temp', { target: target.value, now, expiresAt });
-    } else if (slot === 'sequence') {
-      const state = (await callState(env, 'get')) as State;
-      const steps: SequenceStep[] = [
-        ...(state.sequence?.steps ?? []),
-        { id: crypto.randomUUID(), target: target.value },
-      ];
-      if (steps.length > MAX_STEPS) return json({ error: `Too many steps (max ${MAX_STEPS})` }, 400);
-      await callState(env, 'set-steps', { steps });
-    } else {
-      return json({ error: 'Unknown slot' }, 400);
-    }
+    const error = await applySend(env, body.slot ?? 'temp', target.value, durationOf(body, 60), now);
+    if (error) return json({ error }, 400);
     return json(await view(env));
   }
 
@@ -435,8 +410,9 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   }
 
   if (route === 'temp/extend' && request.method === 'POST') {
-    const body = (await request.json()) as { byMs: number };
-    await callState(env, 'extend-temp', { byMs: clampDuration(body.byMs) });
+    const body = (await request.json()) as { byMs?: number; minutes?: number };
+    const byMs = body.byMs ?? Number(body.minutes ?? 15) * 60_000;
+    await callState(env, 'extend-temp', { byMs: clampDuration(byMs) });
     return json(await view(env));
   }
 
@@ -456,8 +432,8 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   }
 
   if (route === 'sequence/arm' && request.method === 'POST') {
-    const body = (await request.json()) as { durationMs?: number };
-    const expiresAt = now + clampDuration(body.durationMs ?? DEFAULT_SEQUENCE_MS);
+    const body = (await request.json()) as { durationMs?: number; minutes?: number };
+    const expiresAt = now + clampDuration(durationOf(body, DEFAULT_SEQUENCE_MS / 60_000));
     await callState(env, 'arm-sequence', { now, expiresAt, runId: crypto.randomUUID() });
     return json(await view(env));
   }
@@ -501,9 +477,9 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   }
 
   if (route === 'upload' && request.method === 'POST') {
-    const name = url.searchParams.get('name') ?? 'upload';
     if (!request.body) return json({ error: 'Empty upload' }, 400);
     const type = request.headers.get('content-type') ?? 'application/octet-stream';
+    const name = url.searchParams.get('name') ?? defaultName(type, now);
     const file = await storeFile(env, name, type, request.body, now);
 
     // Uploading straight into a set is the common case for this feature —
@@ -511,6 +487,16 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     // separate "add to set" taps.
     const poolId = url.searchParams.get('pool');
     if (poolId) await callState(env, 'pool-add-item', { poolId, key: file.key });
+
+    // And uploading straight *at* the code is what a Shortcut wants: one
+    // request from camera to live, rather than upload, parse, send.
+    const slot = url.searchParams.get('slot');
+    if (slot) {
+      const minutes = Number(url.searchParams.get('minutes') ?? 60);
+      const target: Target = { kind: 'file', key: file.key, name: file.name };
+      const error = await applySend(env, slot, target, minutes * 60_000, now);
+      if (error) return json({ error }, 400);
+    }
 
     return json({ state: await view(env), file });
   }
@@ -629,9 +615,10 @@ async function storeFile(
 async function view(env: Env) {
   const now = Date.now();
   const state = (await callState(env, 'get')) as State;
+  const resolution = resolve(state, now, env.FALLBACK_URL);
   return {
     ...state,
-    resolution: resolve(state, now, env.FALLBACK_URL),
+    resolution,
     sequenceStatus: {
       live: sequenceLive(state, now),
       remaining: stepsRemaining(state, now),
@@ -639,16 +626,112 @@ async function view(env: Env) {
       total: state.sequence?.steps.length ?? 0,
       expiresAt: state.sequence?.expiresAt ?? 0,
     },
+    // For a notification or a log line: the live state in one sentence.
+    summary: summarise(state, resolution, now),
+    // For a picker: what each bookmark is called, in list order.
+    bookmarkLabels: state.bookmarks.map((b) => bookmarkLabel(b, state)),
   };
+}
+
+function bookmarkLabel(bookmark: { label: string; target: Target }, state: State): string {
+  return bookmark.label || describeTarget(bookmark.target, state);
+}
+
+function summarise(state: State, resolution: Resolution, now: number): string {
+  const main = state.main ? describeTarget(state.main.target, state) : 'the fallback';
+  if (sequenceLive(state, now)) {
+    const seq = state.sequence!;
+    return `Sequence armed · ${seq.cursor} of ${seq.steps.length} claimed · ${left(seq.expiresAt - now)} left`;
+  }
+  if (resolution.source === 'temp') {
+    return `Temporary for ${left(resolution.expiresAt - now)}: ${describeTarget(resolution.target, state)} · then ${main}`;
+  }
+  if (resolution.source === 'main') return `Main: ${main}`;
+  return `Fallback: ${resolution.target.kind === 'url' ? resolution.target.url : main}`;
+}
+
+function left(ms: number): string {
+  const minutes = Math.max(1, Math.ceil(ms / 60_000));
+  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+}
+
+/** The flat send body: a nested target, or one of the shorthand fields. */
+interface SendBody {
+  slot?: string;
+  target?: Target;
+  durationMs?: number;
+  minutes?: number;
+  text?: string;
+  url?: string;
+  query?: string;
+  /** A link if it parses as one, otherwise a message. What a QR scan yields. */
+  value?: string;
+  /** A saved bookmark, by label or by what it points at. */
+  bookmark?: string;
+}
+
+/** A duration in ms from either form, with the default in minutes. */
+function durationOf(body: { durationMs?: number; minutes?: number }, defaultMinutes: number): number {
+  return body.durationMs ?? Number(body.minutes ?? defaultMinutes) * 60_000;
+}
+
+/**
+ * Point a slot at a target. The one path behind send, upload-and-send, and
+ * therefore the Shortcut. Returns an error message, or null when it took.
+ */
+async function applySend(
+  env: Env,
+  slot: string,
+  target: Target,
+  durationMs: number,
+  now: number,
+): Promise<string | null> {
+  if (slot === 'main') {
+    await callState(env, 'set-main', { target, now });
+  } else if (slot === 'temp') {
+    const expiresAt = now + clampDuration(durationMs);
+    await callState(env, 'set-temp', { target, now, expiresAt });
+  } else if (slot === 'sequence') {
+    const state = (await callState(env, 'get')) as State;
+    const steps: SequenceStep[] = [
+      ...(state.sequence?.steps ?? []),
+      { id: crypto.randomUUID(), target },
+    ];
+    if (steps.length > MAX_STEPS) return `Too many steps (max ${MAX_STEPS})`;
+    await callState(env, 'set-steps', { steps });
+  } else {
+    return 'Unknown slot';
+  }
+  return null;
+}
+
+/** A name for an upload that arrived without one, from its type and the clock. */
+function defaultName(type: string, now: number): string {
+  const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/heic': 'heic', 'image/webp': 'webp' }[type] ?? 'bin';
+  return `photo-${new Date(now).toISOString().slice(0, 16).replace(/[T:]/g, '-')}.${ext}`;
 }
 
 const MAX_MESSAGE_LENGTH = 280;
 
-/** A target from the flat send form: one of `text`, `url` or `query`. */
-function flatTarget(body: { text?: string; url?: string; query?: string }): Target | undefined {
+/** A target from the flat send form. Undefined when no field was given. */
+async function flatTarget(env: Env, body: SendBody): Promise<Target | undefined> {
   if (body.text !== undefined) return { kind: 'text', text: String(body.text) };
   if (body.url !== undefined) return { kind: 'url', url: String(body.url) };
   if (body.query !== undefined) return { kind: 'giphy', query: String(body.query) };
+  if (body.value !== undefined) {
+    const value = String(body.value);
+    return validateUrl(value).ok ? { kind: 'url', url: value } : { kind: 'text', text: value };
+  }
+  if (body.bookmark !== undefined) {
+    const state = (await callState(env, 'get')) as State;
+    const wanted = String(body.bookmark).trim().toLowerCase();
+    const match = state.bookmarks.find((b) =>
+      [b.label, bookmarkLabel(b, state), describeTarget(b.target, state)]
+        .some((name) => name.trim().toLowerCase() === wanted));
+    // A missing bookmark falls through to "Missing target" below, which is
+    // the honest answer: nothing was sent.
+    return match?.target;
+  }
   return undefined;
 }
 

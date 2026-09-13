@@ -281,17 +281,25 @@ curl https://sbl.cx/_/api/send -H "Authorization: Bearer $API_TOKEN" \
 ```
 
 `slot` is `temp` (default), `main` or `sequence`. A target is either a nested
-`target` object, or one of the flat fields `text`, `url` or `query` (a GIF
-feed). For a temp, `minutes` (default 60) or `durationMs`. Every response is
-the same JSON the panel renders from, so a script can read back what a scan
-will get from `resolution`.
+`target` object, or one flat field: `text`, `url`, `query` (a GIF feed),
+`value` (a link if it parses as one, otherwise a message — what a QR scan
+yields), or `bookmark` (a saved one, by label). For a temp, `minutes` (default
+60) or `durationMs`; `temp/extend` and `sequence/arm` take `minutes` too.
+`POST /_/api/upload?slot=temp&minutes=30` with the file as the body uploads and
+points the code at it in one request. Every response is the same JSON the
+panel renders from, plus `summary`, the live state in one sentence, and
+`bookmarkLabels` for a picker.
 
-`scripts/make-shortcut.py` builds and signs an iOS Shortcut that asks for a
-line of text and sends it as a one-hour message. Set the token first:
+`scripts/make-shortcut.py` builds and signs the **sbl.cx** iOS Shortcut: one
+menu with Text, Link, Scan a QR, Take a photo, Pick a photo, GIF feed,
+Bookmark, Extend, End now, What's live, and More (Set main, Arm, Disarm).
+Anything that points the code somewhere asks how long for. Photos are
+converted to JPEG with metadata stripped before upload, since the file is
+public to whoever scans. Set the token first:
 
 ```sh
 npx wrangler secret put API_TOKEN            # any long random string
-scripts/make-shortcut.py sbl.cx "$API_TOKEN" ~/Desktop/sbl.cx\ text.shortcut
+scripts/make-shortcut.py sbl.cx "$API_TOKEN" ~/Desktop/sbl.cx.shortcut
 ```
 
 Open the file on the Mac to import it into Shortcuts; it syncs to the phone,
@@ -312,7 +320,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 114 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
+npm test          # 118 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
 npm run typecheck
 ```
 

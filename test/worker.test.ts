@@ -164,6 +164,53 @@ describe('auth', () => {
     expect(await scan.text()).toContain('hello from a shortcut');
   });
 
+  it('turns a scanned value into a link or a message, whichever it is', async () => {
+    const asToken = (body: unknown) => SELF.fetch(`${ORIGIN}/_/api/send`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let state = (await (await asToken({ value: 'shaulb.com/menu' })).json()) as any;
+    expect(state.resolution.target).toMatchObject({ kind: 'url', url: 'https://shaulb.com/menu' });
+    state = (await (await asToken({ value: 'back in 10' })).json()) as any;
+    expect(state.resolution.target).toMatchObject({ kind: 'text', text: 'back in 10' });
+    expect(state.summary).toMatch(/^Temporary for 1h 0m: back in 10 · then /);
+  });
+
+  it('sends a bookmark by name, and refuses one it does not know', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/bookmarks`, authed(cookie, {
+      label: 'Menu', target: { kind: 'url', url: 'https://example.com/menu' },
+    }));
+    const hit = await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { bookmark: 'menu', minutes: 5 }));
+    const state = (await hit.json()) as any;
+    expect(state.resolution.target.url).toBe('https://example.com/menu');
+    expect(state.bookmarkLabels).toContain('Menu');
+    const miss = await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { bookmark: 'nope' }));
+    expect(miss.status).toBe(400);
+    // Storage is shared across this file; leave the bookmark list as found.
+    const id = state.bookmarks.find((b: any) => b.label === 'Menu').id;
+    await SELF.fetch(`${ORIGIN}/_/api/bookmarks/${id}`, authed(cookie, undefined, 'DELETE'));
+  });
+
+  it('uploads and points the code at the file in one request', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/upload?slot=temp&minutes=5`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-token', 'content-type': 'image/jpeg' },
+      body: 'not really a jpeg',
+    });
+    const { state, file } = (await response.json()) as any;
+    expect(file.name).toMatch(/^photo-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.jpg$/);
+    expect(state.resolution).toMatchObject({ source: 'temp', target: { kind: 'file', key: file.key } });
+    expect(state.temp.expiresAt - state.temp.setAt).toBe(5 * 60_000);
+  });
+
+  it('extends by minutes', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { text: 'x', minutes: 10 }));
+    const response = await SELF.fetch(`${ORIGIN}/_/api/temp/extend`, authed(cookie, { minutes: 30 }));
+    const state = (await response.json()) as any;
+    expect(state.temp.expiresAt - state.temp.setAt).toBe(40 * 60_000);
+  });
+
   it('rejects a wrong token', async () => {
     const response = await SELF.fetch(`${ORIGIN}/_/api/state`, {
       headers: { authorization: 'Bearer nope' },
