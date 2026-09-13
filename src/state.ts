@@ -5,6 +5,7 @@ const EMPTY: State = {
   main: null,
   temp: null,
   sequence: null,
+  stickySteps: false,
   splash: false,
   bookmarks: [],
   mru: [],
@@ -169,6 +170,13 @@ export class RedirectState implements DurableObject {
         seq.cursor += 1;
         await this.save(s);
         return json({ index, runId: seq.runId, total: seq.steps.length });
+      }
+
+      case 'set-sticky': {
+        const s = await this.load();
+        s.stickySteps = Boolean(body.on);
+        await this.save(s);
+        return json(s);
       }
 
       case 'set-splash': {

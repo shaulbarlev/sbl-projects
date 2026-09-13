@@ -54,13 +54,19 @@ async function setUpFourStepSequence(durationMs = 3600_000) {
   return SELF.fetch(`${ORIGIN}/_/api/sequence/arm`, authed(cookie, { durationMs }));
 }
 
+/** The per-device switch. Off by default; the sticky-claim tests turn it on. */
+function sticky(on: boolean) {
+  return SELF.fetch(`${ORIGIN}/_/api/sequence/sticky`, authed(cookie, { on }));
+}
+
 beforeEach(async () => {
   cookie = await login();
+  await sticky(false);
   await SELF.fetch(`${ORIGIN}/_/api/sequence/arm`, authed(cookie, undefined, 'DELETE'));
   await SELF.fetch(`${ORIGIN}/_/api/sequence/steps`, authed(cookie, { steps: [] }));
   await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
   await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: false }));
-  await SELF.fetch(`${ORIGIN}/_/api/main`, authed(cookie, {
+  await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main',
     target: { kind: 'url', url: 'https://main.example.com/' },
   }));
 });
@@ -86,7 +92,24 @@ describe('the four-friends scenario', () => {
    * reloads on unlock — without a sticky claim they would be showing friend
    * #2's message and friend #4 would get nothing.
    */
+  it('by default a refresh moves on to the next step, and hands out no claim', async () => {
+    await setUpFourStepSequence();
+
+    const first = await scan();
+    expect(await first.text()).toContain('you are first');
+    expect(first.headers.get('set-cookie')).toBeNull();
+
+    // Same phone, refreshed: the next step, not the same one again.
+    const refreshed = await scan();
+    expect(await refreshed.text()).toContain('second!');
+
+    // A stale sticky cookie from an earlier mode is ignored, not honoured.
+    const withOldClaim = await scan({ cookie: 'skin_step=whatever.0' });
+    expect(await withOldClaim.text()).toContain('third');
+  });
+
   it('keeps a claimed step on that device across reloads', async () => {
+    await sticky(true);
     await setUpFourStepSequence();
 
     const first = await scan();
@@ -106,6 +129,7 @@ describe('the four-friends scenario', () => {
   });
 
   it('keeps a claimed step after the last step has been handed out', async () => {
+    await sticky(true);
     await setUpFourStepSequence();
 
     const first = await scan();
@@ -171,6 +195,7 @@ describe('what must not burn a step', () => {
   });
 
   it('falls through rather than claiming when the cookie is forged out of range', async () => {
+    await sticky(true);
     await setUpFourStepSequence();
     const first = await scan();
     const runId = claimOf(first).split('=')[1].split('.')[0];
@@ -194,7 +219,7 @@ describe('arming, disarming, expiry', () => {
   });
 
   it('outranks a live temp', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'temp',
       target: { kind: 'url', url: 'https://temp.example.com/' },
       durationMs: 3600_000,
     }));
@@ -204,7 +229,7 @@ describe('arming, disarming, expiry', () => {
   });
 
   it('reveals the temp again once the sequence is spent', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'temp',
       target: { kind: 'url', url: 'https://temp.example.com/' },
       durationMs: 3600_000,
     }));
@@ -231,6 +256,7 @@ describe('arming, disarming, expiry', () => {
   });
 
   it('re-arming restarts from step one and voids old claims', async () => {
+    await sticky(true);
     await setUpFourStepSequence();
     const first = await scan();
     const staleClaim = claimOf(first);
@@ -300,7 +326,7 @@ describe('arming, disarming, expiry', () => {
 
 describe('message targets', () => {
   it('renders text rather than redirecting, and escapes it', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`, authed(cookie, {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main',
       target: { kind: 'text', text: '<img src=x onerror=alert(1)>' },
     }));
     const response = await scan();
@@ -311,16 +337,16 @@ describe('message targets', () => {
   });
 
   it('rejects an empty message', async () => {
-    const response = await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'text', text: '   ' } }));
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'text', text: '   ' } }));
     expect(response.status).toBe(400);
   });
 
   // Splash precedes a redirect; a message has nothing to redirect to.
   it('skips the splash for messages', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: true }));
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'text', text: 'straight to this' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'text', text: 'straight to this' } }));
 
     const body = await (await scan()).text();
     expect(body).toContain('straight to this');

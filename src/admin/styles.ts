@@ -313,6 +313,12 @@ label.field {
   background: var(--warn); color: #000;
 }
 
+/* ------------------------------------------------------------------ gifs */
+.gifs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.gifs:empty { display: none; }
+.gifs button { padding: 0; min-height: 0; aspect-ratio: 1; overflow: hidden; background: var(--sunk); }
+.gifs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 .empty {
   font-size: 13px; font-weight: 700; color: var(--faint);
   padding: 14px; text-align: center;

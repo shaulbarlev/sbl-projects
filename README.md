@@ -28,7 +28,9 @@ otherwise                              ->  FALLBACK_URL
 A destination is one of four things: a **link**, an uploaded **file**, a
 **message** — text rendered full-screen — or an **image set**, which serves a
 different image on every scan. A message is a destination in its own right, not
-a waypoint, so nothing on that page navigates anywhere.
+a waypoint, so nothing on that page navigates anywhere. A **GIF** picked from
+the Giphy search in the panel is copied into Files on selection, so it is just a
+file: a scan never depends on Giphy's CDN, and it can go anywhere a file can.
 
 Three things about this are deliberate:
 
@@ -46,20 +48,27 @@ Hand a different destination to each consecutive scanner. Four friends scan in
 turn, each sees their own message, and when the list runs out scans go back to
 whatever they were doing before.
 
-The counter is the easy part. What makes it usable is what does **not** consume
-a step:
+Whether a step sticks to the phone that claimed it is a switch, **Each device
+keeps its step**, off by default:
 
-- **A claimed step sticks to that device.** The scanner gets a cookie carrying
-  the run id and their index, so reloading, locking the phone, or coming back
-  later shows the same message. Without this, friend #1 unlocking their phone
-  would start showing friend #2's message and friend #4 would get nothing —
-  which defeats the entire point of holding four phones up at once.
+- **Off: every scan advances.** Reloading shows the next step. One person can
+  walk through the whole list by refreshing, and no cookie is set.
+- **On: a claimed step sticks to that device.** The scanner gets a cookie
+  carrying the run id and their index, so reloading, locking the phone, or
+  coming back later shows the same message. This is for holding four phones up
+  at once: without it, friend #1 unlocking their phone would start showing
+  friend #2's message and friend #4 would get nothing.
+
+The counter is the easy part. What makes it usable is what does **not** consume
+a step, in either mode:
+
 - **Browser prefetch peeks without claiming.** iOS and Chrome speculatively
   fetch links and announce it via `Sec-Purpose: prefetch` and friends. Left
   unhandled, a prefetch eats the step meant for the person in front of you.
 - **`HEAD` requests and link unfurlers never claim.**
 - **A forged or stale cookie falls through** to normal resolution rather than
-  grabbing a fresh step, so tampering cannot drain the queue.
+  grabbing a fresh step, so tampering cannot drain the queue. With the switch
+  off, cookies are ignored altogether.
 
 Claims are handed out inside the Durable Object, which is single-threaded, so
 four people scanning at the same instant get four different steps rather than
@@ -141,14 +150,16 @@ of slot buttons and every slot growing its own composer.
 | tab | what lives there |
 | --- | --- |
 | **Now** | live state, End now / +15m, and recents |
-| **Destinations** | the composer, bookmarks, image sets, uploaded files |
-| **Sequence** | the queue: live progress, arm deadline, arm and disarm, step order |
+| **Destinations** | the composer, GIF search, bookmarks, image sets, uploaded files |
+| **Sequence** | the queue: live progress, per-device switch, arm deadline, arm and disarm, step order |
 | **Settings** | splash toggle, the QR itself, scan count, export, sign out |
 
 The sheet offers temporary (with the duration chips, so the duration lives with
 the act it belongs to), main, and *add to sequence*. Which means a step can now
 be anything a destination can be — a file or an image set, not just a link or a
-message.
+message. All three land on one route, `POST /_/api/send`, and differ only by
+`slot`; the API has as many ways to point the code somewhere as the sheet does,
+which is one.
 
 The order is by how often you reach for something. The tab is kept in the URL
 hash, so reload and the back button both behave.
@@ -229,8 +240,12 @@ First deploy:
 npx wrangler r2 bucket create skin-files
 npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put SESSION_SECRET   # any long random string
+npx wrangler secret put GIPHY_API_KEY    # optional; enables the GIF search
 npm run deploy
 ```
+
+The GIF search proxies Giphy through the Worker so the key never reaches the
+browser. Without the secret the panel says so instead of failing quietly.
 
 `FALLBACK_URL` lives in `wrangler.toml`; the `custom_domain` route there
 creates the DNS record, so there is nothing to click in the dashboard.
@@ -262,7 +277,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 103 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
+npm test          # 107 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
 npm run typecheck
 ```
 
@@ -283,4 +298,5 @@ inconvenience in local testing.
 Cloudflare Access, multiple slugs, per-template configuration, and any splash
 template you would actually want a stranger to see.
 
-A scanner with cookies blocked will claim a new step on every reload.
+With the per-device switch on, a scanner with cookies blocked will claim a new
+step on every reload.

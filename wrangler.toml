@@ -27,3 +27,4 @@ bucket_name = "skin-files"
 # Secrets, set with `wrangler secret put <NAME>` — never in this file:
 #   ADMIN_PASSWORD  the admin password
 #   SESSION_SECRET  random string used to sign session cookies
+#   GIPHY_API_KEY   optional; enables the GIF search in the panel

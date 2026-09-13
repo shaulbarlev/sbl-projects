@@ -62,6 +62,7 @@ const setup = (path, data, method) => context.request.fetch(`${BASE}/_/api/${pat
 });
 await setup('sequence/arm', undefined, 'DELETE');
 await setup('sequence/steps', { steps: [] });
+await setup('sequence/sticky', { on: false });
 await setup('temp', undefined, 'DELETE');
 await setup('splash', { on: false });
 for (const pool of (await (await setup('state')).json()).pools ?? []) {
@@ -181,6 +182,13 @@ check('four message steps built from the Destinations tab',
   (await page.locator('#steps .item').count()) === 4);
 await page.screenshot({ path: `${OUT}/06-sequence-ready.png`, fullPage: true });
 
+// Per-device claims are a switch now, off by default. Flip it through the
+// UI so the reload check below exercises the sticky path.
+await page.click('#sticky-toggle');
+await page.waitForFunction(() => document.getElementById('sticky-toggle')?.checked, null, { timeout: 10000 });
+check('per-device switch turns on',
+  (await (await setup('state')).json()).stickySteps === true);
+
 await page.click('#seq-actions button:has-text("Arm")');
 await page.waitForFunction(() =>
   document.getElementById('seq-state')?.textContent?.includes('Armed'), null, { timeout: 10000 });
@@ -233,6 +241,25 @@ await page.waitForFunction(() =>
   !document.getElementById('seq-state')?.textContent?.includes('Armed'), null, { timeout: 10000 });
 check('disarm stops it without discarding the steps',
   (await page.locator('#steps .item').count()) === 4);
+
+// And the default mode: switch back off, re-arm, and one phone refreshing
+// walks through the steps on its own.
+await page.click('#sticky-toggle');
+await page.waitForFunction(() => !document.getElementById('sticky-toggle')?.checked, null, { timeout: 10000 });
+await page.click('#seq-actions button:has-text("Arm")');
+await page.waitForFunction(() =>
+  document.getElementById('seq-state')?.textContent?.includes('Armed'), null, { timeout: 10000 });
+const walker = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+const walked = [];
+await walker.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+walked.push((await walker.textContent('body'))?.trim());
+await walker.reload({ waitUntil: 'domcontentloaded' });
+walked.push((await walker.textContent('body'))?.trim());
+check('with the switch off, a refresh shows the next step',
+  walked[0]?.includes(MESSAGES[0]) && walked[1]?.includes(MESSAGES[1]),
+  walked.map((s) => `"${s}"`).join(' · '));
+await walker.context().close();
+await setup('sequence/arm', undefined, 'DELETE');
 
 // --- image sets -----------------------------------------------------------
 // Four real 1x1 PNGs in distinguishable colours, written to disk so the file
@@ -351,9 +378,9 @@ const { file } = await uploaded.json();
 // derivation is correct in production; this sidesteps it so the check measures
 // the splash handoff itself.
 const destination = `${BASE}/f/${file.key}/${file.name}`;
-await context.request.post(`${BASE}/_/api/main`, {
+await context.request.post(`${BASE}/_/api/send`, {
   headers: { cookie: cookieHeader, 'x-skin-request': '1', 'content-type': 'application/json' },
-  data: { target: { kind: 'url', url: destination } },
+  data: { slot: 'main', target: { kind: 'url', url: destination } },
 });
 
 const scanner = await context.newPage();

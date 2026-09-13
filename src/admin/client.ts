@@ -417,6 +417,7 @@ export const ADMIN_JS = String.raw`
     renderSequence();
     renderPools();
     $('splash-toggle').checked = state.splash;
+    $('sticky-toggle').checked = !!state.stickySteps;
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
       // An unlabelled bookmark shows the destination as its name rather than a
@@ -465,9 +466,9 @@ export const ADMIN_JS = String.raw`
       // its own, so only this one earns a confirmation step.
       if (!confirm('Set MAIN destination to:\n\n' + describe(target) +
         '\n\nThis persists until you change it.')) return null;
-      return act(api('main', { target: target }), 'Main set');
+      return act(api('send', { slot: 'main', target: target }), 'Main set');
     }
-    return act(api('temp', { target: target, durationMs: duration * 60000 }),
+    return act(api('send', { slot: 'temp', target: target, durationMs: duration * 60000 }),
       'Temporary for ' + duration + 'm');
   }
 
@@ -611,8 +612,7 @@ export const ADMIN_JS = String.raw`
   };
   $('sheet-seq').onclick = function () {
     sheetAction(function (target) {
-      var steps = (state.sequence ? state.sequence.steps : []).concat([{ target: target }]);
-      return saveSteps(steps, 'Added as step ' + steps.length);
+      return act(api('send', { slot: 'sequence', target: target }), 'Added to sequence');
     });
   };
   $('sheet-close').onclick = closeSheet;
@@ -703,6 +703,52 @@ export const ADMIN_JS = String.raw`
   $('splash-toggle').onchange = function (event) {
     act(api('splash', { on: event.target.checked }),
       event.target.checked ? 'Splash on' : 'Splash off');
+  };
+
+  $('sticky-toggle').onchange = function (event) {
+    act(api('sequence/sticky', { on: event.target.checked }),
+      event.target.checked ? 'Each device keeps its step' : 'Every scan advances');
+  };
+
+  /* ------------------------------------------------------------------ gifs */
+
+  function searchGifs() {
+    var host = $('gifs');
+    var status = $('gif-status');
+    host.innerHTML = '';
+    status.textContent = 'Searching…';
+    api('gifs?q=' + encodeURIComponent($('gif-q').value.trim())).then(function (data) {
+      status.textContent = data.gifs.length ? '' : 'Nothing found.';
+      data.gifs.forEach(function (gif) {
+        var img = document.createElement('img');
+        img.src = gif.preview;
+        img.alt = gif.title;
+        img.loading = 'lazy';
+        var pick = button('', '', function () { importGif(gif); });
+        pick.setAttribute('aria-label', 'Use ' + gif.title);
+        pick.appendChild(img);
+        host.appendChild(pick);
+      });
+    }).catch(function (err) { status.textContent = ''; toast(err.message, true); });
+  }
+
+  // Copied into Files first, so it becomes an ordinary file target and the
+  // sheet can send it anywhere one goes. Cancelling the sheet leaves the
+  // file in the Library; delete it there.
+  function importGif(gif) {
+    var status = $('gif-status');
+    status.textContent = 'Saving ' + gif.title + '…';
+    api('gifs/import', { url: gif.url, name: gif.title }).then(function (data) {
+      state = data.state;
+      render();
+      status.textContent = '';
+      openSheet({ kind: 'file', key: data.file.key, name: data.file.name });
+    }).catch(function (err) { status.textContent = ''; toast(err.message, true); });
+  }
+
+  $('gif-search').onclick = searchGifs;
+  $('gif-q').onkeydown = function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); searchGifs(); }
   };
 
   $('logout').onclick = function () { $('logout-form').submit(); };

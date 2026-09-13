@@ -97,6 +97,18 @@ export function adminPage(host: string): string {
     </section>
 
     <section>
+      <h2>GIFs</h2>
+      <p class="sub">Search Giphy. Tapping one copies it into Files and opens <b>Send</b>.</p>
+      <div class="card stack">
+        <input type="text" id="gif-q" inputmode="search" enterkeyhint="search"
+               autocapitalize="off" autocorrect="off" placeholder="Search GIFs">
+        <button id="gif-search">Search</button>
+      </div>
+      <div class="gifs" id="gifs"></div>
+      <p class="hint" id="gif-status"></p>
+    </section>
+
+    <section>
       <h2>Bookmarks</h2>
       <p class="sub">Saved destinations. <b>Send</b> chooses where it goes: temporarily, as the default, or into the sequence.</p>
       <div class="list" id="bookmarks"></div>
@@ -140,6 +152,17 @@ export function adminPage(host: string): string {
         <div class="src" id="seq-state">Not armed</div>
         <div class="pips" id="seq-pips" hidden></div>
         <div class="meta" id="seq-meta" style="margin-top:6px"></div>
+        <div class="toggle" style="margin-top:14px">
+          <div>
+            <strong>Each device keeps its step</strong>
+            <div class="desc">Off: every scan or refresh gets the next step.
+              On: a phone that already claimed one keeps seeing it.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="sticky-toggle">
+            <span></span>
+          </label>
+        </div>
         <!-- The deadline belongs to the act of arming, so it sits with the
              Arm button rather than in a section of its own. -->
         <p class="hint" style="margin-top:12px">How long it stays armed. A sequence

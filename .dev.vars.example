@@ -1,3 +1,6 @@
 # Copy to .dev.vars for local development. Never commit the real file.
 ADMIN_PASSWORD=choose-something-for-local-dev
 SESSION_SECRET=any-long-random-string
+
+# Optional. Enables the GIF search in Destinations.
+GIPHY_API_KEY=

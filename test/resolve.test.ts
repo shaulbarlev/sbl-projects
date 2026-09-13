@@ -12,6 +12,7 @@ function state(partial: Partial<State> = {}): State {
     main: null,
     temp: null,
     sequence: null,
+    stickySteps: false,
     splash: false,
     bookmarks: [],
     mru: [],

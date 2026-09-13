@@ -51,18 +51,18 @@ describe('public redirect', () => {
   // A 301 would be cached near-permanently by the browser of every device that
   // ever scanned the code, and could not be taken back.
   it('never issues a permanent redirect', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
     const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
     expect(response.status).toBe(302);
     expect(response.headers.get('cache-control')).toBe('no-store');
   });
 
   it('prefers a live temp, and reverts to main when it is ended', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://main.example.com/' } }));
-    await SELF.fetch(`${ORIGIN}/_/api/temp`,
-      authed(cookie, { target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 3600_000 }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 3600_000 }));
 
     let response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
     expect(response.headers.get('location')).toBe('https://temp.example.com/');
@@ -73,18 +73,18 @@ describe('public redirect', () => {
   });
 
   it('keeps a live temp alive when main is changed underneath it', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/temp`,
-      authed(cookie, { target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 3600_000 }));
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://new-main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 3600_000 }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://new-main.example.com/' } }));
 
     const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
     expect(response.headers.get('location')).toBe('https://temp.example.com/');
   });
 
   it('resolves unknown paths rather than 404ing them', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
     const response = await SELF.fetch(`${ORIGIN}/some/mistyped/path`, { redirect: 'manual' });
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('https://main.example.com/');
@@ -100,8 +100,8 @@ describe('public redirect', () => {
 
 describe('splash', () => {
   beforeEach(async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
     await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: true }));
   });
 
@@ -127,8 +127,8 @@ describe('splash', () => {
   });
 
   it('escapes a hostile target rather than emitting it raw', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://evil.example.com/"></script><script>x' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://evil.example.com/"></script><script>x' } }));
     const body = await (await SELF.fetch(ORIGIN, { redirect: 'manual' })).text();
     expect(body).not.toContain('</script><script>x');
   });
@@ -166,10 +166,10 @@ describe('auth', () => {
 
   // Without this, a page in your browser could silently repoint the QR code.
   it('rejects writes that lack the CSRF header', async () => {
-    const response = await SELF.fetch(`${ORIGIN}/_/api/main`, {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`, {
       method: 'POST',
       headers: { cookie, 'content-type': 'application/json' },
-      body: JSON.stringify({ target: { kind: 'url', url: 'https://attacker.example.com/' } }),
+      body: JSON.stringify({ slot: 'main', target: { kind: 'url', url: 'https://attacker.example.com/' } }),
       redirect: 'manual',
     });
     expect(response.status).toBe(403);
@@ -177,15 +177,43 @@ describe('auth', () => {
 });
 
 describe('validation at the api boundary', () => {
+  it('refuses an unknown send slot', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'forever', target: { kind: 'url', url: 'https://example.com/' } }));
+    expect(response.status).toBe(400);
+  });
+
+  it('appends to the sequence through send', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/sequence/steps`, authed(cookie, { steps: [] }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'sequence', target: { kind: 'text', text: 'one' } }));
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'sequence', target: { kind: 'text', text: 'two' } }));
+    const state = await response.json() as any;
+    expect(state.sequence.steps.map((s: any) => s.target.text)).toEqual(['one', 'two']);
+    // Adding steps to an idle sequence must not arm it.
+    expect(state.sequenceStatus.live).toBe(false);
+  });
+
+  // The import route fetches a URL and republishes it on this origin, so it
+  // must only ever fetch Giphy — never an arbitrary host the admin was tricked
+  // into pasting.
+  it('refuses to import a gif from anywhere but giphy', async () => {
+    for (const url of ['https://evil.example.com/x.gif', 'http://media.giphy.com/x.gif', 'nonsense']) {
+      const response = await SELF.fetch(`${ORIGIN}/_/api/gifs/import`, authed(cookie, { url }));
+      expect(response.status).toBe(400);
+    }
+  });
+
   it('refuses a javascript: target', async () => {
-    const response = await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'javascript:alert(1)' } }));
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'javascript:alert(1)' } }));
     expect(response.status).toBe(400);
   });
 
   it('clamps an absurd temp duration to the ceiling', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/temp`,
-      authed(cookie, { target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 1e15 }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'url', url: 'https://temp.example.com/' }, durationMs: 1e15 }));
     const state = await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json() as any;
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
     expect(state.temp.expiresAt - Date.now()).toBeLessThanOrEqual(sevenDays + 1000);
@@ -221,8 +249,8 @@ describe('files', () => {
     });
     const { file } = await upload.json() as any;
 
-    await SELF.fetch(`${ORIGIN}/_/api/temp`,
-      authed(cookie, { target: { kind: 'file', key: file.key, name: file.name }, durationMs: 600_000 }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'file', key: file.key, name: file.name }, durationMs: 600_000 }));
 
     const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
     expect(response.headers.get('location')).toBe(`${ORIGIN}/f/${file.key}/menu.txt`);
@@ -262,8 +290,8 @@ describe('bookmarks and qr', () => {
   });
 
   it('records recently used targets', async () => {
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://recent.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://recent.example.com/' } }));
     const state = await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json() as any;
     expect(state.mru[0].target.url).toBe('https://recent.example.com/');
   });

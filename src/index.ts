@@ -181,10 +181,11 @@ async function handleRedirect(
 /**
  * Work out which sequence step this visitor gets.
  *
- * A step is claimed once per device and then sticks: reloading, locking the
- * phone, or coming back later shows the same message, because the whole point
- * is to hold the screen up while four phones get arranged. Only a genuinely new
- * visitor consumes the next step.
+ * With `stickySteps` on, a step is claimed once per device and then sticks:
+ * reloading, locking the phone, or coming back later shows the same message,
+ * for holding the screen up while four phones get arranged. Off, no claim is
+ * recorded and every real scan — a refresh included — takes the next step.
+ * Either way, only a genuine scan consumes one.
  */
 async function claimStep(
   request: Request,
@@ -193,8 +194,9 @@ async function claimStep(
   now: number,
 ): Promise<{ index: number; target: Target; cookie: string | null } | null> {
   const sequence = state.sequence!;
+  const sticky = state.stickySteps;
 
-  const existing = readRequestCookie(request, STEP_COOKIE);
+  const existing = sticky ? readRequestCookie(request, STEP_COOKIE) : null;
   if (existing) {
     const separator = existing.lastIndexOf('.');
     const runId = existing.slice(0, separator);
@@ -222,6 +224,8 @@ async function claimStep(
 
   const target = stepTarget(state, claimed.index);
   if (!target) return null;
+
+  if (!sticky) return { index: claimed.index, target, cookie: null };
 
   return {
     index: claimed.index,
@@ -360,20 +364,29 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     return json(await view(env));
   }
 
-  if (route === 'main' && request.method === 'POST') {
-    const body = (await request.json()) as { target: Target };
+  // The one write for "point the code at this". Every action on the Send
+  // sheet lands here; the slot is the only thing that differs between them.
+  if (route === 'send' && request.method === 'POST') {
+    const body = (await request.json()) as { slot: string; target: Target; durationMs?: number };
     const target = normaliseTarget(body.target);
     if ('error' in target) return json({ error: target.error }, 400);
-    await callState(env, 'set-main', { target: target.value, now });
-    return json(await view(env));
-  }
 
-  if (route === 'temp' && request.method === 'POST') {
-    const body = (await request.json()) as { target: Target; durationMs: number };
-    const target = normaliseTarget(body.target);
-    if ('error' in target) return json({ error: target.error }, 400);
-    const expiresAt = now + clampDuration(body.durationMs);
-    await callState(env, 'set-temp', { target: target.value, now, expiresAt });
+    if (body.slot === 'main') {
+      await callState(env, 'set-main', { target: target.value, now });
+    } else if (body.slot === 'temp') {
+      const expiresAt = now + clampDuration(body.durationMs as number);
+      await callState(env, 'set-temp', { target: target.value, now, expiresAt });
+    } else if (body.slot === 'sequence') {
+      const state = (await callState(env, 'get')) as State;
+      const steps: SequenceStep[] = [
+        ...(state.sequence?.steps ?? []),
+        { id: crypto.randomUUID(), target: target.value },
+      ];
+      if (steps.length > MAX_STEPS) return json({ error: `Too many steps (max ${MAX_STEPS})` }, 400);
+      await callState(env, 'set-steps', { steps });
+    } else {
+      return json({ error: 'Unknown slot' }, 400);
+    }
     return json(await view(env));
   }
 
@@ -391,7 +404,7 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   if (route === 'sequence/steps' && request.method === 'POST') {
     const body = (await request.json()) as { steps: { target: Target }[] };
     if (!Array.isArray(body.steps)) return json({ error: 'Malformed steps' }, 400);
-    if (body.steps.length > 24) return json({ error: 'Too many steps (max 24)' }, 400);
+    if (body.steps.length > MAX_STEPS) return json({ error: `Too many steps (max ${MAX_STEPS})` }, 400);
 
     const steps: SequenceStep[] = [];
     for (const [position, step] of body.steps.entries()) {
@@ -412,6 +425,12 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
 
   if (route === 'sequence/arm' && request.method === 'DELETE') {
     await callState(env, 'disarm-sequence', {});
+    return json(await view(env));
+  }
+
+  if (route === 'sequence/sticky' && request.method === 'POST') {
+    const body = (await request.json()) as { on: boolean };
+    await callState(env, 'set-sticky', { on: body.on });
     return json(await view(env));
   }
 
@@ -445,35 +464,63 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   if (route === 'upload' && request.method === 'POST') {
     const name = url.searchParams.get('name') ?? 'upload';
     if (!request.body) return json({ error: 'Empty upload' }, 400);
-
-    // Unguessable key: anyone who has ever scanned the code knows the origin,
-    // and sequential keys would let them enumerate everything ever hosted.
-    const bytes = crypto.getRandomValues(new Uint8Array(16));
-    const key = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
     const type = request.headers.get('content-type') ?? 'application/octet-stream';
-
-    const stored = await env.FILES.put(key, request.body, {
-      httpMetadata: {
-        contentType: type,
-        contentDisposition: `inline; filename="${name.replace(/["\\]/g, '')}"`,
-      },
-    });
-
-    const file: StoredFile = {
-      key,
-      name,
-      type,
-      size: stored?.size ?? 0,
-      uploadedAt: now,
-    };
-    await callState(env, 'add-file', { file });
+    const file = await storeFile(env, name, type, request.body, now);
 
     // Uploading straight into a set is the common case for this feature —
     // otherwise adding twelve photos means twelve uploads plus twelve
     // separate "add to set" taps.
     const poolId = url.searchParams.get('pool');
-    if (poolId) await callState(env, 'pool-add-item', { poolId, key });
+    if (poolId) await callState(env, 'pool-add-item', { poolId, key: file.key });
 
+    return json({ state: await view(env), file });
+  }
+
+  if (route === 'gifs' && request.method === 'GET') {
+    if (!env.GIPHY_API_KEY) return json({ error: 'GIPHY_API_KEY is not set' }, 400);
+    const q = url.searchParams.get('q')?.trim() ?? '';
+    const upstream = new URL(`https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}`);
+    upstream.searchParams.set('api_key', env.GIPHY_API_KEY);
+    upstream.searchParams.set('limit', '24');
+    upstream.searchParams.set('rating', 'pg-13');
+    if (q) upstream.searchParams.set('q', q);
+
+    const response = await fetch(upstream);
+    if (!response.ok) return json({ error: `Giphy said ${response.status}` }, 502);
+    const { data } = (await response.json()) as { data: any[] };
+    return json({
+      gifs: data.map((gif) => ({
+        id: gif.id,
+        title: String(gif.title || 'gif'),
+        preview: gif.images.fixed_width_small.url,
+        // downsized is capped at 2MB, which is what a phone on cellular wants.
+        url: gif.images.downsized?.url || gif.images.original.url,
+      })),
+    });
+  }
+
+  // A picked GIF is copied into the Library rather than linked, so a scan
+  // never depends on Giphy's CDN and the result is an ordinary file target
+  // that can go anywhere one can — main, temp, a step, an image set.
+  if (route === 'gifs/import' && request.method === 'POST') {
+    const body = (await request.json()) as { url?: string; name?: string };
+    let source: URL;
+    try {
+      source = new URL(body.url ?? '');
+    } catch {
+      return json({ error: 'Malformed GIF URL' }, 400);
+    }
+    // Only Giphy's own hosts. The panel is the sole caller, but an admin
+    // route that fetches any URL and republishes it is still an open proxy.
+    if (source.protocol !== 'https:' || !/(^|\.)giphy\.com$/.test(source.hostname)) {
+      return json({ error: 'Not a Giphy URL' }, 400);
+    }
+    const upstream = await fetch(source);
+    if (!upstream.ok) return json({ error: `Giphy said ${upstream.status}` }, 502);
+    const name = `${String(body.name ?? '').trim().slice(0, 60) || 'gif'}.gif`;
+    const type = upstream.headers.get('content-type') ?? 'image/gif';
+    // Buffered: R2 needs a known length, and downsized gifs are small.
+    const file = await storeFile(env, name, type, await upstream.arrayBuffer(), now);
     return json({ state: await view(env), file });
   }
 
@@ -518,6 +565,32 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
 
 /** Default life of an armed sequence, if the panel does not say otherwise. */
 const DEFAULT_SEQUENCE_MS = 60 * 60 * 1000;
+const MAX_STEPS = 24;
+
+/** Put bytes in R2 under an unguessable key and record them in the Library. */
+async function storeFile(
+  env: Env,
+  name: string,
+  type: string,
+  body: ReadableStream | ArrayBuffer,
+  now: number,
+): Promise<StoredFile> {
+  // Unguessable key: anyone who has ever scanned the code knows the origin,
+  // and sequential keys would let them enumerate everything ever hosted.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const key = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  const stored = await env.FILES.put(key, body, {
+    httpMetadata: {
+      contentType: type,
+      contentDisposition: `inline; filename="${name.replace(/["\\]/g, '')}"`,
+    },
+  });
+
+  const file: StoredFile = { key, name, type, size: stored?.size ?? 0, uploadedAt: now };
+  await callState(env, 'add-file', { file });
+  return file;
+}
 
 /**
  * State plus the resolver's current verdict, so the panel shows live truth.

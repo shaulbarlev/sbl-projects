@@ -97,6 +97,11 @@ export interface State {
   main: Slot | null;
   temp: TempSlot | null;
   sequence: Sequence | null;
+  /**
+   * Whether a sequence step sticks to the device that claimed it. Off, every
+   * scan — a refresh included — advances to the next step.
+   */
+  stickySteps: boolean;
   splash: boolean;
   bookmarks: Bookmark[];
   mru: MruEntry[];
@@ -118,4 +123,6 @@ export interface Env {
   ADMIN_PASSWORD: string;
   SESSION_SECRET: string;
   FALLBACK_URL: string;
+  /** Optional. Without it the GIF search in the panel reports itself unset. */
+  GIPHY_API_KEY?: string;
 }

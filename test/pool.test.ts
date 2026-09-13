@@ -65,7 +65,7 @@ beforeEach(async () => {
   await SELF.fetch(`${ORIGIN}/_/api/sequence/arm`, authed(cookie, undefined, 'DELETE'));
   await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
   await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: false }));
-  await SELF.fetch(`${ORIGIN}/_/api/main`, authed(cookie, {
+  await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main',
     target: { kind: 'url', url: 'https://main.example.com/' },
   }));
 });
@@ -73,8 +73,8 @@ beforeEach(async () => {
 describe('serving a random image', () => {
   it('sends each scan to an image from the set', async () => {
     const poolId = await makePool('Photos', 4);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     for (let i = 0; i < 6; i++) {
       const response = await scan();
@@ -90,8 +90,8 @@ describe('serving a random image', () => {
    */
   it('shows every image once before repeating any', async () => {
     const poolId = await makePool('Photos', 5);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const firstPass = [];
     for (let i = 0; i < 5; i++) firstPass.push(await scannedKey());
@@ -110,8 +110,8 @@ describe('serving a random image', () => {
    */
   it('never repeats across the seam between two passes', async () => {
     const poolId = await makePool('Pair', 2);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const drawn: (string | null)[] = [];
     for (let i = 0; i < 40; i++) drawn.push(await scannedKey());
@@ -124,8 +124,8 @@ describe('serving a random image', () => {
 
   it('handles a one-image set without spinning', async () => {
     const poolId = await makePool('Just one', 1);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const a = await scannedKey();
     const b = await scannedKey();
@@ -135,8 +135,8 @@ describe('serving a random image', () => {
 
   it('counts every scan of a set', async () => {
     const poolId = await makePool('Photos', 3);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const before = await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json() as any;
     await scan();
@@ -147,8 +147,8 @@ describe('serving a random image', () => {
 
   it('shows the splash first when it is on', async () => {
     const poolId = await makePool('Photos', 2);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
     await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: true }));
 
     const body = await (await scan()).text();
@@ -163,7 +163,7 @@ describe('an empty or broken set never dead-ends a scan', () => {
       authed(cookie, { name: 'Empty' }))).json() as any;
     const poolId = created.pools[created.pools.length - 1].id;
 
-    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'temp',
       target: { kind: 'pool', poolId }, durationMs: 3600_000,
     }));
 
@@ -177,8 +177,8 @@ describe('an empty or broken set never dead-ends a scan', () => {
       authed(cookie, { name: 'Empty' }))).json() as any;
     const poolId = created.pools[created.pools.length - 1].id;
 
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool', poolId } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const response = await scan();
     expect(response.status).toBe(302);
@@ -205,9 +205,9 @@ describe('an empty or broken set never dead-ends a scan', () => {
 
   it('emptying a set by deletion sends scans back to normal resolution', async () => {
     const poolId = await makePool('Photos', 1);
-    await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'url', url: 'https://main.example.com/' } }));
-    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, {
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'temp',
       target: { kind: 'pool', poolId }, durationMs: 3600_000,
     }));
     expect((await scan()).headers.get('location')).toMatch(/\/f\//);
@@ -263,8 +263,8 @@ describe('managing sets', () => {
   });
 
   it('rejects a malformed set target', async () => {
-    const response = await SELF.fetch(`${ORIGIN}/_/api/main`,
-      authed(cookie, { target: { kind: 'pool' } }));
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'main', target: { kind: 'pool' } }));
     expect(response.status).toBe(400);
   });
 });
@@ -282,8 +282,8 @@ describe('what must not consume a draw', () => {
 
   async function pointAtSet(images: number): Promise<void> {
     const poolId = await makePool('Photos', images);
-    await SELF.fetch(`${ORIGIN}/_/api/temp`,
-      authed(cookie, { target: { kind: 'pool', poolId }, durationMs: 3600_000 }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'pool', poolId }, durationMs: 3600_000 }));
   }
 
   it('a browser prefetch peeks at the next image without taking it', async () => {
