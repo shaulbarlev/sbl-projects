@@ -41,6 +41,7 @@ TEST = '--test' in sys.argv
 API = f'https://{host}/_/api/' if not host.startswith('http') else f'{host}/_/api/'
 
 actions = []
+INPUT = ('input',)  # the Shortcut's own input, for the --test variant
 
 
 def new_uuid():
@@ -59,6 +60,8 @@ def add(identifier, output_name=None, **params):
 
 def token_of(ref):
     """An attachment token for a variable name or an (uuid, output) pair."""
+    if ref == INPUT:
+        return {'Type': 'ExtensionInput'}
     if isinstance(ref, str):
         return {'Type': 'Variable', 'VariableName': ref}
     return {'Type': 'ActionOutput', 'OutputUUID': ref[0], 'OutputName': ref[1]}
@@ -261,7 +264,7 @@ def more_case():
 
 if TEST:
     # Shortcut Input is the image; no menus, no prompts.
-    image = to_jpeg(('SHORTCUT_INPUT', 'Shortcut Input'))
+    image = to_jpeg(INPUT)
     set_var('minutes', literal('2'))
     upload(image)
 else:
