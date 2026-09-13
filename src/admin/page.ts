@@ -98,11 +98,15 @@ export function adminPage(host: string): string {
 
     <section>
       <h2>GIFs</h2>
-      <p class="sub">Search Giphy. Tapping one copies it into Files and opens <b>Send</b>.</p>
+      <p class="sub">Search Giphy and tap one to copy it into Files, or send the search itself
+        as a <b>feed</b>: every scan gets the next result, in order.</p>
       <div class="card stack">
         <input type="text" id="gif-q" inputmode="search" enterkeyhint="search"
                autocapitalize="off" autocorrect="off" placeholder="Search GIFs">
-        <button id="gif-search">Search</button>
+        <div class="row">
+          <button id="gif-search" class="primary">Search</button>
+          <button id="gif-feed">Send as feed&hellip;</button>
+        </div>
       </div>
       <div class="gifs" id="gifs"></div>
       <p class="hint" id="gif-status"></p>

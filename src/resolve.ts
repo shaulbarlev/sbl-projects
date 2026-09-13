@@ -96,7 +96,7 @@ export function fileUrl(key: string, name: string, origin: string): string {
 export function targetToUrl(target: Target, origin: string): string {
   if (target.kind === 'url') return target.url;
   if (target.kind === 'file') return fileUrl(target.key, target.name, origin);
-  // Text is rendered in place and pool is resolved upstream; neither has a URL.
+  // Text is rendered in place; pool and giphy are resolved upstream.
   return origin;
 }
 
@@ -105,6 +105,7 @@ export function targetKey(target: Target): string {
   if (target.kind === 'url') return `url:${target.url}`;
   if (target.kind === 'file') return `file:${target.key}`;
   if (target.kind === 'pool') return `pool:${target.poolId}`;
+  if (target.kind === 'giphy') return `giphy:${target.query}`;
   return `text:${target.text}`;
 }
 
@@ -116,5 +117,6 @@ export function describeTarget(target: Target, state?: State): string {
     const pool = state ? findPool(state, target.poolId) : null;
     return pool ? `${pool.name} (${pool.items.length} images)` : 'Image set';
   }
+  if (target.kind === 'giphy') return target.query ? `GIF feed: ${target.query}` : 'Trending GIF feed';
   return target.text;
 }

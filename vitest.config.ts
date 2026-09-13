@@ -10,6 +10,7 @@ export default defineConfig({
           ADMIN_PASSWORD: 'test-password',
           SESSION_SECRET: 'test-session-secret',
           FALLBACK_URL: 'https://fallback.example.com/',
+          GIPHY_API_KEY: 'test-giphy-key',
         },
       },
     }),

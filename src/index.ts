@@ -7,6 +7,7 @@ import {
   sessionCookie,
 } from './auth';
 import { adminPage, loginPage, MANIFEST } from './admin/page';
+import { searchGifs } from './giphy';
 import { renderMessage } from './message';
 import { qrSvg } from './qr';
 import {
@@ -141,6 +142,21 @@ async function handleRedirect(
       // The set emptied out from under us between read and draw.
       served = { kind: 'url', url: env.FALLBACK_URL };
     }
+  }
+
+  // A GIF feed is a live search: every real scan takes the next result, under
+  // the same peek rule as a draw. Without a key there is no feed, so the scan
+  // falls back rather than dead-ending.
+  if (served.kind === 'giphy') {
+    const peek = isRobot || isSpeculative(request);
+    const next = env.GIPHY_API_KEY
+      ? ((await callState(env, 'giphy-next', {
+          query: served.query,
+          key: env.GIPHY_API_KEY,
+          peek,
+        })) as { url: string | null })
+      : { url: null };
+    served = { kind: 'url', url: next.url ?? env.FALLBACK_URL };
   }
 
   // Counted after the response is on its way — telemetry never delays a scan.
@@ -478,25 +494,12 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
 
   if (route === 'gifs' && request.method === 'GET') {
     if (!env.GIPHY_API_KEY) return json({ error: 'GIPHY_API_KEY is not set' }, 400);
-    const q = url.searchParams.get('q')?.trim() ?? '';
-    const upstream = new URL(`https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}`);
-    upstream.searchParams.set('api_key', env.GIPHY_API_KEY);
-    upstream.searchParams.set('limit', '24');
-    upstream.searchParams.set('rating', 'pg-13');
-    if (q) upstream.searchParams.set('q', q);
-
-    const response = await fetch(upstream);
-    if (!response.ok) return json({ error: `Giphy said ${response.status}` }, 502);
-    const { data } = (await response.json()) as { data: any[] };
-    return json({
-      gifs: data.map((gif) => ({
-        id: gif.id,
-        title: String(gif.title || 'gif'),
-        preview: gif.images.fixed_width_small.url,
-        // downsized is capped at 2MB, which is what a phone on cellular wants.
-        url: gif.images.downsized?.url || gif.images.original.url,
-      })),
-    });
+    try {
+      const q = url.searchParams.get('q')?.trim() ?? '';
+      return json({ gifs: await searchGifs(env.GIPHY_API_KEY, q) });
+    } catch (err) {
+      return json({ error: (err as Error).message }, 502);
+    }
   }
 
   // A picked GIF is copied into the Library rather than linked, so a scan
@@ -629,6 +632,12 @@ function normaliseTarget(target: Target): { value: Target } | { error: string } 
   if (target.kind === 'pool') {
     if (!target.poolId) return { error: 'Malformed image set target' };
     return { value: { kind: 'pool', poolId: target.poolId, label: target.label } };
+  }
+
+  if (target.kind === 'giphy') {
+    const query = String(target.query ?? '').trim();
+    if (query.length > 100) return { error: 'Search is longer than 100 characters' };
+    return { value: { kind: 'giphy', query, label: target.label } };
   }
 
   if (target.kind === 'text') {

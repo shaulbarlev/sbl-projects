@@ -164,6 +164,16 @@ check('main took effect',
   (await page.textContent('#live-url'))?.includes('shaulb.com/work'),
   await page.textContent('#live-url'));
 
+// --- a search sent whole, as a feed, without picking anything -------------
+await page.click('#tab-library');
+await page.fill('#gif-q', 'thumbs up');
+await page.click('#gif-feed');
+await page.waitForSelector('#sheet.open', { timeout: 10000 });
+check('a search opens the sheet as a GIF feed',
+  (await page.textContent('#sheet-target'))?.includes('GIF feed: thumbs up'));
+await page.click('#sheet-close');
+await page.waitForSelector('#sheet', { state: 'hidden', timeout: 10000 });
+
 // --- sequence, built and run entirely through the UI ----------------------
 // Steps are composed on Destinations and pushed into the queue through the
 // same sheet as everything else — there is no separate step editor any more.

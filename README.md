@@ -31,6 +31,11 @@ different image on every scan. A message is a destination in its own right, not
 a waypoint, so nothing on that page navigates anywhere. A **GIF** picked from
 the Giphy search in the panel is copied into Files on selection, so it is just a
 file: a scan never depends on Giphy's CDN, and it can go anywhere a file can.
+A **GIF feed** is the other way to use a search: send the search itself, and
+every scan gets the next result in order, paging through Giphy and wrapping
+when it runs out. A feed is live by nature, so it is the one destination that
+does lean on Giphy at scan time; if Giphy is down the scan falls back rather
+than erroring.
 
 Three things about this are deliberate:
 
@@ -150,7 +155,7 @@ of slot buttons and every slot growing its own composer.
 | tab | what lives there |
 | --- | --- |
 | **Now** | live state, End now / +15m, and recents |
-| **Destinations** | the composer, GIF search, bookmarks, image sets, uploaded files |
+| **Destinations** | the composer, GIF search and feed, bookmarks, image sets, uploaded files |
 | **Sequence** | the queue: live progress, per-device switch, arm deadline, arm and disarm, step order |
 | **Settings** | splash toggle, the QR itself, scan count, export, sign out |
 
@@ -277,7 +282,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 107 tests: resolver truth table, sequence claiming, image-set draws, validation, auth, files
+npm test          # 112 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
 npm run typecheck
 ```
 

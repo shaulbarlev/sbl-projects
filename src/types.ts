@@ -10,7 +10,20 @@ export type Target =
   | { kind: 'url'; url: string; label?: string }
   | { kind: 'file'; key: string; name: string; label?: string }
   | { kind: 'text'; text: string; label?: string }
-  | { kind: 'pool'; poolId: string; label?: string };
+  | { kind: 'pool'; poolId: string; label?: string }
+  /** A live Giphy search: every scan gets the next result, in order. */
+  | { kind: 'giphy'; query: string; label?: string };
+
+/**
+ * Where a GIF feed is up to: one page of result URLs and a cursor into it.
+ * When the cursor runs off the end the next page is fetched, and when Giphy
+ * has no more the feed wraps to the first page.
+ */
+export interface GiphyFeed {
+  urls: string[];
+  offset: number;
+  cursor: number;
+}
 
 export interface Slot {
   target: Target;
@@ -107,6 +120,8 @@ export interface State {
   mru: MruEntry[];
   files: StoredFile[];
   pools: Pool[];
+  /** Feed progress, keyed by search query. */
+  giphy: Record<string, GiphyFeed>;
   hits: number;
 }
 

@@ -70,6 +70,7 @@ export const ADMIN_JS = String.raw`
       var pool = findPool(target.poolId);
       return pool ? pool.name + ' (' + pool.items.length + ' images)' : 'Image set';
     }
+    if (target.kind === 'giphy') return target.query ? 'GIF feed: ' + target.query : 'Trending GIF feed';
     return '“' + target.text + '”';
   }
 
@@ -78,6 +79,7 @@ export const ADMIN_JS = String.raw`
     if (target.kind === 'url') return 'link';
     if (target.kind === 'file') return 'file';
     if (target.kind === 'pool') return 'random image';
+    if (target.kind === 'giphy') return 'gif feed';
     return 'message';
   }
 
@@ -771,6 +773,9 @@ export const ADMIN_JS = String.raw`
   }
 
   $('gif-search').onclick = searchGifs;
+  $('gif-feed').onclick = function () {
+    openSheet({ kind: 'giphy', query: $('gif-q').value.trim() });
+  };
   $('gif-q').onkeydown = function (e) {
     if (e.key === 'Enter') { e.preventDefault(); searchGifs(); }
   };

@@ -1,3 +1,4 @@
+import { searchGifs } from './giphy';
 import { targetKey } from './resolve';
 import type { Bookmark, MruEntry, Pool, SequenceStep, State, StoredFile, Target } from './types';
 
@@ -11,6 +12,7 @@ const EMPTY: State = {
   mru: [],
   files: [],
   pools: [],
+  giphy: {},
   hits: 0,
 };
 
@@ -307,6 +309,39 @@ export class RedirectState implements DurableObject {
         pool.lastDrawn = key;
         await this.save(s);
         return json({ key, remaining: pool.bag.length });
+      }
+
+      /**
+       * The next GIF in a feed. Fetches the next page when this one is spent
+       * and wraps to the first when Giphy has no more. A peek returns what
+       * the next real scan would get without advancing.
+       */
+      case 'giphy-next': {
+        const s = await this.load();
+        let feed = s.giphy[body.query] ?? { urls: [], offset: 0, cursor: 0 };
+        if (feed.cursor >= feed.urls.length) {
+          // ponytail: two scanners hitting the page seam at once both refill,
+          // and the loser's save costs one repeated gif. A per-query lock if
+          // that ever shows.
+          try {
+            let offset = feed.offset + feed.urls.length;
+            let page = await searchGifs(body.key, body.query, offset);
+            if (page.length === 0 && offset > 0) {
+              offset = 0;
+              page = await searchGifs(body.key, body.query, 0);
+            }
+            feed = { urls: page.map((gif) => gif.url), offset, cursor: 0 };
+          } catch (err) {
+            // Giphy down or the key revoked: the scan falls back, not errors.
+            console.warn('giphy feed refill failed', err);
+            return json({ url: null });
+          }
+        }
+        const url = feed.urls[feed.cursor] ?? null;
+        if (url && !body.peek) feed.cursor += 1;
+        s.giphy[body.query] = feed;
+        await this.save(s);
+        return json({ url });
       }
 
       case 'login-guard': {
