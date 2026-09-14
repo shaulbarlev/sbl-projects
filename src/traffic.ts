@@ -18,8 +18,9 @@ export const LIGHT_ENTITIES: ReadonlySet<string> = new Set(LIGHTS.map((l) => l.e
  * The page a `traffic` target renders, at /traffic and as a root takeover.
  *
  * Everything is inlined, like the message page: this opens on a phone that
- * just scanned a code. State is fetched on load and every few seconds, so a
- * switch flipped from elsewhere shows within that window.
+ * just scanned a code. No words on it: two lamps, lit or dim, and dimmed
+ * further when home cannot be reached. State arrives over a socket as it
+ * changes, with HTTP polling as the fallback.
  */
 export function renderTraffic(): string {
   const lamps = LIGHTS.map(
@@ -65,8 +66,6 @@ export function renderTraffic(): string {
   }
   .lamp[disabled] { cursor: default; opacity: .45; }
   .lamp.busy { opacity: .7; }
-  p { margin: 0; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; }
-  p.err { color: #f87171; }
 </style>
 </head>
 <body>
@@ -74,12 +73,10 @@ export function renderTraffic(): string {
   <div class="housing">
 ${lamps}
   </div>
-  <p id="status">connecting…</p>
 </main>
 <script>
 (function () {
   var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
-  var status = document.getElementById('status');
   var ws = null, pollTimer = null, backoff = 1000;
   var tapped = {};
   // What the last tap asked for, per lamp, and when. While a tap is recent,
@@ -100,13 +97,12 @@ ${lamps}
       }
       el.disabled = !online;
     });
-    status.className = online ? '' : 'err';
-    status.textContent = online ? 'tap a light' : 'home is offline';
   }
 
-  function fail(message) {
-    status.className = 'err';
-    status.textContent = message;
+  // No words on this page. Trouble reads as dimmed lamps until a state
+  // message brings them back.
+  function fail() {
+    lamps.forEach(function (el) { el.disabled = true; });
   }
 
   function handle(data) {
@@ -115,7 +111,7 @@ ${lamps}
     // and the push from home confirms or corrects it.
     if (data.states && (data.type === 'state' || data.error)) paint(data);
     if (data.error) {
-      fail(data.error);
+      fail();
       setTimeout(function () { if (data.states) paint(data); }, 1500);
     }
     if (data.type === 'result' && tapped[data.entity]) {
@@ -157,7 +153,7 @@ ${lamps}
     return fetch('/traffic/state', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(paint)
-      .catch(function () { fail('no connection'); });
+      .catch(fail);
   }
   function poll() {
     if (pollTimer) return;
@@ -189,7 +185,7 @@ ${lamps}
         body: JSON.stringify({ entity: entity, state: next })
       }).then(function (r) { return r.json(); })
         .then(handle)
-        .catch(function () { fail('no connection'); });
+        .catch(fail);
     };
   });
 
