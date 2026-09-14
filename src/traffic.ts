@@ -24,7 +24,7 @@ export const LIGHT_ENTITIES: ReadonlySet<string> = new Set(LIGHTS.map((l) => l.e
 export function renderTraffic(): string {
   const lamps = LIGHTS.map(
     (l) => `<button class="lamp" data-entity="${escapeHtml(l.entity)}" style="--c:${l.color}"
-      aria-label="${l.label} light" aria-pressed="false" disabled></button>`,
+      aria-label="${l.label} light" aria-pressed="false" disabled onclick="return false"></button>`,
   ).join('\n');
 
   return `<!doctype html>
@@ -80,6 +80,8 @@ ${lamps}
 (function () {
   var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
   var status = document.getElementById('status');
+  var ws = null, pollTimer = null, backoff = 1000;
+  var tapped = {};
 
   function paint(data) {
     var online = !!data.online;
@@ -95,39 +97,99 @@ ${lamps}
   function fail(message) {
     status.className = 'err';
     status.textContent = message;
-    lamps.forEach(function (el) { el.disabled = true; });
   }
 
+  function handle(data) {
+    if (data.states) paint(data);
+    if (data.error) {
+      fail(data.error === 'busy' ? 'slow down' : data.error);
+      setTimeout(function () { if (data.states) paint(data); }, 1500);
+    }
+    if (data.type === 'result' && tapped[data.entity]) {
+      console.log('tap to state ' + Math.round(performance.now() - tapped[data.entity]) +
+        'ms (agent ' + data.agentMs + 'ms, home assistant ' + data.haMs + 'ms)');
+      delete tapped[data.entity];
+    }
+  }
+
+  function open() { return ws && ws.readyState === 1; }
+
+  // The socket: state arrives as it changes, taps go the same way.
+  function connect() {
+    try {
+      ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/traffic/ws');
+    } catch (err) { poll(); return; }
+    ws.onopen = function () {
+      backoff = 1000;
+      clearInterval(pollTimer);
+      pollTimer = null;
+    };
+    ws.onmessage = function (e) {
+      if (e.data === 'pong') return;
+      var data;
+      try { data = JSON.parse(e.data); } catch (err) { return; }
+      handle(data);
+    };
+    ws.onclose = function () {
+      ws = null;
+      poll();
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 2, 15000);
+    };
+    ws.onerror = function () { try { ws.close(); } catch (err) {} };
+  }
+
+  // Without a socket, ask every few seconds instead.
   function refresh() {
     return fetch('/traffic/state', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(paint)
       .catch(function () { fail('no connection'); });
   }
+  function poll() {
+    if (pollTimer) return;
+    refresh();
+    pollTimer = setInterval(refresh, 3000);
+  }
 
   lamps.forEach(function (el) {
-    el.onclick = function () {
+    // pointerdown, not click: a touch click waits for the finger to lift,
+    // which is 50–100ms of nothing. The tick is so the finger feels it.
+    el.onpointerdown = function (e) {
       if (el.disabled || el.classList.contains('busy')) return;
+      e.preventDefault();
+      var entity = el.dataset.entity;
+      if (navigator.vibrate) navigator.vibrate(10);
+      // Optimistic: the lamp flips now; the pushed state corrects it if not.
+      el.setAttribute('aria-pressed', el.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
       el.classList.add('busy');
+      tapped[entity] = performance.now();
+      var done = function () { el.classList.remove('busy'); };
+      if (open()) {
+        ws.send(JSON.stringify({ type: 'toggle', entity: entity }));
+        setTimeout(done, 400);
+        return;
+      }
       fetch('/traffic/toggle', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-skin-request': '1' },
-        body: JSON.stringify({ entity: el.dataset.entity })
-      }).then(function (r) {
-        return r.json().then(function (data) {
-          if (!r.ok) throw new Error(data.error || 'failed');
-          paint(data);
-        });
-      }).catch(function (err) {
-        fail(err.message === 'busy' ? 'slow down' : err.message);
-        setTimeout(refresh, 1200);
-      }).finally(function () { el.classList.remove('busy'); });
+        body: JSON.stringify({ entity: entity })
+      }).then(function (r) { return r.json(); })
+        .then(handle)
+        .catch(function () { fail('no connection'); })
+        .finally(done);
     };
   });
 
-  refresh();
-  setInterval(refresh, 3000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+  // Keeps the object awake exactly while someone is looking, so a tap never
+  // pays a wake-up. The object ignores it.
+  setInterval(function () { if (open()) ws.send('{"type":"warm"}'); }, 5000);
+  setInterval(function () { if (open()) ws.send('ping'); }, 25000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    if (open()) ws.send('ping'); else refresh();
+  });
+  connect();
 })();
 </script>
 </body>

@@ -33,6 +33,12 @@ const HOME_CALL_TIMEOUT_MS = 4000;
  */
 const HOME_CALL_GAP_MS = 2000;
 const HOME_CALLS_PER_DAY = 300;
+/**
+ * Open page sockets at once. ponytail: plenty for one toy; someone holding
+ * all twenty just breaks the page for others, and the floors bound the
+ * relays either way.
+ */
+const MAX_PAGES = 20;
 
 /** Toggles used today, per lamp. */
 interface HomeQuota {
@@ -395,7 +401,44 @@ export class RedirectState implements DurableObject {
         for (const old of this.agents()) old.close(1000, 'replaced');
         const pair = new WebSocketPair();
         this.state.acceptWebSocket(pair[1], ['agent']);
+        await this.broadcast({ online: true });
         return new Response(null, { status: 101, webSocket: pair[0] });
+      }
+
+      /**
+       * A scanner's page. It hears every state change the moment the agent
+       * reports it, and taps travel the same way — no request, no poll.
+       */
+      case 'page': {
+        if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+          return new Response('Expected a websocket', { status: 426 });
+        }
+        if (!(await this.load()).trafficEnabled) return new Response('Off', { status: 404 });
+        if (this.state.getWebSockets('page').length >= MAX_PAGES) {
+          return new Response('Busy', { status: 503 });
+        }
+        const pair = new WebSocketPair();
+        this.state.acceptWebSocket(pair[1], ['page']);
+        pair[1].send(JSON.stringify({ type: 'state', ...(await this.homeView()) }));
+        return new Response(null, { status: 101, webSocket: pair[0] });
+      }
+
+      /* ------------------------------------------------------ relocation */
+
+      // One-off, for moving the object: every storage entry out, and in.
+      case 'export-all':
+        return json(Object.fromEntries(await this.state.storage.list()));
+
+      case 'import-all': {
+        const entries = body.entries as Record<string, unknown>;
+        await this.state.storage.put(entries);
+        // The alarm is per object; re-arm it for whatever deadline is live.
+        const s = await this.load();
+        const deadlines = [s.temp?.expiresAt, s.sequence?.expiresAt].filter(
+          (t): t is number => !!t && t > Date.now(),
+        );
+        if (deadlines.length) await this.state.storage.setAlarm(Math.min(...deadlines));
+        return json({ imported: Object.keys(entries).length });
       }
 
       case 'set-traffic': {
@@ -416,32 +459,8 @@ export class RedirectState implements DurableObject {
        * checked here and again at home; the agent's allowlist is the one
        * that matters if this code is ever compromised.
        */
-      case 'home-call': {
-        // Cheapest refusals first; the storage reads come after.
-        const entity = String(body.entity ?? '');
-        if (!LIGHT_ENTITIES.has(entity)) return json({ error: 'unknown' });
-        const agent = this.agents().at(-1);
-        if (!agent) return json({ error: 'offline' });
-        const now = Date.now();
-        if (now - (this.lastHomeCall.get(entity) ?? 0) < HOME_CALL_GAP_MS) return json({ error: 'busy' });
-        if (!(await this.load()).trafficEnabled) return json({ error: 'off' });
-        if (!(await this.takeQuota(entity, now))) return json({ error: 'quota' });
-        this.lastHomeCall.set(entity, now);
-
-        const id = crypto.randomUUID();
-        const reply = new Promise<any>((resolve) => {
-          const timer = setTimeout(() => {
-            this.pending.delete(id);
-            resolve({ error: 'timeout' });
-          }, HOME_CALL_TIMEOUT_MS);
-          this.pending.set(id, { resolve, timer });
-        });
-        agent.send(JSON.stringify({ type: 'call', id, entity, service: 'toggle' }));
-        const result = await reply;
-        if (result.states) await this.mergeStates(result.states);
-        if (result.error || result.ok === false) return json({ error: String(result.error ?? 'failed') });
-        return json(await this.homeView());
-      }
+      case 'home-call':
+        return json(await this.toggleLamp(String(body.entity ?? '')));
 
       case 'login-guard': {
         const guard = (await this.state.storage.get<LoginGuard>('login')) ?? {
@@ -494,7 +513,61 @@ export class RedirectState implements DurableObject {
   /* --------------------------------------------------------- home socket */
 
   private agents(): WebSocket[] {
-    return this.state.getWebSockets('agent');
+    // A replaced or dropped socket can linger in the list until its close
+    // completes; only an open one counts. 1 is OPEN.
+    return this.state.getWebSockets('agent').filter((ws) => ws.readyState === 1);
+  }
+
+  /**
+   * Ask the agent to flip one lamp and wait for its answer. The entity is
+   * checked here and again at home; the agent's allowlist is the one that
+   * matters if this code is ever compromised. Answers with the fresh view
+   * and how long the agent and Home Assistant took, or an error.
+   */
+  private async toggleLamp(entity: string): Promise<Record<string, unknown>> {
+    // Cheapest refusals first; the storage reads come after.
+    if (!LIGHT_ENTITIES.has(entity)) return { error: 'unknown' };
+    const agent = this.agents().at(-1);
+    if (!agent) return { error: 'offline', ...(await this.homeView()) };
+    const now = Date.now();
+    if (now - (this.lastHomeCall.get(entity) ?? 0) < HOME_CALL_GAP_MS) {
+      return { error: 'busy', ...(await this.homeView()) };
+    }
+    if (!(await this.load()).trafficEnabled) return { error: 'off' };
+    if (!(await this.takeQuota(entity, now))) return { error: 'quota', ...(await this.homeView()) };
+    this.lastHomeCall.set(entity, now);
+
+    const id = crypto.randomUUID();
+    const reply = new Promise<any>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        resolve({ error: 'timeout' });
+      }, HOME_CALL_TIMEOUT_MS);
+      this.pending.set(id, { resolve, timer });
+    });
+    const sent = Date.now();
+    agent.send(JSON.stringify({ type: 'call', id, entity, service: 'toggle' }));
+    const result = await reply;
+    const agentMs = Date.now() - sent;
+    if (result.states) await this.mergeStates(result.states);
+    if (result.error || result.ok === false) {
+      return { error: String(result.error ?? 'failed'), ...(await this.homeView()) };
+    }
+    return { ...(await this.homeView()), agentMs, haMs: result.haMs ?? null };
+  }
+
+  /** Tell every open page what the lamps show now. */
+  private async broadcast(patch: Record<string, unknown> = {}): Promise<void> {
+    const pages = this.state.getWebSockets('page');
+    if (!pages.length) return;
+    const payload = JSON.stringify({ type: 'state', ...(await this.homeView()), ...patch });
+    for (const page of pages) {
+      try {
+        page.send(payload);
+      } catch {
+        // Closing; it will be gone from the list next time.
+      }
+    }
   }
 
   private async homeCache(): Promise<HomeCache> {
@@ -530,9 +603,10 @@ export class RedirectState implements DurableObject {
     }
     cache.updatedAt = Date.now();
     await this.state.storage.put('home', cache);
+    await this.broadcast();
   }
 
-  async webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string' || message.length > 4096) return;
     let msg: any;
     try {
@@ -540,15 +614,25 @@ export class RedirectState implements DurableObject {
     } catch {
       return;
     }
-    if (msg?.type === 'reply' && typeof msg.id === 'string') {
-      const waiting = this.pending.get(msg.id);
-      if (waiting) {
-        clearTimeout(waiting.timer);
-        this.pending.delete(msg.id);
-        waiting.resolve(msg);
+    // The tag decides what a socket may say. A page can tap; only the agent
+    // can report state or answer a call.
+    const tags = this.state.getTags(ws);
+    if (tags.includes('agent')) {
+      if (msg?.type === 'reply' && typeof msg.id === 'string') {
+        const waiting = this.pending.get(msg.id);
+        if (waiting) {
+          clearTimeout(waiting.timer);
+          this.pending.delete(msg.id);
+          waiting.resolve(msg);
+        }
       }
+      if (msg?.states) await this.mergeStates(msg.states);
+      return;
     }
-    if (msg?.states) await this.mergeStates(msg.states);
+    if (tags.includes('page') && msg?.type === 'toggle') {
+      const result = await this.toggleLamp(String(msg.entity ?? ''));
+      ws.send(JSON.stringify({ type: 'result', entity: msg.entity, ...result }));
+    }
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
@@ -557,6 +641,7 @@ export class RedirectState implements DurableObject {
     } catch {
       // Already closed; nothing to finish.
     }
+    if (this.state.getTags(ws).includes('agent')) await this.broadcast({ online: false });
   }
 
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {

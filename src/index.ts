@@ -79,8 +79,15 @@ export default {
   },
 };
 
+/**
+ * The one object. An object lives forever at the colo that first created
+ * it, and the original `default` was created far from home, so every hop
+ * paid a long round trip. Renamed once (2026-09-14) to recreate it under a
+ * location hint; the old object was copied in and then orphaned. Rename
+ * again to move again.
+ */
 function stub(env: Env, slug = '') {
-  return env.STATE.get(env.STATE.idFromName(slug || 'default'));
+  return env.STATE.get(env.STATE.idFromName(slug || 'default-il'), { locationHint: 'me' });
 }
 
 async function callState(env: Env, op: string, body?: unknown): Promise<any> {
@@ -292,8 +299,12 @@ async function handleTraffic(
 ): Promise<Response> {
   const path = url.pathname;
 
-  // One object round trip per call: the page polls this, and a far edge
-  // pays a few hundred milliseconds for each hop.
+  // The page's own socket: state pushed as it changes, taps as messages.
+  // The object owns it, so this is a hand-off, not a round trip.
+  if (path === '/traffic/ws') return stub(env).fetch(new Request('https://do/page', request));
+
+  // One object round trip per call: a far edge pays a few hundred
+  // milliseconds for each hop, and the timing header says how much.
   if (path === '/traffic/toggle' && request.method === 'POST') {
     // The page is public, so the only guard is against cross-site posts: a
     // form on another origin cannot set this header.
@@ -303,13 +314,19 @@ async function handleTraffic(
     if (Number(request.headers.get('content-length') ?? 0) > 256) return json({ error: 'Too large' }, 413);
     const body = (await request.json().catch(() => ({}))) as { entity?: string };
     if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
+    const started = Date.now();
     const result = await callState(env, 'home-call', { entity: body.entity });
-    if (result.error) {
-      const status =
-        { off: 404, offline: 503, busy: 429, quota: 429, timeout: 504 }[result.error as string] ?? 502;
-      return json({ error: result.error }, status);
-    }
-    return json(result);
+    const status = result.error
+      ? ({ off: 404, offline: 503, busy: 429, quota: 429, timeout: 504 }[result.error as string] ?? 502)
+      : 200;
+    return new Response(JSON.stringify(result), {
+      status,
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+        'server-timing': `do;dur=${Date.now() - started}, agent;dur=${result.agentMs ?? 0}, ha;dur=${result.haMs ?? 0}`,
+      },
+    });
   }
 
   const home = await callState(env, 'home-state');
@@ -508,6 +525,15 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     const body = (await request.json()) as { on: boolean };
     await callState(env, 'set-sticky', { on: body.on });
     return json(await view(env));
+  }
+
+  // One-off, for the relocation: copy every storage entry of an old object
+  // into the current one. Removed once used.
+  if (route === 'migrate' && request.method === 'POST') {
+    const body = (await request.json()) as { from?: string };
+    const old = env.STATE.get(env.STATE.idFromName(String(body.from ?? 'default')));
+    const entries = await (await old.fetch('https://do/export-all')).json();
+    return json(await callState(env, 'import-all', { entries }));
   }
 
   if (route === 'traffic' && request.method === 'POST') {

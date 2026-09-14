@@ -72,6 +72,7 @@ async def handle_call(ws, msg):
     else:
         last_call[entity] = now
         try:
+            started = time.monotonic()
             # The service call answers with every state it changed, which is
             # the fresh value we want without a second round trip. A device
             # that reports late leaves the list empty; then read it.
@@ -82,7 +83,7 @@ async def handle_call(ws, msg):
                 states.update(seen)
             else:
                 await asyncio.to_thread(read_states)
-            reply.update(ok=True, states=states)
+            reply.update(ok=True, states=states, haMs=round((time.monotonic() - started) * 1000))
             log.info('%s %s -> %s', service, entity, states.get(entity))
         except Exception as err:  # noqa: BLE001 - report, never crash the loop
             log.warning('home assistant call failed: %s', err)

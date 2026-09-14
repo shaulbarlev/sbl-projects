@@ -119,6 +119,56 @@ describe('the traffic light page', () => {
   });
 });
 
+describe('the page socket', () => {
+  it('refuses a page socket while the light is off', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/traffic/ws`, { headers: { upgrade: 'websocket' } });
+    expect(response.status).toBe(404);
+  });
+
+  it('pushes state on connect and after a tap, and never takes state from a page', async () => {
+    const agentRes = await SELF.fetch(`${ORIGIN}/_/agent`, {
+      headers: { upgrade: 'websocket', authorization: 'Bearer test-agent-token' },
+    });
+    const agent = agentRes.webSocket!;
+    agent.accept();
+    const calls: any[] = [];
+    agent.addEventListener('message', (event) => {
+      const m = JSON.parse(String(event.data));
+      if (m.type !== 'call') return;
+      calls.push(m);
+      agent.send(JSON.stringify({ type: 'reply', id: m.id, ok: true, states: { [m.entity]: 'on' }, haMs: 7 }));
+    });
+    agent.send(JSON.stringify({ type: 'hello', states: { 'switch.tasmota': 'off', 'switch.traffic_1_power1': 'off' } }));
+    await traffic(true);
+
+    const pageRes = await SELF.fetch(`${ORIGIN}/traffic/ws`, { headers: { upgrade: 'websocket' } });
+    expect(pageRes.status).toBe(101);
+    const page = pageRes.webSocket!;
+    page.accept();
+    const seen: any[] = [];
+    page.addEventListener('message', (event) => seen.push(JSON.parse(String(event.data))));
+    await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.online === true)).toBe(true));
+
+    page.send(JSON.stringify({ type: 'toggle', entity: 'switch.tasmota' }));
+    await vi.waitFor(() =>
+      expect(seen.some((m) => m.type === 'result' && m.states?.['switch.tasmota'] === 'on')).toBe(true));
+    expect(calls[0]).toMatchObject({ entity: 'switch.tasmota', service: 'toggle' });
+    const result = seen.find((m) => m.type === 'result');
+    expect(result.haMs).toBe(7);
+    expect(typeof result.agentMs).toBe('number');
+
+    // A page cannot masquerade as the agent.
+    page.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'off' } }));
+    page.send(JSON.stringify({ type: 'reply', id: 'anything', ok: true, states: { 'switch.tasmota': 'off' } }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.states['switch.tasmota']).toBe('on');
+
+    page.close();
+    agent.close();
+  });
+});
+
 describe('the home agent socket', () => {
   it('rejects a bad token', async () => {
     const response = await SELF.fetch(`${ORIGIN}/_/agent`, {
@@ -144,6 +194,10 @@ describe('the home agent socket', () => {
       expect(state.online).toBe(true);
       expect(state.states['switch.tasmota']).toBe('on');
     });
+
+    // The per-lamp floor lives in the object instance, which this file's
+    // tests share, and the page-socket test tapped this lamp a moment ago.
+    await new Promise((resolve) => setTimeout(resolve, 2100));
 
     // A tap: the agent gets a call and answers with the new state.
     const tap = toggle('switch.tasmota');
