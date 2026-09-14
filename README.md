@@ -146,9 +146,15 @@ keeps that from being dangerous is in layers:
 - The agent carries a hard allowlist, two switches and toggle/on/off, and holds
   the only Home Assistant token. A compromised Worker reaches nothing else.
 - The Worker checks the lamp again, requires the CSRF header on a tap so a
-  cross-site form cannot toggle, and puts a floor between taps.
-- The agent authenticates with its own `AGENT_TOKEN`, under the same lockout
-  as the login form.
+  cross-site form cannot toggle, and refuses bodies over a few hundred bytes.
+- These are mechanical relays, so a lamp takes one toggle per two seconds and
+  three hundred a day, enforced in the Durable Object and again in the agent.
+  A script cannot wear one out or power-cycle whatever it feeds.
+- The agent authenticates with its own `AGENT_TOKEN`, a random 48 characters
+  compared in constant time. Deliberately outside the login lockout, so bad
+  guesses at the password cannot hold the light offline.
+- A switched-off traffic light cannot sneak back in as a sequence step; a step
+  that cannot be served is passed over rather than burned.
 
 ## Behaviour worth knowing
 
@@ -351,7 +357,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 125 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, the traffic light and its agent socket, validation, auth, files
+npm test          # 128 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, the traffic light and its agent socket, validation, auth, files
 npm run typecheck
 ```
 

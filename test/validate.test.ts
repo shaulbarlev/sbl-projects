@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clampDuration, MAX_TEMP_MS, MIN_TEMP_MS, validateUrl } from '../src/validate';
+import { checkBearer } from '../src/auth';
 import { escapeHtml, escapeJsString } from '../src/html';
 
 describe('validateUrl', () => {
@@ -45,6 +46,22 @@ describe('clampDuration', () => {
 
   it('survives garbage', () => {
     expect(clampDuration(Number.NaN)).toBe(MIN_TEMP_MS);
+  });
+});
+
+describe('checkBearer', () => {
+  const offering = (token: string) =>
+    new Request('https://q.test/_/agent', { headers: { authorization: `Bearer ${token}` } });
+
+  it('never falls back to another token when the expected one is unset', async () => {
+    expect(await checkBearer(offering('anything'), undefined)).toBe(false);
+    expect(await checkBearer(offering('anything'), '')).toBe(false);
+  });
+
+  it('matches only the token it is given, and reports no bearer as null', async () => {
+    expect(await checkBearer(offering('right'), 'right')).toBe(true);
+    expect(await checkBearer(offering('wrong'), 'right')).toBe(false);
+    expect(await checkBearer(new Request('https://q.test/'), 'right')).toBeNull();
   });
 });
 

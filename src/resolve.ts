@@ -77,12 +77,15 @@ export function stepsRemaining(state: State, now: number): number {
 /**
  * The target for an already-claimed step index, or for a peek at the next one.
  * Returns null if the index is out of range — a forged or stale cookie must
- * fall through to normal resolution, never crash.
+ * fall through to normal resolution, never crash — and null for a step that
+ * cannot be served right now, so a switched-off traffic light or an emptied
+ * set never bypasses its own gate by being a step.
  */
 export function stepTarget(state: State, index: number): Target | null {
   const steps = state.sequence?.steps;
   if (!steps || !Number.isInteger(index) || index < 0 || index >= steps.length) return null;
-  return steps[index].target;
+  const target = steps[index].target;
+  return isServable(state, target) ? target : null;
 }
 
 /** The URL that serves one stored file. */

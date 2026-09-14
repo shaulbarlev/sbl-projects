@@ -87,10 +87,28 @@ describe('the traffic light page', () => {
     expect(after.headers.get('location')).toBe('https://main.example.com/');
   });
 
-  it('refuses a toggle without the request header, or for an unknown light', async () => {
+  it('refuses a toggle without the request header, for an unknown light, or with a fat body', async () => {
     await traffic(true);
     expect((await toggle('switch.tasmota', false)).status).toBe(403);
     expect((await toggle('switch.everything_else')).status).toBe(400);
+    const fat = await SELF.fetch(`${ORIGIN}/traffic/toggle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-skin-request': '1' },
+      body: JSON.stringify({ entity: 'switch.tasmota', padding: 'x'.repeat(400) }),
+    });
+    expect(fat.status).toBe(413);
+  });
+
+  it('as a sequence step, steps aside with the switch off instead of burning steps', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/sequence/steps`, authed(cookie, {
+      steps: [{ target: { kind: 'traffic' } }, { target: { kind: 'text', text: 'second' } }],
+    }));
+    await SELF.fetch(`${ORIGIN}/_/api/sequence/arm`, authed(cookie, { durationMs: 3600_000 }));
+    const response = await scan();
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('https://main.example.com/');
+    const state = (await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json()) as any;
+    expect(state.sequenceStatus.cursor).toBe(0);
   });
 
   it('reports offline when no agent is connected', async () => {
@@ -138,6 +156,14 @@ describe('the home agent socket', () => {
     expect(result.status).toBe(200);
     const body = (await result.json()) as any;
     expect(body.states['switch.tasmota']).toBe('off');
+
+    // The same lamp again straight away is refused; the other lamp is not.
+    expect((await toggle('switch.tasmota')).status).toBe(429);
+    const other = toggle('switch.traffic_1_power1');
+    await vi.waitFor(() => expect(inbox.filter((m) => m.type === 'call')).toHaveLength(2));
+    const second = inbox.filter((m) => m.type === 'call')[1];
+    ws.send(JSON.stringify({ type: 'reply', id: second.id, ok: true, states: { 'switch.traffic_1_power1': 'on' } }));
+    expect((await other).status).toBe(200);
 
     // Only the known lamps are remembered, whatever the agent says.
     ws.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'on', 'lock.front_door': 'unlocked' } }));

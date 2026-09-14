@@ -9,19 +9,24 @@ a compromised Worker cannot reach anything else through here.
 Configuration comes from the environment (see skin-agent.service):
   SKIN_URL     wss://sbl.cx/_/agent
   AGENT_TOKEN  the bearer the Worker expects
-  HA_URL       http://192.168.50.232:8123
+  HA_URL       http://192.168.50.232:8123  (plain http on the LAN: the token
+               travels in clear between this box and Home Assistant)
   HA_TOKEN     a Home Assistant long-lived access token
 """
 import asyncio
 import json
 import logging
 import os
+import time
 import urllib.request
 
 import websockets
 
 ALLOWED = {'switch.tasmota', 'switch.traffic_1_power1'}
 SERVICES = {'toggle', 'turn_on', 'turn_off'}
+# Mirrors the Worker's floor: these are mechanical relays, and this is the
+# last line of defence if the Worker is ever compromised.
+MIN_GAP_S = 1.5
 
 SKIN_URL = os.environ['SKIN_URL']
 AGENT_TOKEN = os.environ['AGENT_TOKEN']
@@ -30,7 +35,8 @@ HA_TOKEN = os.environ['HA_TOKEN']
 HA_WS = HA_URL.replace('http://', 'ws://', 1).replace('https://', 'wss://', 1) + '/api/websocket'
 
 log = logging.getLogger('skin-agent')
-states = {}   # entity -> 'on' | 'off' | ...
+states = {}     # entity -> 'on' | 'off' | ...
+last_call = {}  # entity -> monotonic seconds of the last accepted call
 skin = None   # the live socket to sbl.cx, if any
 
 
@@ -39,7 +45,9 @@ def ha_rest(method, path, body=None):
         HA_URL + path, method=method,
         data=json.dumps(body).encode() if body is not None else None,
         headers={'Authorization': f'Bearer {HA_TOKEN}', 'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=5) as r:
+    # Under the Worker's 4 s wait, so a slow device reads as failed here and
+    # there alike, never as failed to the scanner while it still flips.
+    with urllib.request.urlopen(req, timeout=3) as r:
         return json.load(r)
 
 
@@ -55,10 +63,14 @@ async def push(ws, kind):
 async def handle_call(ws, msg):
     entity, service = msg.get('entity'), msg.get('service', 'toggle')
     reply = {'type': 'reply', 'id': msg.get('id')}
+    now = time.monotonic()
     if entity not in ALLOWED or service not in SERVICES:
         log.warning('refused %s %s', service, entity)
         reply.update(ok=False, error='not allowed')
+    elif now - last_call.get(entity, 0) < MIN_GAP_S:
+        reply.update(ok=False, error='busy')
     else:
+        last_call[entity] = now
         try:
             # The service call answers with every state it changed, which is
             # the fresh value we want without a second round trip. A device

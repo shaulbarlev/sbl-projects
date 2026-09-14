@@ -100,16 +100,14 @@ export async function isAuthed(request: Request, env: Env, now: number): Promise
 }
 
 /**
- * Token auth for scripts and Shortcuts, from `Authorization: Bearer <token>`.
- *
- * A dedicated token rather than the password, so the thing pasted into a
- * Shortcut can be rotated without changing what you type. Returns null when no
+ * Token auth from `Authorization: Bearer <token>`, against the one token the
+ * caller names — the Shortcut's or the home agent's, never a fallback to the
+ * other. An unset token means nobody gets in that door. Returns null when no
  * bearer was offered, so the caller can fall through to the session cookie.
  */
 export async function checkBearer(
   request: Request,
-  env: Env,
-  expected: string | undefined = env.API_TOKEN,
+  expected: string | undefined,
 ): Promise<boolean | null> {
   const header = request.headers.get('authorization') ?? '';
   if (!/^bearer /i.test(header)) return null;

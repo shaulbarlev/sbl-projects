@@ -239,6 +239,10 @@ async function claimStep(
     return target ? { index: sequence.cursor, target, cookie: null } : null;
   }
 
+  // A step that cannot be served right now — an emptied set, the traffic
+  // light with its switch off — is not worth burning. Fall through instead.
+  if (!stepTarget(state, sequence.cursor)) return null;
+
   const claimed = (await callState(env, 'burn-step', { now })) as {
     index: number | null;
     runId?: string;
@@ -294,11 +298,15 @@ async function handleTraffic(
     // The page is public, so the only guard is against cross-site posts: a
     // form on another origin cannot set this header.
     if (!hasCsrfHeader(request)) return json({ error: 'Missing request header' }, 403);
+    // Anonymous input: a tap is a few dozen bytes, so anything larger is
+    // refused before it is read.
+    if (Number(request.headers.get('content-length') ?? 0) > 256) return json({ error: 'Too large' }, 413);
     const body = (await request.json().catch(() => ({}))) as { entity?: string };
     if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
     const result = await callState(env, 'home-call', { entity: body.entity });
     if (result.error) {
-      const status = { off: 404, offline: 503, busy: 429, timeout: 504 }[result.error as string] ?? 502;
+      const status =
+        { off: 404, offline: 503, busy: 429, quota: 429, timeout: 504 }[result.error as string] ?? 502;
       return json({ error: result.error }, status);
     }
     return json(result);
@@ -375,18 +383,16 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
   }
 
   if (path === '/_/agent') {
-    // The home agent's socket: its own token, under the login lockout, and
-    // handed straight to the Durable Object which owns the connection.
-    const guard = await callState(env, 'login-guard', { action: 'check', now });
-    if (guard.locked) return json({ error: 'Too many attempts. Try again later.' }, 429);
-    if (!(await checkBearer(request, env, env.AGENT_TOKEN))) {
-      await callState(env, 'login-guard', { action: 'fail', now });
-      return json({ error: 'Bad token' }, 401);
-    }
+    // The home agent's socket: its own token, handed straight to the Durable
+    // Object which owns the connection. Deliberately outside the login
+    // lockout — a random 48-character token compared in constant time needs
+    // none, and sharing the counter would let a stranger's bad guesses at
+    // the password keep the light offline.
+    if (!(await checkBearer(request, env.AGENT_TOKEN))) return json({ error: 'Bad token' }, 401);
     return stub(env).fetch(new Request('https://do/agent', request));
   }
 
-  const bearer = await checkBearer(request, env);
+  const bearer = await checkBearer(request, env.API_TOKEN);
   if (bearer !== null) {
     // Scripts and Shortcuts. Under the same lockout as the login form, or the
     // token would be the brute-force path around it.

@@ -26,8 +26,19 @@ interface HomeCache {
 
 /** How long a toggle waits for the agent before giving up. */
 const HOME_CALL_TIMEOUT_MS = 4000;
-/** Floor between toggles. A scanner mashing a lamp is the only load source. */
-const HOME_CALL_GAP_MS = 400;
+/**
+ * Floor between toggles of one lamp, and a ceiling per lamp per day. These
+ * are mechanical relays: a script flipping one twice a second would wear it
+ * out in a day and power-cycle whatever it feeds. The agent mirrors the floor.
+ */
+const HOME_CALL_GAP_MS = 2000;
+const HOME_CALLS_PER_DAY = 300;
+
+/** Toggles used today, per lamp. */
+interface HomeQuota {
+  day: string;
+  counts: Record<string, number>;
+}
 
 const MRU_MAX = 5;
 const LOGIN_MAX_ATTEMPTS = 8;
@@ -50,7 +61,8 @@ export class RedirectState implements DurableObject {
     string,
     { resolve: (reply: any) => void; timer: ReturnType<typeof setTimeout> }
   >();
-  private lastHomeCall = 0;
+  /** Last toggle per lamp. In memory: a burst is what it guards against. */
+  private lastHomeCall = new Map<string, number>();
 
   constructor(private state: DurableObjectState) {
     // A keepalive the agent can use without waking a hibernated object.
@@ -378,6 +390,9 @@ export class RedirectState implements DurableObject {
         if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
           return new Response('Expected a websocket', { status: 426 });
         }
+        // One agent. A reconnect replaces the old socket rather than
+        // leaving a stale one that calls could still be routed to.
+        for (const old of this.agents()) old.close(1000, 'replaced');
         const pair = new WebSocketPair();
         this.state.acceptWebSocket(pair[1], ['agent']);
         return new Response(null, { status: 101, webSocket: pair[0] });
@@ -402,15 +417,16 @@ export class RedirectState implements DurableObject {
        * that matters if this code is ever compromised.
        */
       case 'home-call': {
-        if (!(await this.load()).trafficEnabled) return json({ error: 'off' });
-        if (!LIGHT_ENTITIES.has(body.entity)) return json({ error: 'unknown' });
+        // Cheapest refusals first; the storage reads come after.
+        const entity = String(body.entity ?? '');
+        if (!LIGHT_ENTITIES.has(entity)) return json({ error: 'unknown' });
         const agent = this.agents().at(-1);
         if (!agent) return json({ error: 'offline' });
-        // ponytail: one global floor, not per lamp or per scanner. Enough for
-        // two lamps; revisit if the page ever grows a control per guest.
         const now = Date.now();
-        if (now - this.lastHomeCall < HOME_CALL_GAP_MS) return json({ error: 'busy' });
-        this.lastHomeCall = now;
+        if (now - (this.lastHomeCall.get(entity) ?? 0) < HOME_CALL_GAP_MS) return json({ error: 'busy' });
+        if (!(await this.load()).trafficEnabled) return json({ error: 'off' });
+        if (!(await this.takeQuota(entity, now))) return json({ error: 'quota' });
+        this.lastHomeCall.set(entity, now);
 
         const id = crypto.randomUUID();
         const reply = new Promise<any>((resolve) => {
@@ -420,7 +436,7 @@ export class RedirectState implements DurableObject {
           }, HOME_CALL_TIMEOUT_MS);
           this.pending.set(id, { resolve, timer });
         });
-        agent.send(JSON.stringify({ type: 'call', id, entity: body.entity, service: 'toggle' }));
+        agent.send(JSON.stringify({ type: 'call', id, entity, service: 'toggle' }));
         const result = await reply;
         if (result.states) await this.mergeStates(result.states);
         if (result.error || result.ok === false) return json({ error: String(result.error ?? 'failed') });
@@ -483,6 +499,18 @@ export class RedirectState implements DurableObject {
 
   private async homeCache(): Promise<HomeCache> {
     return (await this.state.storage.get<HomeCache>('home')) ?? { states: {}, updatedAt: 0 };
+  }
+
+  /** Count one toggle against today's ceiling for a lamp. False when spent. */
+  private async takeQuota(entity: string, now: number): Promise<boolean> {
+    const day = new Date(now).toISOString().slice(0, 10);
+    let quota = await this.state.storage.get<HomeQuota>('homeQuota');
+    if (!quota || quota.day !== day) quota = { day, counts: {} };
+    const used = quota.counts[entity] ?? 0;
+    if (used >= HOME_CALLS_PER_DAY) return false;
+    quota.counts[entity] = used + 1;
+    await this.state.storage.put('homeQuota', quota);
+    return true;
   }
 
   /** What the traffic page and the panel need to know, in one answer. */

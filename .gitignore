@@ -10,3 +10,6 @@ dist/
 
 .DS_Store
 *.log
+
+# Python bytecode from running the agent locally.
+__pycache__/
