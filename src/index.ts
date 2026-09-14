@@ -83,8 +83,9 @@ export default {
  * The one object. An object lives forever at the colo that first created
  * it, and the original `default` was created far from home, so every hop
  * paid a long round trip. Renamed once (2026-09-14) to recreate it under a
- * location hint; the old object was copied in and then orphaned. Rename
- * again to move again.
+ * location hint; the old object was copied in (a one-off export-all /
+ * import-all pair, since removed — see git history) and then orphaned.
+ * Rename again to move again.
  */
 function stub(env: Env, slug = '') {
   return env.STATE.get(env.STATE.idFromName(slug || 'default-il'), { locationHint: 'me' });
@@ -525,15 +526,6 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     const body = (await request.json()) as { on: boolean };
     await callState(env, 'set-sticky', { on: body.on });
     return json(await view(env));
-  }
-
-  // One-off, for the relocation: copy every storage entry of an old object
-  // into the current one. Removed once used.
-  if (route === 'migrate' && request.method === 'POST') {
-    const body = (await request.json()) as { from?: string };
-    const old = env.STATE.get(env.STATE.idFromName(String(body.from ?? 'default')));
-    const entries = await (await old.fetch('https://do/export-all')).json();
-    return json(await callState(env, 'import-all', { entries }));
   }
 
   if (route === 'traffic' && request.method === 'POST') {

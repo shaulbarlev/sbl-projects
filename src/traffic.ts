@@ -100,7 +100,10 @@ ${lamps}
   }
 
   function handle(data) {
-    if (data.states) paint(data);
+    // Only a state message, or an error carrying the real state, repaints.
+    // A successful tap says nothing about state: the lamp already flipped,
+    // and the push from home confirms or corrects it.
+    if (data.states && (data.type === 'state' || data.error)) paint(data);
     if (data.error) {
       fail(data.error === 'busy' ? 'slow down' : data.error);
       setTimeout(function () { if (data.states) paint(data); }, 1500);

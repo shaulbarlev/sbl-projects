@@ -150,12 +150,16 @@ describe('the page socket', () => {
     await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.online === true)).toBe(true));
 
     page.send(JSON.stringify({ type: 'toggle', entity: 'switch.tasmota' }));
+    // The tap's own answer carries timing, not state; the state arrives as
+    // a push once the agent reports it.
+    await vi.waitFor(() => expect(seen.some((m) => m.type === 'result' && m.ok)).toBe(true));
     await vi.waitFor(() =>
-      expect(seen.some((m) => m.type === 'result' && m.states?.['switch.tasmota'] === 'on')).toBe(true));
+      expect(seen.some((m) => m.type === 'state' && m.states?.['switch.tasmota'] === 'on')).toBe(true));
     expect(calls[0]).toMatchObject({ entity: 'switch.tasmota', service: 'toggle' });
     const result = seen.find((m) => m.type === 'result');
     expect(result.haMs).toBe(7);
     expect(typeof result.agentMs).toBe('number');
+    expect(result.states).toBeUndefined();
 
     // A page cannot masquerade as the agent.
     page.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'off' } }));
@@ -208,8 +212,11 @@ describe('the home agent socket', () => {
 
     const result = await tap;
     expect(result.status).toBe(200);
-    const body = (await result.json()) as any;
-    expect(body.states['switch.tasmota']).toBe('off');
+    expect(((await result.json()) as any).ok).toBe(true);
+    expect(result.headers.get('server-timing')).toMatch(/^do;dur=\d+, agent;dur=\d+, ha;dur=/);
+    // The agent's reply carried the state, so the read reflects it.
+    const read = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(read.states['switch.tasmota']).toBe('off');
 
     // The same lamp again straight away is refused; the other lamp is not.
     expect((await toggle('switch.tasmota')).status).toBe(429);

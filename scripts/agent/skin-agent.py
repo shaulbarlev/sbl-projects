@@ -73,18 +73,19 @@ async def handle_call(ws, msg):
         last_call[entity] = now
         try:
             started = time.monotonic()
-            # The service call answers with every state it changed, which is
-            # the fresh value we want without a second round trip. A device
-            # that reports late leaves the list empty; then read it.
+            # The service call answers with every state it changed. A Tasmota
+            # reports over MQTT after the call returns, so its state is usually
+            # not in the list yet; then say nothing about state — the
+            # subscription in ha_loop pushes the truth the moment it lands,
+            # and a stale value here would only make the page flicker.
             changed = await asyncio.to_thread(
                 ha_rest, 'POST', f'/api/services/switch/{service}', {'entity_id': entity})
             seen = {s['entity_id']: s['state'] for s in changed if s.get('entity_id') in ALLOWED}
+            reply.update(ok=True, haMs=round((time.monotonic() - started) * 1000))
             if entity in seen:
                 states.update(seen)
-            else:
-                await asyncio.to_thread(read_states)
-            reply.update(ok=True, states=states, haMs=round((time.monotonic() - started) * 1000))
-            log.info('%s %s -> %s', service, entity, states.get(entity))
+                reply['states'] = states
+            log.info('%s %s (%sms)', service, entity, reply['haMs'])
         except Exception as err:  # noqa: BLE001 - report, never crash the loop
             log.warning('home assistant call failed: %s', err)
             reply.update(ok=False, error='home assistant error')

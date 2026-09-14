@@ -423,23 +423,6 @@ export class RedirectState implements DurableObject {
         return new Response(null, { status: 101, webSocket: pair[0] });
       }
 
-      /* ------------------------------------------------------ relocation */
-
-      // One-off, for moving the object: every storage entry out, and in.
-      case 'export-all':
-        return json(Object.fromEntries(await this.state.storage.list()));
-
-      case 'import-all': {
-        const entries = body.entries as Record<string, unknown>;
-        await this.state.storage.put(entries);
-        // The alarm is per object; re-arm it for whatever deadline is live.
-        const s = await this.load();
-        const deadlines = [s.temp?.expiresAt, s.sequence?.expiresAt].filter(
-          (t): t is number => !!t && t > Date.now(),
-        );
-        if (deadlines.length) await this.state.storage.setAlarm(Math.min(...deadlines));
-        return json({ imported: Object.keys(entries).length });
-      }
 
       case 'set-traffic': {
         const s = await this.load();
@@ -553,7 +536,10 @@ export class RedirectState implements DurableObject {
     if (result.error || result.ok === false) {
       return { error: String(result.error ?? 'failed'), ...(await this.homeView()) };
     }
-    return { ...(await this.homeView()), agentMs, haMs: result.haMs ?? null };
+    // Success carries no state on purpose: the page already flipped the lamp,
+    // and the truth arrives as a push when the device reports. Painting a
+    // possibly stale view here would flicker it back and forth.
+    return { ok: true, agentMs, haMs: result.haMs ?? null };
   }
 
   /** Tell every open page what the lamps show now. */
