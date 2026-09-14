@@ -23,9 +23,9 @@ ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictNamespaces=yes
 LockPersonality=yes
-RestrictAddressFamilies=AF_INET AF_INET6
+# No SystemCallFilter: python under an LXC trips it (SIGSYS).
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 CapabilityBoundingSet=
-SystemCallFilter=-service
 
 [Install]
 WantedBy=multi-user.target
