@@ -1,6 +1,6 @@
 # The home end of the sbl.cx traffic light. Install:
 #   cp skin-agent.py /opt/skin-agent/ ; cp skin-agent.service /etc/systemd/system/
-#   write /etc/skin-agent.env (mode 600): SKIN_URL, AGENT_TOKEN, HA_URL, HA_TOKEN
+#   write /etc/skin-agent.env (mode 600): SKIN_URL, AGENT_TOKEN, HA_URL, WEBHOOK_SET, WEBHOOK_REPORT
 #   systemctl enable --now skin-agent
 [Unit]
 Description=sbl.cx home agent (traffic light)

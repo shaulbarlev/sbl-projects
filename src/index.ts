@@ -402,14 +402,19 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
     return new Response(MANIFEST, { headers: { 'content-type': 'application/manifest+json' } });
   }
 
-  if (path === '/_/agent') {
-    // The home agent's socket: its own token, handed straight to the Durable
-    // Object which owns the connection. Deliberately outside the login
-    // lockout — a random 48-character token compared in constant time needs
-    // none, and sharing the counter would let a stranger's bad guesses at
-    // the password keep the light offline.
+  if (path === '/_/agent' || path === '/_/agent/state') {
+    // The home side: the agent's socket, and Home Assistant's own state
+    // pushes. Both carry AGENT_TOKEN, and both are deliberately outside the
+    // login lockout — a random 48-character token compared in constant time
+    // needs none, and sharing the counter would let a stranger's bad guesses
+    // at the password keep the light offline.
     if (!(await checkBearer(request, env.AGENT_TOKEN))) return json({ error: 'Bad token' }, 401);
-    return stub(env).fetch(new Request('https://do/agent', request));
+    if (path === '/_/agent') return stub(env).fetch(new Request('https://do/agent', request));
+    if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    if (Number(request.headers.get('content-length') ?? 0) > 4096) return json({ error: 'Too large' }, 413);
+    const body = (await request.json().catch(() => ({}))) as { states?: unknown };
+    await callState(env, 'home-report', { states: body.states });
+    return json({ ok: true });
   }
 
   const bearer = await checkBearer(request, env.API_TOKEN);

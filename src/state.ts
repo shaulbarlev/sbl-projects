@@ -444,6 +444,13 @@ export class RedirectState implements DurableObject {
       case 'home-call':
         return json(await this.callHome(String(body.entity ?? ''), String(body.service ?? 'toggle')));
 
+      // Home Assistant reporting the lamps itself, through an automation
+      // that posts on every change and on request. The agent no longer
+      // needs a Home Assistant credential to know what the lamps show.
+      case 'home-report':
+        await this.mergeStates(body.states);
+        return json({ ok: true });
+
       case 'login-guard': {
         const guard = (await this.state.storage.get<LoginGuard>('login')) ?? {
           failures: 0,
@@ -517,6 +524,11 @@ export class RedirectState implements DurableObject {
     const now = Date.now();
     if (!(await this.load()).trafficEnabled) return { error: 'off' };
     if (!(await this.takeQuota(entity, now))) return { error: 'quota', ...(await this.homeView()) };
+    // Home only knows "on" and "off": the webhook there sets a state rather
+    // than toggling, so a toggle is resolved here from the last known state.
+    if (service === 'toggle') {
+      service = (await this.homeCache()).states[entity] === 'on' ? 'turn_off' : 'turn_on';
+    }
 
     const id = crypto.randomUUID();
     const reply = new Promise<any>((resolve) => {

@@ -180,6 +180,30 @@ describe('the page socket', () => {
   });
 });
 
+describe('state reported by home assistant itself', () => {
+  const report = (token: string, states: unknown) => SELF.fetch(`${ORIGIN}/_/agent/state`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ states }),
+  });
+
+  it('takes a report with the agent token and shows it on the page', async () => {
+    await traffic(true);
+    expect((await report('test-agent-token', { 'switch.traffic_1_power1': 'on' })).status).toBe(200);
+    const state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.states['switch.traffic_1_power1']).toBe('on');
+  });
+
+  it('refuses a report with any other token, and never counts it as a login failure', async () => {
+    for (let i = 0; i < 10; i++) expect((await report('nope', {})).status).toBe(401);
+    // Still not locked: the panel login is unaffected by home-side noise.
+    const login = await SELF.fetch(`${ORIGIN}/_/login`, {
+      method: 'POST', body: new URLSearchParams({ password: PASSWORD }), redirect: 'manual',
+    });
+    expect(login.status).toBe(303);
+  });
+});
+
 describe('the home agent socket', () => {
   it('rejects a bad token', async () => {
     const response = await SELF.fetch(`${ORIGIN}/_/agent`, {
@@ -210,7 +234,8 @@ describe('the home agent socket', () => {
     const tap = toggle('switch.tasmota');
     await vi.waitFor(() => expect(inbox.some((m) => m.type === 'call')).toBe(true));
     const call = inbox.find((m) => m.type === 'call');
-    expect(call).toMatchObject({ entity: 'switch.tasmota', service: 'toggle' });
+    // A toggle is resolved here from the last known state: the lamp was on.
+    expect(call).toMatchObject({ entity: 'switch.tasmota', service: 'turn_off' });
     ws.send(JSON.stringify({ type: 'reply', id: call.id, ok: true, states: { 'switch.tasmota': 'off' } }));
 
     const result = await tap;
