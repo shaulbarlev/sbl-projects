@@ -390,8 +390,11 @@ export class RedirectState implements DurableObject {
         return json(s);
       }
 
+      // One round trip answers everything the page asks: whether the light is
+      // on at all, whether home is reachable, and what the lamps show. Each
+      // Worker-to-object hop costs real time from a far edge.
       case 'home-state':
-        return json({ online: this.agents().length > 0, ...(await this.homeCache()) });
+        return json(await this.homeView());
 
       /**
        * Ask the agent to flip one lamp and wait for its answer. The entity is
@@ -399,6 +402,7 @@ export class RedirectState implements DurableObject {
        * that matters if this code is ever compromised.
        */
       case 'home-call': {
+        if (!(await this.load()).trafficEnabled) return json({ error: 'off' });
         if (!LIGHT_ENTITIES.has(body.entity)) return json({ error: 'unknown' });
         const agent = this.agents().at(-1);
         if (!agent) return json({ error: 'offline' });
@@ -420,7 +424,7 @@ export class RedirectState implements DurableObject {
         const result = await reply;
         if (result.states) await this.mergeStates(result.states);
         if (result.error || result.ok === false) return json({ error: String(result.error ?? 'failed') });
-        return json({ ok: true });
+        return json(await this.homeView());
       }
 
       case 'login-guard': {
@@ -479,6 +483,12 @@ export class RedirectState implements DurableObject {
 
   private async homeCache(): Promise<HomeCache> {
     return (await this.state.storage.get<HomeCache>('home')) ?? { states: {}, updatedAt: 0 };
+  }
+
+  /** What the traffic page and the panel need to know, in one answer. */
+  private async homeView() {
+    const [s, cache] = await Promise.all([this.load(), this.homeCache()]);
+    return { enabled: s.trafficEnabled, online: this.agents().length > 0, ...cache };
   }
 
   /** Remember what the agent reports, for the known lamps only. */

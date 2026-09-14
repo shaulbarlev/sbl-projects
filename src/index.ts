@@ -286,16 +286,10 @@ async function handleTraffic(
   ctx: ExecutionContext,
   url: URL,
 ): Promise<Response> {
-  const state = (await callState(env, 'get')) as State;
-  if (!state.trafficEnabled) return handleRedirect(request, env, ctx, url);
-
   const path = url.pathname;
-  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic());
 
-  if (path === '/traffic/state' && request.method === 'GET') {
-    return json(await callState(env, 'home-state'));
-  }
-
+  // One object round trip per call: the page polls this, and a far edge
+  // pays a few hundred milliseconds for each hop.
   if (path === '/traffic/toggle' && request.method === 'POST') {
     // The page is public, so the only guard is against cross-site posts: a
     // form on another origin cannot set this header.
@@ -304,11 +298,17 @@ async function handleTraffic(
     if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
     const result = await callState(env, 'home-call', { entity: body.entity });
     if (result.error) {
-      const status = { offline: 503, busy: 429, timeout: 504 }[result.error as string] ?? 502;
+      const status = { off: 404, offline: 503, busy: 429, timeout: 504 }[result.error as string] ?? 502;
       return json({ error: result.error }, status);
     }
-    return json(await callState(env, 'home-state'));
+    return json(result);
   }
+
+  const home = await callState(env, 'home-state');
+  if (!home.enabled) return handleRedirect(request, env, ctx, url);
+
+  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic());
+  if (path === '/traffic/state' && request.method === 'GET') return json(home);
 
   return json({ error: 'Not found' }, 404);
 }
