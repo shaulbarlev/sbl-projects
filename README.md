@@ -131,10 +131,13 @@ temp lasts.
 
 Nothing at home listens for inbound connections. A small agent
 (`scripts/agent/`) on the home network dials out and holds one WebSocket to the
-Durable Object; the object relays a tap over that socket, the agent calls Home
-Assistant on the LAN, and pushes state up on its own whenever a lamp changes.
-The socket uses Cloudflare's hibernation API, so an idle connection costs
-nothing.
+Durable Object; the object relays a tap over that socket, and the agent posts
+it to a local-only Home Assistant webhook whose automation sets the switch.
+Lamp state comes back without the agent: a second automation, on every change
+of either switch and on request, posts the state to `/_/agent/state` through a
+`rest_command`. The agent holds no Home Assistant credential at all; a leaked
+webhook id can set two switches and nothing else. The socket uses Cloudflare's
+hibernation API, so an idle connection costs nothing.
 
 The page holds a socket to the same object. A tap is one message, the lamp
 flips on `pointerdown` with a haptic tick before anything answers, and the
@@ -157,8 +160,10 @@ pointing at it falls through to main.
 The page is public while it is on; that is the point of a traffic light. What
 keeps that from being dangerous is in layers:
 
-- The agent carries a hard allowlist, two switches and toggle/on/off, and holds
-  the only Home Assistant token. A compromised Worker reaches nothing else.
+- The agent carries a hard allowlist, two switches and on/off, and no Home
+  Assistant credential: it only knows two webhook ids, and the automation
+  behind the setting webhook hardcodes the two entities per branch. A
+  compromised Worker, Cloudflare account or agent reaches nothing else.
 - The Worker checks the lamp again, requires the CSRF header on a tap so a
   cross-site form cannot toggle, and refuses bodies over a few hundred bytes.
 - Every tap lands, as fast as the relay clicks: there is no floor between
