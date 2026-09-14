@@ -8,8 +8,8 @@ import { escapeHtml } from './html';
  * toggle them.
  */
 export const LIGHTS = [
-  { entity: 'switch.tasmota', label: 'Green', color: '#22c55e' },
-  { entity: 'switch.traffic_1_power1', label: 'Orange', color: '#f59e0b' },
+  { entity: 'switch.traffic_1_power1', label: 'Green', color: '#22c55e' },
+  { entity: 'switch.tasmota', label: 'Orange', color: '#f59e0b' },
 ] as const;
 
 export const LIGHT_ENTITIES: ReadonlySet<string> = new Set(LIGHTS.map((l) => l.entity));
