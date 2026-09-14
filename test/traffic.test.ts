@@ -149,13 +149,20 @@ describe('the page socket', () => {
     page.addEventListener('message', (event) => seen.push(JSON.parse(String(event.data))));
     await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.online === true)).toBe(true));
 
-    page.send(JSON.stringify({ type: 'toggle', entity: 'switch.tasmota' }));
+    page.send(JSON.stringify({ type: 'set', entity: 'switch.tasmota', state: 'on' }));
     // The tap's own answer carries timing, not state; the state arrives as
     // a push once the agent reports it.
     await vi.waitFor(() => expect(seen.some((m) => m.type === 'result' && m.ok)).toBe(true));
     await vi.waitFor(() =>
       expect(seen.some((m) => m.type === 'state' && m.states?.['switch.tasmota'] === 'on')).toBe(true));
-    expect(calls[0]).toMatchObject({ entity: 'switch.tasmota', service: 'toggle' });
+    expect(calls[0]).toMatchObject({ entity: 'switch.tasmota', service: 'turn_on' });
+
+    // Fast taps all go down, in order.
+    for (const state of ['off', 'on', 'off']) {
+      page.send(JSON.stringify({ type: 'set', entity: 'switch.tasmota', state }));
+    }
+    await vi.waitFor(() => expect(calls).toHaveLength(4));
+    expect(calls.slice(1).map((c) => c.service)).toEqual(['turn_off', 'turn_on', 'turn_off']);
     const result = seen.find((m) => m.type === 'result');
     expect(result.haMs).toBe(7);
     expect(typeof result.agentMs).toBe('number');
@@ -199,10 +206,6 @@ describe('the home agent socket', () => {
       expect(state.states['switch.tasmota']).toBe('on');
     });
 
-    // The per-lamp floor lives in the object instance, which this file's
-    // tests share, and the page-socket test tapped this lamp a moment ago.
-    await new Promise((resolve) => setTimeout(resolve, 2100));
-
     // A tap: the agent gets a call and answers with the new state.
     const tap = toggle('switch.tasmota');
     await vi.waitFor(() => expect(inbox.some((m) => m.type === 'call')).toBe(true));
@@ -218,13 +221,17 @@ describe('the home agent socket', () => {
     const read = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
     expect(read.states['switch.tasmota']).toBe('off');
 
-    // The same lamp again straight away is refused; the other lamp is not.
-    expect((await toggle('switch.tasmota')).status).toBe(429);
-    const other = toggle('switch.traffic_1_power1');
-    await vi.waitFor(() => expect(inbox.filter((m) => m.type === 'call')).toHaveLength(2));
-    const second = inbox.filter((m) => m.type === 'call')[1];
-    ws.send(JSON.stringify({ type: 'reply', id: second.id, ok: true, states: { 'switch.traffic_1_power1': 'on' } }));
-    expect((await other).status).toBe(200);
+    // A burst lands in full and in order, each tap naming the state it wants.
+    const burst = ['on', 'off', 'on'].map((state) => SELF.fetch(`${ORIGIN}/traffic/toggle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-skin-request': '1' },
+      body: JSON.stringify({ entity: 'switch.traffic_1_power1', state }),
+    }));
+    const orange = () => inbox.filter((m) => m.type === 'call' && m.entity === 'switch.traffic_1_power1');
+    await vi.waitFor(() => expect(orange()).toHaveLength(3));
+    expect(orange().map((c) => c.service)).toEqual(['turn_on', 'turn_off', 'turn_on']);
+    for (const c of orange()) ws.send(JSON.stringify({ type: 'reply', id: c.id, ok: true }));
+    for (const response of await Promise.all(burst)) expect(response.status).toBe(200);
 
     // Only the known lamps are remembered, whatever the agent says.
     ws.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'on', 'lock.front_door': 'unlocked' } }));

@@ -313,12 +313,14 @@ async function handleTraffic(
     // Anonymous input: a tap is a few dozen bytes, so anything larger is
     // refused before it is read.
     if (Number(request.headers.get('content-length') ?? 0) > 256) return json({ error: 'Too large' }, 413);
-    const body = (await request.json().catch(() => ({}))) as { entity?: string };
+    const body = (await request.json().catch(() => ({}))) as { entity?: string; state?: string };
     if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
+    // `state` names the outcome; without it the lamp toggles.
+    const service = body.state === 'on' ? 'turn_on' : body.state === 'off' ? 'turn_off' : 'toggle';
     const started = Date.now();
-    const result = await callState(env, 'home-call', { entity: body.entity });
+    const result = await callState(env, 'home-call', { entity: body.entity, service });
     const status = result.error
-      ? ({ off: 404, offline: 503, busy: 429, quota: 429, timeout: 504 }[result.error as string] ?? 502)
+      ? ({ off: 404, offline: 503, quota: 429, timeout: 504 }[result.error as string] ?? 502)
       : 200;
     return new Response(JSON.stringify(result), {
       status,

@@ -27,12 +27,14 @@ interface HomeCache {
 /** How long a toggle waits for the agent before giving up. */
 const HOME_CALL_TIMEOUT_MS = 4000;
 /**
- * Floor between toggles of one lamp, and a ceiling per lamp per day. These
- * are mechanical relays: a script flipping one twice a second would wear it
- * out in a day and power-cycle whatever it feeds. The agent mirrors the floor.
+ * A ceiling per lamp per day, and no floor: every tap lands, as fast as the
+ * relay can click. The ceiling is against a runaway script, not a person —
+ * a relay is good for a hundred thousand cycles, and the agent has its own
+ * per-lamp rate guard as the last line.
  */
-const HOME_CALL_GAP_MS = 2000;
-const HOME_CALLS_PER_DAY = 300;
+const HOME_CALLS_PER_DAY = 2000;
+/** What a tap may ask of a lamp. Mirrored in the agent's allowlist. */
+const HOME_SERVICES = new Set(['toggle', 'turn_on', 'turn_off']);
 /**
  * Open page sockets at once. ponytail: plenty for one toy; someone holding
  * all twenty just breaks the page for others, and the floors bound the
@@ -67,9 +69,6 @@ export class RedirectState implements DurableObject {
     string,
     { resolve: (reply: any) => void; timer: ReturnType<typeof setTimeout> }
   >();
-  /** Last toggle per lamp. In memory: a burst is what it guards against. */
-  private lastHomeCall = new Map<string, number>();
-
   constructor(private state: DurableObjectState) {
     // A keepalive the agent can use without waking a hibernated object.
     state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
@@ -443,7 +442,7 @@ export class RedirectState implements DurableObject {
        * that matters if this code is ever compromised.
        */
       case 'home-call':
-        return json(await this.toggleLamp(String(body.entity ?? '')));
+        return json(await this.callHome(String(body.entity ?? ''), String(body.service ?? 'toggle')));
 
       case 'login-guard': {
         const guard = (await this.state.storage.get<LoginGuard>('login')) ?? {
@@ -502,23 +501,22 @@ export class RedirectState implements DurableObject {
   }
 
   /**
-   * Ask the agent to flip one lamp and wait for its answer. The entity is
-   * checked here and again at home; the agent's allowlist is the one that
-   * matters if this code is ever compromised. Answers with the fresh view
-   * and how long the agent and Home Assistant took, or an error.
+   * Ask the agent to set one lamp and wait for its answer. Calls are not
+   * serialised here: a burst of taps goes down the socket as fast as it
+   * arrives, each with its own id, and the agent keeps them in order per
+   * lamp. The entity and service are checked here and again at home; the
+   * agent's allowlist is the one that matters if this code is ever
+   * compromised. Answers with how long the agent and Home Assistant took,
+   * or an error.
    */
-  private async toggleLamp(entity: string): Promise<Record<string, unknown>> {
+  private async callHome(entity: string, service: string): Promise<Record<string, unknown>> {
     // Cheapest refusals first; the storage reads come after.
-    if (!LIGHT_ENTITIES.has(entity)) return { error: 'unknown' };
+    if (!LIGHT_ENTITIES.has(entity) || !HOME_SERVICES.has(service)) return { error: 'unknown' };
     const agent = this.agents().at(-1);
     if (!agent) return { error: 'offline', ...(await this.homeView()) };
     const now = Date.now();
-    if (now - (this.lastHomeCall.get(entity) ?? 0) < HOME_CALL_GAP_MS) {
-      return { error: 'busy', ...(await this.homeView()) };
-    }
     if (!(await this.load()).trafficEnabled) return { error: 'off' };
     if (!(await this.takeQuota(entity, now))) return { error: 'quota', ...(await this.homeView()) };
-    this.lastHomeCall.set(entity, now);
 
     const id = crypto.randomUUID();
     const reply = new Promise<any>((resolve) => {
@@ -529,7 +527,7 @@ export class RedirectState implements DurableObject {
       this.pending.set(id, { resolve, timer });
     });
     const sent = Date.now();
-    agent.send(JSON.stringify({ type: 'call', id, entity, service: 'toggle' }));
+    agent.send(JSON.stringify({ type: 'call', id, entity, service }));
     const result = await reply;
     const agentMs = Date.now() - sent;
     if (result.states) await this.mergeStates(result.states);
@@ -615,8 +613,12 @@ export class RedirectState implements DurableObject {
       if (msg?.states) await this.mergeStates(msg.states);
       return;
     }
-    if (tags.includes('page') && msg?.type === 'toggle') {
-      const result = await this.toggleLamp(String(msg.entity ?? ''));
+    if (tags.includes('page') && (msg?.type === 'toggle' || msg?.type === 'set')) {
+      // A tap says which state it wants. Two fast taps as "toggle" could both
+      // read the same old state at home and land the same way; "on" then
+      // "off" always land as on then off.
+      const service = msg.type === 'toggle' ? 'toggle' : msg.state === 'on' ? 'turn_on' : 'turn_off';
+      const result = await this.callHome(String(msg.entity ?? ''), service);
       ws.send(JSON.stringify({ type: 'result', entity: msg.entity, ...result }));
     }
   }

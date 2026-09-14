@@ -24,9 +24,9 @@ import websockets
 
 ALLOWED = {'switch.tasmota', 'switch.traffic_1_power1'}
 SERVICES = {'toggle', 'turn_on', 'turn_off'}
-# Mirrors the Worker's floor: these are mechanical relays, and this is the
-# last line of defence if the Worker is ever compromised.
-MIN_GAP_S = 1.5
+# Per-lamp rate guard, the last line of defence if the Worker is ever
+# compromised. Well above any finger: twenty a second.
+MIN_GAP_S = 0.05
 
 SKIN_URL = os.environ['SKIN_URL']
 AGENT_TOKEN = os.environ['AGENT_TOKEN']
@@ -37,7 +37,9 @@ HA_WS = HA_URL.replace('http://', 'ws://', 1).replace('https://', 'wss://', 1) +
 log = logging.getLogger('skin-agent')
 states = {}     # entity -> 'on' | 'off' | ...
 last_call = {}  # entity -> monotonic seconds of the last accepted call
-skin = None   # the live socket to sbl.cx, if any
+locks = {}      # entity -> asyncio.Lock: calls land in order per lamp, lamps in parallel
+tasks = set()   # in-flight calls; a task with no reference can be collected mid-run
+skin = None     # the live socket to sbl.cx, if any
 
 
 def ha_rest(method, path, body=None):
@@ -63,13 +65,17 @@ async def push(ws, kind):
 async def handle_call(ws, msg):
     entity, service = msg.get('entity'), msg.get('service', 'toggle')
     reply = {'type': 'reply', 'id': msg.get('id')}
-    now = time.monotonic()
     if entity not in ALLOWED or service not in SERVICES:
         log.warning('refused %s %s', service, entity)
         reply.update(ok=False, error='not allowed')
-    elif now - last_call.get(entity, 0) < MIN_GAP_S:
-        reply.update(ok=False, error='busy')
-    else:
+        await ws.send(json.dumps(reply))
+        return
+    async with locks.setdefault(entity, asyncio.Lock()):
+        now = time.monotonic()
+        if now - last_call.get(entity, 0) < MIN_GAP_S:
+            reply.update(ok=False, error='busy')
+            await ws.send(json.dumps(reply))
+            return
         last_call[entity] = now
         try:
             started = time.monotonic()
@@ -115,7 +121,12 @@ async def skin_loop():
                         except ValueError:
                             continue
                         if msg.get('type') == 'call':
-                            await handle_call(ws, msg)
+                            # Not awaited: a burst of taps must not queue
+                            # behind one another here. Order per lamp is
+                            # kept by the lock in handle_call.
+                            task = asyncio.create_task(handle_call(ws, msg))
+                            tasks.add(task)
+                            task.add_done_callback(tasks.discard)
                 finally:
                     skin = None
         except Exception as err:  # noqa: BLE001

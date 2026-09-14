@@ -82,12 +82,22 @@ ${lamps}
   var status = document.getElementById('status');
   var ws = null, pollTimer = null, backoff = 1000;
   var tapped = {};
+  // What the last tap asked for, per lamp, and when. While a tap is recent,
+  // a pushed state that disagrees is an intermediate one from an earlier
+  // tap still landing, and is not painted; the truth catches up once the
+  // finger stops.
+  var wanted = {};
+  var SETTLE_MS = 1500;
 
   function paint(data) {
     var online = !!data.online;
     lamps.forEach(function (el) {
-      var state = data.states ? data.states[el.dataset.entity] : undefined;
-      el.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+      var entity = el.dataset.entity;
+      var state = data.states ? data.states[entity] : undefined;
+      var want = wanted[entity];
+      if (!(want && performance.now() - want.at < SETTLE_MS && state !== want.state)) {
+        el.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+      }
       el.disabled = !online;
     });
     status.className = online ? '' : 'err';
@@ -105,7 +115,7 @@ ${lamps}
     // and the push from home confirms or corrects it.
     if (data.states && (data.type === 'state' || data.error)) paint(data);
     if (data.error) {
-      fail(data.error === 'busy' ? 'slow down' : data.error);
+      fail(data.error);
       setTimeout(function () { if (data.states) paint(data); }, 1500);
     }
     if (data.type === 'result' && tapped[data.entity]) {
@@ -159,28 +169,27 @@ ${lamps}
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.
     el.onpointerdown = function (e) {
-      if (el.disabled || el.classList.contains('busy')) return;
+      if (el.disabled) return;
       e.preventDefault();
       var entity = el.dataset.entity;
       if (navigator.vibrate) navigator.vibrate(10);
-      // Optimistic: the lamp flips now; the pushed state corrects it if not.
-      el.setAttribute('aria-pressed', el.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
-      el.classList.add('busy');
+      // Optimistic: the lamp flips now, and the tap names the state it wants
+      // rather than "toggle", so a burst lands exactly as tapped.
+      var next = el.getAttribute('aria-pressed') === 'true' ? 'off' : 'on';
+      el.setAttribute('aria-pressed', next === 'on' ? 'true' : 'false');
+      wanted[entity] = { state: next, at: performance.now() };
       tapped[entity] = performance.now();
-      var done = function () { el.classList.remove('busy'); };
       if (open()) {
-        ws.send(JSON.stringify({ type: 'toggle', entity: entity }));
-        setTimeout(done, 400);
+        ws.send(JSON.stringify({ type: 'set', entity: entity, state: next }));
         return;
       }
       fetch('/traffic/toggle', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-skin-request': '1' },
-        body: JSON.stringify({ entity: entity })
+        body: JSON.stringify({ entity: entity, state: next })
       }).then(function (r) { return r.json(); })
         .then(handle)
-        .catch(function () { fail('no connection'); })
-        .finally(done);
+        .catch(function () { fail('no connection'); });
     };
   });
 
