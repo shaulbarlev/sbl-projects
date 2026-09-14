@@ -161,9 +161,12 @@ keeps that from being dangerous is in layers:
   the only Home Assistant token. A compromised Worker reaches nothing else.
 - The Worker checks the lamp again, requires the CSRF header on a tap so a
   cross-site form cannot toggle, and refuses bodies over a few hundred bytes.
-- These are mechanical relays, so a lamp takes one toggle per two seconds and
-  three hundred a day, enforced in the Durable Object and again in the agent.
-  A script cannot wear one out or power-cycle whatever it feeds.
+- Every tap lands, as fast as the relay clicks: there is no floor between
+  taps. A tap names the state it wants rather than asking for a toggle, so a
+  burst lands exactly as tapped instead of two toggles reading the same old
+  state at home and collapsing; the agent keeps order per lamp. What remains
+  against a runaway script is a ceiling of two thousand a day per lamp in the
+  Durable Object and a fifty millisecond guard per lamp in the agent.
 - The agent authenticates with its own `AGENT_TOKEN`, a random 48 characters
   compared in constant time. Deliberately outside the login lockout, so bad
   guesses at the password cannot hold the light offline.
