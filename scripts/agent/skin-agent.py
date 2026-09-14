@@ -60,8 +60,16 @@ async def handle_call(ws, msg):
         reply.update(ok=False, error='not allowed')
     else:
         try:
-            await asyncio.to_thread(ha_rest, 'POST', f'/api/services/switch/{service}', {'entity_id': entity})
-            await asyncio.to_thread(read_states)
+            # The service call answers with every state it changed, which is
+            # the fresh value we want without a second round trip. A device
+            # that reports late leaves the list empty; then read it.
+            changed = await asyncio.to_thread(
+                ha_rest, 'POST', f'/api/services/switch/{service}', {'entity_id': entity})
+            seen = {s['entity_id']: s['state'] for s in changed if s.get('entity_id') in ALLOWED}
+            if entity in seen:
+                states.update(seen)
+            else:
+                await asyncio.to_thread(read_states)
             reply.update(ok=True, states=states)
             log.info('%s %s -> %s', service, entity, states.get(entity))
         except Exception as err:  # noqa: BLE001 - report, never crash the loop

@@ -121,6 +121,35 @@ Two things a set must never do, both enforced:
 Sets reference files in the Library rather than owning them, so deleting a set
 leaves its images alone, and removing an image from a set does not delete it.
 
+## The traffic light
+
+A page at `/traffic`: a vector traffic light, green over orange, each lamp a
+real switch at home. Tapping a lamp toggles it; the page shows the current
+state and refreshes it every few seconds. It is a destination like any other,
+so **Send** from the Home card takes over the root with it for as long as a
+temp lasts.
+
+Nothing at home listens for inbound connections. A small agent
+(`scripts/agent/`) on the home network dials out and holds one WebSocket to the
+Durable Object; the Worker relays a tap over that socket, the agent calls Home
+Assistant on the LAN and answers with the new state, and pushes state up on
+its own whenever a lamp changes. The socket uses Cloudflare's hibernation API,
+so an idle connection costs nothing.
+
+The Home card's switch is the master. Off, `/traffic` resolves like any stray
+path, and a sent traffic target is skipped like an empty image set, so a temp
+pointing at it falls through to main.
+
+The page is public while it is on; that is the point of a traffic light. What
+keeps that from being dangerous is in layers:
+
+- The agent carries a hard allowlist, two switches and toggle/on/off, and holds
+  the only Home Assistant token. A compromised Worker reaches nothing else.
+- The Worker checks the lamp again, requires the CSRF header on a tap so a
+  cross-site form cannot toggle, and puts a floor between taps.
+- The agent authenticates with its own `AGENT_TOKEN`, under the same lockout
+  as the login form.
+
 ## Behaviour worth knowing
 
 - **302, never 301.** A permanent redirect is cached near-indefinitely by every
@@ -155,7 +184,7 @@ of slot buttons and every slot growing its own composer.
 | tab | what lives there |
 | --- | --- |
 | **Now** | live state, End now / +15m, and recents |
-| **Destinations** | the composer, GIF search and feed, bookmarks, image sets, uploaded files |
+| **Destinations** | the composer, GIF search and feed, bookmarks, image sets, the traffic light, uploaded files |
 | **Sequence** | the queue: live progress, per-device switch, arm deadline, arm and disarm, step order |
 | **Settings** | splash toggle, the QR itself, scan count, export, sign out |
 
@@ -220,6 +249,8 @@ animation entirely, and performs the redirect itself — a template must not.
 | --- | --- | --- |
 | `/*` | public | resolve and redirect (or splash) |
 | `/f/<key>/<name>` | public | an uploaded file |
+| `/traffic` | public, while on | the traffic light; `/traffic/state` and `/traffic/toggle` behind it |
+| `/_/agent` | the home agent | its WebSocket, bearer `AGENT_TOKEN` |
 | `/_/` | you | the panel |
 | `/_/?reset=1` | you | end any live temp, then show the panel |
 | `/_/qr.svg` | you | the QR, always encoding https |
@@ -320,7 +351,7 @@ replacement.
 ## Tests
 
 ```sh
-npm test          # 118 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, validation, auth, files
+npm test          # 125 tests: resolver truth table, sequence claiming, image-set draws, gif feeds, the traffic light and its agent socket, validation, auth, files
 npm run typecheck
 ```
 
