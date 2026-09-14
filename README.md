@@ -129,8 +129,8 @@ state and refreshes it every few seconds. It is a destination like any other,
 so **Send** from the Home card takes over the root with it for as long as a
 temp lasts.
 
-Nothing at home listens for inbound connections. A small agent
-(`scripts/agent/`) on the home network dials out and holds one WebSocket to the
+Nothing at home listens for inbound connections. A small agent (its own
+repo, `shaulbarlev/skin-home`) on the home network dials out and holds one WebSocket to the
 Durable Object; the object relays a tap over that socket, and the agent posts
 it to a local-only Home Assistant webhook whose automation sets the switch.
 Lamp state comes back without the agent: a second automation, on every change
