@@ -24,9 +24,6 @@ import websockets
 
 ALLOWED = {'switch.tasmota', 'switch.traffic_1_power1'}
 SERVICES = {'toggle', 'turn_on', 'turn_off'}
-# Per-lamp rate guard, the last line of defence if the Worker is ever
-# compromised. Well above any finger: twenty a second.
-MIN_GAP_S = 0.05
 
 SKIN_URL = os.environ['SKIN_URL']
 AGENT_TOKEN = os.environ['AGENT_TOKEN']
@@ -36,7 +33,6 @@ HA_WS = HA_URL.replace('http://', 'ws://', 1).replace('https://', 'wss://', 1) +
 
 log = logging.getLogger('skin-agent')
 states = {}     # entity -> 'on' | 'off' | ...
-last_call = {}  # entity -> monotonic seconds of the last accepted call
 locks = {}      # entity -> asyncio.Lock: calls land in order per lamp, lamps in parallel
 tasks = set()   # in-flight calls; a task with no reference can be collected mid-run
 skin = None     # the live socket to sbl.cx, if any
@@ -70,13 +66,9 @@ async def handle_call(ws, msg):
         reply.update(ok=False, error='not allowed')
         await ws.send(json.dumps(reply))
         return
+    # No rate guard here by choice: every tap lands. The lock only keeps
+    # one lamp's calls in order.
     async with locks.setdefault(entity, asyncio.Lock()):
-        now = time.monotonic()
-        if now - last_call.get(entity, 0) < MIN_GAP_S:
-            reply.update(ok=False, error='busy')
-            await ws.send(json.dumps(reply))
-            return
-        last_call[entity] = now
         try:
             started = time.monotonic()
             # The service call answers with every state it changed. A Tasmota

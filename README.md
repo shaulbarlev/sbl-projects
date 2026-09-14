@@ -164,9 +164,9 @@ keeps that from being dangerous is in layers:
 - Every tap lands, as fast as the relay clicks: there is no floor between
   taps. A tap names the state it wants rather than asking for a toggle, so a
   burst lands exactly as tapped instead of two toggles reading the same old
-  state at home and collapsing; the agent keeps order per lamp. What remains
-  against a runaway script is a ceiling of two thousand a day per lamp in the
-  Durable Object and a fifty millisecond guard per lamp in the agent.
+  state at home and collapsing; the agent keeps order per lamp. The agent has
+  no rate guard by choice; what remains against a runaway script is a ceiling
+  of two thousand a day per lamp in the Durable Object.
 - The agent authenticates with its own `AGENT_TOKEN`, a random 48 characters
   compared in constant time. Deliberately outside the login lockout, so bad
   guesses at the password cannot hold the light offline.
