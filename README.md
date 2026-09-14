@@ -131,10 +131,24 @@ temp lasts.
 
 Nothing at home listens for inbound connections. A small agent
 (`scripts/agent/`) on the home network dials out and holds one WebSocket to the
-Durable Object; the Worker relays a tap over that socket, the agent calls Home
-Assistant on the LAN and answers with the new state, and pushes state up on
-its own whenever a lamp changes. The socket uses Cloudflare's hibernation API,
-so an idle connection costs nothing.
+Durable Object; the object relays a tap over that socket, the agent calls Home
+Assistant on the LAN, and pushes state up on its own whenever a lamp changes.
+The socket uses Cloudflare's hibernation API, so an idle connection costs
+nothing.
+
+The page holds a socket to the same object. A tap is one message, the lamp
+flips on `pointerdown` with a haptic tick before anything answers, and the
+truth arrives as a push when the device reports — never from the tap's own
+reply, which for a Tasmota would be stale and flicker the lamp back. A change
+made from anywhere else reaches every open page the same way. HTTP `state` and
+`toggle` remain as the fallback when a socket cannot be opened.
+
+Latency is geography. The Worker at the Tel Aviv edge answers in 60 ms; the
+object lives in Europe (Tel Aviv hosts no objects), the home connection lands
+in Frankfurt, and Home Assistant plus the relay take 30 to 80 ms. Measured
+from a phone's vantage point: a tap is confirmed by the device in about 200 ms,
+a state read is 120 ms, a root scan 120 ms. The object was recreated near
+home for this; see `stub()` in `src/index.ts`.
 
 The Home card's switch is the master. Off, `/traffic` resolves like any stray
 path, and a sent traffic target is skipped like an empty image set, so a temp
