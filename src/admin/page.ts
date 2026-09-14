@@ -137,6 +137,25 @@ export function adminPage(host: string): string {
     </section>
 
     <section>
+      <h2>Home</h2>
+      <p class="sub">The traffic light at <b>/traffic</b>: two lamps, each a switch at home.
+        <b>Send</b> takes over the root with it. Off, the page does not exist.</p>
+      <div class="card stack">
+        <div class="toggle">
+          <div>
+            <strong>Traffic light on</strong>
+            <div class="desc" id="home-status">…</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="traffic-toggle">
+            <span></span>
+          </label>
+        </div>
+        <button id="traffic-send">Send&hellip;</button>
+      </div>
+    </section>
+
+    <section>
       <h2>Files</h2>
       <p class="sub">Uploaded and served from this domain. Nothing is deleted automatically.</p>
       <label class="btn" for="upload-input" style="display:block">Upload a file</label>

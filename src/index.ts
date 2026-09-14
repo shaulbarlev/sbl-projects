@@ -21,6 +21,7 @@ import {
   targetToUrl,
 } from './resolve';
 import { DEFAULT_TEMPLATE_ID, renderSplash } from './splash';
+import { LIGHT_ENTITIES, LIGHTS, renderTraffic } from './traffic';
 import type { Env, Resolution, SequenceStep, State, StoredFile, Target } from './types';
 import { clampDuration, validateUrl } from './validate';
 
@@ -65,6 +66,9 @@ export default {
     try {
       if (path === '/_' || path.startsWith('/_/')) return await handleAdmin(request, env, url);
       if (path.startsWith('/f/')) return await serveFile(request, env, path);
+      if (path === '/traffic' || path.startsWith('/traffic/')) {
+        return await handleTraffic(request, env, ctx, url);
+      }
       return await handleRedirect(request, env, ctx, url);
     } catch (err) {
       console.error('unhandled', err);
@@ -170,10 +174,12 @@ async function handleRedirect(
   if (claimCookie) headers.append('set-cookie', claimCookie);
 
   // A text target is the destination, so there is nothing to redirect to and
-  // nothing for a splash to precede.
-  if (served.kind === 'text') {
+  // nothing for a splash to precede. The traffic light takes over the root
+  // the same way.
+  if (served.kind === 'text' || served.kind === 'traffic') {
     headers.set('content-type', 'text/html; charset=utf-8');
-    return new Response(renderMessage(served.text), { headers });
+    const page = served.kind === 'text' ? renderMessage(served.text) : renderTraffic();
+    return new Response(page, { headers });
   }
 
   const destination = targetToUrl(served, url.origin);
@@ -270,6 +276,43 @@ function readRequestCookie(request: Request, name: string): string | null {
   return null;
 }
 
+/**
+ * The traffic light page and its two calls, public while the master switch
+ * is on. Off, the path does not exist: it resolves like any stray path.
+ */
+async function handleTraffic(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  url: URL,
+): Promise<Response> {
+  const state = (await callState(env, 'get')) as State;
+  if (!state.trafficEnabled) return handleRedirect(request, env, ctx, url);
+
+  const path = url.pathname;
+  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic());
+
+  if (path === '/traffic/state' && request.method === 'GET') {
+    return json(await callState(env, 'home-state'));
+  }
+
+  if (path === '/traffic/toggle' && request.method === 'POST') {
+    // The page is public, so the only guard is against cross-site posts: a
+    // form on another origin cannot set this header.
+    if (!hasCsrfHeader(request)) return json({ error: 'Missing request header' }, 403);
+    const body = (await request.json().catch(() => ({}))) as { entity?: string };
+    if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
+    const result = await callState(env, 'home-call', { entity: body.entity });
+    if (result.error) {
+      const status = { offline: 503, busy: 429, timeout: 504 }[result.error as string] ?? 502;
+      return json({ error: result.error }, status);
+    }
+    return json(await callState(env, 'home-state'));
+  }
+
+  return json({ error: 'Not found' }, 404);
+}
+
 async function serveFile(request: Request, env: Env, path: string): Promise<Response> {
   const key = path.split('/')[2];
   if (!key) return new Response('Not found', { status: 404 });
@@ -329,6 +372,18 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
 
   if (path === '/_/manifest.webmanifest') {
     return new Response(MANIFEST, { headers: { 'content-type': 'application/manifest+json' } });
+  }
+
+  if (path === '/_/agent') {
+    // The home agent's socket: its own token, under the login lockout, and
+    // handed straight to the Durable Object which owns the connection.
+    const guard = await callState(env, 'login-guard', { action: 'check', now });
+    if (guard.locked) return json({ error: 'Too many attempts. Try again later.' }, 429);
+    if (!(await checkBearer(request, env, env.AGENT_TOKEN))) {
+      await callState(env, 'login-guard', { action: 'fail', now });
+      return json({ error: 'Bad token' }, 401);
+    }
+    return stub(env).fetch(new Request('https://do/agent', request));
   }
 
   const bearer = await checkBearer(request, env);
@@ -446,6 +501,12 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   if (route === 'sequence/sticky' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
     await callState(env, 'set-sticky', { on: body.on });
+    return json(await view(env));
+  }
+
+  if (route === 'traffic' && request.method === 'POST') {
+    const body = (await request.json()) as { on: boolean };
+    await callState(env, 'set-traffic', { on: body.on });
     return json(await view(env));
   }
 
@@ -630,6 +691,8 @@ async function view(env: Env) {
     summary: summarise(state, resolution, now),
     // For a picker: what each bookmark is called, in list order.
     bookmarkLabels: state.bookmarks.map((b) => bookmarkLabel(b, state)),
+    // The lamps and what the agent last said about them.
+    home: { lights: LIGHTS, ...(await callState(env, 'home-state')) },
   };
 }
 
@@ -668,6 +731,8 @@ interface SendBody {
   value?: string;
   /** A saved bookmark, by label or by what it points at. */
   bookmark?: string;
+  /** Anything truthy: the traffic light. */
+  traffic?: unknown;
 }
 
 /** A duration in ms from either form, with the default in minutes. */
@@ -718,6 +783,7 @@ async function flatTarget(env: Env, body: SendBody): Promise<Target | undefined>
   if (body.text !== undefined) return { kind: 'text', text: String(body.text) };
   if (body.url !== undefined) return { kind: 'url', url: String(body.url) };
   if (body.query !== undefined) return { kind: 'giphy', query: String(body.query) };
+  if (body.traffic) return { kind: 'traffic' };
   if (body.value !== undefined) {
     const value = String(body.value);
     return validateUrl(value).ok ? { kind: 'url', url: value } : { kind: 'text', text: value };
@@ -747,6 +813,8 @@ function normaliseTarget(target: Target | undefined): { value: Target } | { erro
     if (!target.poolId) return { error: 'Malformed image set target' };
     return { value: { kind: 'pool', poolId: target.poolId, label: target.label } };
   }
+
+  if (target.kind === 'traffic') return { value: { kind: 'traffic', label: target.label } };
 
   if (target.kind === 'giphy') {
     const query = String(target.query ?? '').trim();

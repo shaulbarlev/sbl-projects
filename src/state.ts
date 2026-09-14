@@ -1,5 +1,6 @@
 import { searchGifs } from './giphy';
 import { targetKey } from './resolve';
+import { LIGHT_ENTITIES } from './traffic';
 import type { Bookmark, MruEntry, Pool, SequenceStep, State, StoredFile, Target } from './types';
 
 const EMPTY: State = {
@@ -13,8 +14,20 @@ const EMPTY: State = {
   files: [],
   pools: [],
   giphy: {},
+  trafficEnabled: false,
   hits: 0,
 };
+
+/** What the home agent last reported for the lamps. */
+interface HomeCache {
+  states: Record<string, string>;
+  updatedAt: number;
+}
+
+/** How long a toggle waits for the agent before giving up. */
+const HOME_CALL_TIMEOUT_MS = 4000;
+/** Floor between toggles. A scanner mashing a lamp is the only load source. */
+const HOME_CALL_GAP_MS = 400;
 
 const MRU_MAX = 5;
 const LOGIN_MAX_ATTEMPTS = 8;
@@ -32,7 +45,17 @@ interface LoginGuard {
  * rather than a schema migration. There is deliberately no UI for that yet.
  */
 export class RedirectState implements DurableObject {
-  constructor(private state: DurableObjectState) {}
+  /** Replies the home agent owes, by call id. Only populated during a call. */
+  private pending = new Map<
+    string,
+    { resolve: (reply: any) => void; timer: ReturnType<typeof setTimeout> }
+  >();
+  private lastHomeCall = 0;
+
+  constructor(private state: DurableObjectState) {
+    // A keepalive the agent can use without waking a hibernated object.
+    state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+  }
 
   private async load(): Promise<State> {
     const stored = await this.state.storage.get<State>('state');
@@ -344,6 +367,62 @@ export class RedirectState implements DurableObject {
         return json({ url });
       }
 
+      /* ------------------------------------------------------------- home */
+
+      /**
+       * The home agent's socket. Hibernatable, so an idle connection costs
+       * nothing and the runtime wakes this object with the socket attached
+       * when a message arrives. Auth happened in the Worker.
+       */
+      case 'agent': {
+        if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+          return new Response('Expected a websocket', { status: 426 });
+        }
+        const pair = new WebSocketPair();
+        this.state.acceptWebSocket(pair[1], ['agent']);
+        return new Response(null, { status: 101, webSocket: pair[0] });
+      }
+
+      case 'set-traffic': {
+        const s = await this.load();
+        s.trafficEnabled = Boolean(body.on);
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'home-state':
+        return json({ online: this.agents().length > 0, ...(await this.homeCache()) });
+
+      /**
+       * Ask the agent to flip one lamp and wait for its answer. The entity is
+       * checked here and again at home; the agent's allowlist is the one
+       * that matters if this code is ever compromised.
+       */
+      case 'home-call': {
+        if (!LIGHT_ENTITIES.has(body.entity)) return json({ error: 'unknown' });
+        const agent = this.agents().at(-1);
+        if (!agent) return json({ error: 'offline' });
+        // ponytail: one global floor, not per lamp or per scanner. Enough for
+        // two lamps; revisit if the page ever grows a control per guest.
+        const now = Date.now();
+        if (now - this.lastHomeCall < HOME_CALL_GAP_MS) return json({ error: 'busy' });
+        this.lastHomeCall = now;
+
+        const id = crypto.randomUUID();
+        const reply = new Promise<any>((resolve) => {
+          const timer = setTimeout(() => {
+            this.pending.delete(id);
+            resolve({ error: 'timeout' });
+          }, HOME_CALL_TIMEOUT_MS);
+          this.pending.set(id, { resolve, timer });
+        });
+        agent.send(JSON.stringify({ type: 'call', id, entity: body.entity, service: 'toggle' }));
+        const result = await reply;
+        if (result.states) await this.mergeStates(result.states);
+        if (result.error || result.ok === false) return json({ error: String(result.error ?? 'failed') });
+        return json({ ok: true });
+      }
+
       case 'login-guard': {
         const guard = (await this.state.storage.get<LoginGuard>('login')) ?? {
           failures: 0,
@@ -390,6 +469,60 @@ export class RedirectState implements DurableObject {
       changed = true;
     }
     if (changed) await this.save(s);
+  }
+
+  /* --------------------------------------------------------- home socket */
+
+  private agents(): WebSocket[] {
+    return this.state.getWebSockets('agent');
+  }
+
+  private async homeCache(): Promise<HomeCache> {
+    return (await this.state.storage.get<HomeCache>('home')) ?? { states: {}, updatedAt: 0 };
+  }
+
+  /** Remember what the agent reports, for the known lamps only. */
+  private async mergeStates(states: unknown): Promise<void> {
+    if (!states || typeof states !== 'object') return;
+    const cache = await this.homeCache();
+    for (const [entity, value] of Object.entries(states as Record<string, unknown>)) {
+      if (LIGHT_ENTITIES.has(entity) && typeof value === 'string') {
+        cache.states[entity] = value.slice(0, 32);
+      }
+    }
+    cache.updatedAt = Date.now();
+    await this.state.storage.put('home', cache);
+  }
+
+  async webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (typeof message !== 'string' || message.length > 4096) return;
+    let msg: any;
+    try {
+      msg = JSON.parse(message);
+    } catch {
+      return;
+    }
+    if (msg?.type === 'reply' && typeof msg.id === 'string') {
+      const waiting = this.pending.get(msg.id);
+      if (waiting) {
+        clearTimeout(waiting.timer);
+        this.pending.delete(msg.id);
+        waiting.resolve(msg);
+      }
+    }
+    if (msg?.states) await this.mergeStates(msg.states);
+  }
+
+  async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    try {
+      ws.close(code, reason);
+    } catch {
+      // Already closed; nothing to finish.
+    }
+  }
+
+  async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
+    console.warn('home agent socket error', error);
   }
 }
 

@@ -71,7 +71,18 @@ export const ADMIN_JS = String.raw`
       return pool ? pool.name + ' (' + pool.items.length + ' images)' : 'Image set';
     }
     if (target.kind === 'giphy') return target.query ? 'GIF feed: ' + target.query : 'Trending GIF feed';
+    if (target.kind === 'traffic') return 'Traffic light';
     return '“' + target.text + '”';
+  }
+
+  /** One line on the home agent and the lamps, for the Home card. */
+  function homeStatus() {
+    var home = state.home || {};
+    if (!home.online) return 'Home agent offline';
+    var states = home.states || {};
+    return 'Home online · ' + (home.lights || []).map(function (l) {
+      return l.label.toLowerCase() + ' ' + (states[l.entity] || '?');
+    }).join(' · ');
   }
 
   function kindLabel(target) {
@@ -80,6 +91,7 @@ export const ADMIN_JS = String.raw`
     if (target.kind === 'file') return 'file';
     if (target.kind === 'pool') return 'random image';
     if (target.kind === 'giphy') return 'gif feed';
+    if (target.kind === 'traffic') return 'home';
     return 'message';
   }
 
@@ -444,6 +456,9 @@ export const ADMIN_JS = String.raw`
     renderPools();
     $('splash-toggle').checked = state.splash;
     $('sticky-toggle').checked = !!state.stickySteps;
+    $('traffic-toggle').checked = !!state.trafficEnabled;
+    $('traffic-send').disabled = !state.trafficEnabled;
+    $('home-status').textContent = homeStatus();
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
       // An unlabelled bookmark shows the destination as its name rather than a
@@ -730,6 +745,12 @@ export const ADMIN_JS = String.raw`
     act(api('splash', { on: event.target.checked }),
       event.target.checked ? 'Splash on' : 'Splash off');
   };
+
+  $('traffic-toggle').onchange = function (event) {
+    act(api('traffic', { on: event.target.checked }),
+      event.target.checked ? 'Traffic light on' : 'Traffic light off');
+  };
+  $('traffic-send').onclick = function () { openSheet({ kind: 'traffic' }); };
 
   $('sticky-toggle').onchange = function (event) {
     act(api('sequence/sticky', { on: event.target.checked }),

@@ -13,9 +13,13 @@ export function findPool(state: State, poolId: string): Pool | null {
  * slot that looks configured but cannot deliver.
  */
 export function isServable(state: State, target: Target): boolean {
-  if (target.kind !== 'pool') return true;
-  const pool = findPool(state, target.poolId);
-  return !!pool && pool.items.length > 0;
+  if (target.kind === 'pool') {
+    const pool = findPool(state, target.poolId);
+    return !!pool && pool.items.length > 0;
+  }
+  // The traffic light has a master switch. Off, it is skipped the same way.
+  if (target.kind === 'traffic') return !!state.trafficEnabled;
+  return true;
 }
 
 /**
@@ -106,6 +110,7 @@ export function targetKey(target: Target): string {
   if (target.kind === 'file') return `file:${target.key}`;
   if (target.kind === 'pool') return `pool:${target.poolId}`;
   if (target.kind === 'giphy') return `giphy:${target.query}`;
+  if (target.kind === 'traffic') return 'traffic';
   return `text:${target.text}`;
 }
 
@@ -118,5 +123,6 @@ export function describeTarget(target: Target, state?: State): string {
     return pool ? `${pool.name} (${pool.items.length} images)` : 'Image set';
   }
   if (target.kind === 'giphy') return target.query ? `GIF feed: ${target.query}` : 'Trending GIF feed';
+  if (target.kind === 'traffic') return 'Traffic light';
   return target.text;
 }

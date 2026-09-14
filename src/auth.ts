@@ -106,11 +106,15 @@ export async function isAuthed(request: Request, env: Env, now: number): Promise
  * Shortcut can be rotated without changing what you type. Returns null when no
  * bearer was offered, so the caller can fall through to the session cookie.
  */
-export async function checkBearer(request: Request, env: Env): Promise<boolean | null> {
+export async function checkBearer(
+  request: Request,
+  env: Env,
+  expected: string | undefined = env.API_TOKEN,
+): Promise<boolean | null> {
   const header = request.headers.get('authorization') ?? '';
   if (!/^bearer /i.test(header)) return null;
-  if (!env.API_TOKEN) return false;
-  return timingSafeEqual(header.slice(7).trim(), env.API_TOKEN);
+  if (!expected) return false;
+  return timingSafeEqual(header.slice(7).trim(), expected);
 }
 
 /**

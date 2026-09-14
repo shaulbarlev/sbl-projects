@@ -7,3 +7,6 @@ GIPHY_API_KEY=
 
 # Optional. Bearer token for scripts and the iOS Shortcut.
 API_TOKEN=
+
+# Optional. Bearer token the home agent (scripts/agent) connects with.
+AGENT_TOKEN=

@@ -19,6 +19,7 @@ function state(partial: Partial<State> = {}): State {
     files: [],
     pools: [],
     giphy: {},
+    trafficEnabled: false,
     hits: 0,
     ...partial,
   };

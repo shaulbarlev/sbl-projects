@@ -29,3 +29,4 @@ bucket_name = "skin-files"
 #   SESSION_SECRET  random string used to sign session cookies
 #   GIPHY_API_KEY   optional; enables the GIF search in the panel
 #   API_TOKEN       optional; bearer token for scripts and the iOS Shortcut
+#   AGENT_TOKEN     optional; bearer token the home agent connects with

@@ -227,6 +227,12 @@ def bookmark_case():
     send('bookmark')
 
 
+def traffic_case():
+    duration()
+    notify(request('POST', 'send', [item('slot', text('temp')), item('traffic', text('yes')),
+                                    item('minutes', text('$minutes'), 3)]))
+
+
 def extend_case():
     duration('Extend by')
     notify(request('POST', 'temp/extend', [item('minutes', text('$minutes'), 3)]))
@@ -276,6 +282,7 @@ else:
         ('Pick a photo', lambda: photo_case('library')),
         ('GIF feed', gif_case),
         ('Bookmark', bookmark_case),
+        ('Traffic light', traffic_case),
         ('Extend', extend_case),
         ('End now', end_case),
         ("What's live", live_case),

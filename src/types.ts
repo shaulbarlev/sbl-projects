@@ -12,7 +12,9 @@ export type Target =
   | { kind: 'text'; text: string; label?: string }
   | { kind: 'pool'; poolId: string; label?: string }
   /** A live Giphy search: every scan gets the next result, in order. */
-  | { kind: 'giphy'; query: string; label?: string };
+  | { kind: 'giphy'; query: string; label?: string }
+  /** The traffic light page, rendered in place. Gated by `State.trafficEnabled`. */
+  | { kind: 'traffic'; label?: string };
 
 /**
  * Where a GIF feed is up to: one page of result URLs and a cursor into it.
@@ -122,6 +124,11 @@ export interface State {
   pools: Pool[];
   /** Feed progress, keyed by search query. */
   giphy: Record<string, GiphyFeed>;
+  /**
+   * The master switch for the traffic light. Off, /traffic resolves like any
+   * stray path and a `traffic` target is skipped like an empty set.
+   */
+  trafficEnabled: boolean;
   hits: number;
 }
 
@@ -142,4 +149,6 @@ export interface Env {
   GIPHY_API_KEY?: string;
   /** Optional. Bearer token for scripts and Shortcuts; unset means no token auth. */
   API_TOKEN?: string;
+  /** Optional. Bearer token the home agent connects with; unset means no agent. */
+  AGENT_TOKEN?: string;
 }

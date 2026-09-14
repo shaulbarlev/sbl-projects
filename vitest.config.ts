@@ -12,6 +12,7 @@ export default defineConfig({
           FALLBACK_URL: 'https://fallback.example.com/',
           GIPHY_API_KEY: 'test-giphy-key',
           API_TOKEN: 'test-token',
+          AGENT_TOKEN: 'test-agent-token',
         },
       },
     }),
