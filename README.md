@@ -155,7 +155,10 @@ home for this; see `stub()` in `src/index.ts`.
 
 The Home card's switch is the master. Off, `/traffic` resolves like any stray
 path, and a sent traffic target is skipped like an empty image set, so a temp
-pointing at it falls through to main.
+pointing at it falls through to main. Home Assistant keeps a live mirror of it
+as a helper: flipping either side sets the other through `/_/agent/traffic`
+one way and the agent socket the other, and only real changes cross, so the
+echo dies in one round.
 
 The page is public while it is on; that is the point of a traffic light. What
 keeps that from being dangerous is in layers:
