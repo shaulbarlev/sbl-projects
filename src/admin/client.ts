@@ -458,6 +458,7 @@ export const ADMIN_JS = String.raw`
     $('sticky-toggle').checked = !!state.stickySteps;
     $('traffic-toggle').checked = !!state.trafficEnabled;
     $('traffic-send').disabled = !state.trafficEnabled;
+    $('party-toggle').checked = !!state.partyEnabled;
     $('home-status').textContent = homeStatus();
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
@@ -749,6 +750,10 @@ export const ADMIN_JS = String.raw`
   $('traffic-toggle').onchange = function (event) {
     act(api('traffic', { on: event.target.checked }),
       event.target.checked ? 'Traffic light on' : 'Traffic light off');
+  };
+  $('party-toggle').onchange = function (event) {
+    act(api('party', { on: event.target.checked }),
+      event.target.checked ? 'Party button on' : 'Party button off');
   };
   $('traffic-send').onclick = function () { openSheet({ kind: 'traffic' }); };
 

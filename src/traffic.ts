@@ -12,7 +12,15 @@ export const LIGHTS = [
   { entity: 'switch.tasmota', label: 'Orange', color: '#f59e0b' },
 ] as const;
 
+/**
+ * The party button under the light: one input_boolean at home. Shown only
+ * while its own switch is on, and tappable only then.
+ */
+export const PARTY = { entity: 'input_boolean.party', label: 'Party', color: '#e879f9' } as const;
+
 export const LIGHT_ENTITIES: ReadonlySet<string> = new Set(LIGHTS.map((l) => l.entity));
+/** Everything a tap may name: the lamps and the party button. */
+export const HOME_ENTITIES: ReadonlySet<string> = new Set([...LIGHT_ENTITIES, PARTY.entity]);
 
 /**
  * The page a `traffic` target renders, at /traffic and as a root takeover.
@@ -66,6 +74,36 @@ export function renderTraffic(): string {
   }
   .lamp[disabled] { cursor: default; opacity: .45; }
   .lamp.busy { opacity: .7; }
+
+  /* The party button: a smaller housing, a dim magenta lamp off, a mirror
+     ball on. Hidden until home says the button is enabled. */
+  .housing.mini { padding: 18px; border-radius: 30px; }
+  .housing.mini[hidden] { display: none; }
+  .party {
+    --c: ${PARTY.color}; --gc: var(--c);
+    width: min(22vw, 110px); height: min(22vw, 110px);
+    border-radius: 50%; border: 0; padding: 0; cursor: pointer; position: relative;
+    background: color-mix(in srgb, var(--c) 22%, #111);
+    box-shadow: inset 0 8px 18px rgba(0,0,0,.7);
+    transition: background .3s, box-shadow .3s, transform .08s;
+  }
+  .party:active { transform: scale(.96); }
+  .party[aria-pressed="true"] {
+    background: #26262a; transition: transform .08s;
+    box-shadow: 0 0 40px 10px color-mix(in srgb, var(--gc) 60%, transparent);
+  }
+  .party[disabled] { cursor: default; opacity: .45; }
+  .ball { position: absolute; inset: 0; opacity: 0; transition: opacity .3s; pointer-events: none;
+          transform-style: preserve-3d; animation: turn 18s linear infinite; }
+  .party[aria-pressed="true"] .ball { opacity: 1; transition: none; }
+  @keyframes turn { from { transform: rotateX(90deg) rotateZ(0deg); } to { transform: rotateX(90deg) rotateZ(360deg); } }
+  .ball .core { position: absolute; inset: 4%; border-radius: 50%; background: linear-gradient(#111, #333);
+                animation: counter 18s linear infinite; }
+  @keyframes counter { from { transform: rotateX(90deg) rotateY(0deg); } to { transform: rotateX(90deg) rotateY(-360deg); } }
+  .ball .sq { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+  .ball .sq i { display: block; transform-origin: 0 0; backface-visibility: hidden; animation: shimmer 2s linear infinite;
+                background: color-mix(in srgb, var(--gc) calc(30% * var(--t)), var(--grey)); }
+  @keyframes shimmer { 0% { opacity: 1; } 50% { opacity: .4; } 100% { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -73,10 +111,54 @@ export function renderTraffic(): string {
   <div class="housing">
 ${lamps}
   </div>
+  <div class="housing mini" id="party-housing" hidden>
+    <button class="lamp party" id="party" data-entity="${escapeHtml(PARTY.entity)}"
+      aria-label="${PARTY.label}" aria-pressed="false" disabled onclick="return false"><div class="ball" id="ball"></div></button>
+  </div>
 </main>
 <script>
 (function () {
   var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
+  var party = document.getElementById('party');
+  var partyHousing = document.getElementById('party-housing');
+
+  // The mirror ball: tiles placed on a sphere and turned by CSS. Built once,
+  // sized to the button. Each tile catches the glow colour a little.
+  function buildBall() {
+    var size = party.getBoundingClientRect().width || 100, radius = size / 2;
+    var sq = 7 * size / 100, fuzzy = 0.001, inc = (Math.PI - fuzzy) / 20;
+    var html = '<div class="core"></div>';
+    for (var t = fuzzy; t < Math.PI; t += inc) {
+      var z = radius * Math.cos(t);
+      var ringR = Math.abs(2 * radius * Math.sin(t)) / 2.5;
+      var fit = Math.max(1, Math.floor(2 * Math.PI * ringR / sq));
+      var ainc = (Math.PI * 2 - fuzzy) / fit;
+      for (var i = ainc / 2 + fuzzy; i < Math.PI * 2; i += ainc) {
+        var c = t > 1.3 && t < 1.9 ? rnd(130, 255) : rnd(100, 180);
+        var x = radius * Math.cos(i) * Math.sin(t), y = radius * Math.sin(i) * Math.sin(t);
+        html += '<div class="sq" style="transform:translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) + 'px)">' +
+          '<i style="width:' + sq + 'px;height:' + sq + 'px;--t:' + (rnd(2, 15) / 10) + ';--grey:rgb(' + c + ',' + c + ',' + (c + 4) + ');' +
+          'transform:rotate(' + i.toFixed(3) + 'rad) rotateY(' + t.toFixed(3) + 'rad);animation-delay:' + (rnd(0, 20) / 10) + 's"></i></div>';
+      }
+    }
+    document.getElementById('ball').innerHTML = html;
+  }
+  function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+  var hueTimer = null;
+  function glow(on) {
+    if (on && !hueTimer) {
+      hueTimer = setInterval(function () { party.style.setProperty('--gc', 'hsl(' + rnd(0, 359) + ' 100% 65%)'); }, 150);
+    } else if (!on && hueTimer) {
+      clearInterval(hueTimer); hueTimer = null; party.style.removeProperty('--gc');
+    }
+  }
+  var built = false;
+  function showParty(on) {
+    partyHousing.hidden = !on;
+    if (on && !built) { built = true; buildBall(); }
+  }
+  new MutationObserver(function () { glow(party.getAttribute('aria-pressed') === 'true'); })
+    .observe(party, { attributes: true, attributeFilter: ['aria-pressed'] });
   var ws = null, pollTimer = null, backoff = 1000;
   var tapped = {};
   // What the last tap asked for, per lamp, and when. While a tap is recent,
@@ -88,6 +170,7 @@ ${lamps}
 
   function paint(data) {
     var online = !!data.online;
+    showParty(!!data.party);
     lamps.forEach(function (el) {
       var entity = el.dataset.entity;
       var state = data.states ? data.states[entity] : undefined;

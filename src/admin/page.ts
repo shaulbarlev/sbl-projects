@@ -151,6 +151,16 @@ export function adminPage(host: string): string {
             <span></span>
           </label>
         </div>
+        <div class="toggle">
+          <div>
+            <strong>Party button</strong>
+            <div class="desc">A mirror ball under the light, flipping the party switch at home.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="party-toggle">
+            <span></span>
+          </label>
+        </div>
         <button id="traffic-send">Send&hellip;</button>
       </div>
     </section>

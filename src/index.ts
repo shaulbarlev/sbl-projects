@@ -21,7 +21,7 @@ import {
   targetToUrl,
 } from './resolve';
 import { DEFAULT_TEMPLATE_ID, renderSplash } from './splash';
-import { LIGHT_ENTITIES, LIGHTS, renderTraffic } from './traffic';
+import { HOME_ENTITIES, LIGHTS, PARTY, renderTraffic } from './traffic';
 import type { Env, Resolution, SequenceStep, State, StoredFile, Target } from './types';
 import { clampDuration, validateUrl } from './validate';
 
@@ -314,7 +314,7 @@ async function handleTraffic(
     // refused before it is read.
     if (Number(request.headers.get('content-length') ?? 0) > 256) return json({ error: 'Too large' }, 413);
     const body = (await request.json().catch(() => ({}))) as { entity?: string; state?: string };
-    if (!body.entity || !LIGHT_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
+    if (!body.entity || !HOME_ENTITIES.has(body.entity)) return json({ error: 'Unknown light' }, 400);
     // `state` names the outcome; without it the lamp toggles.
     const service = body.state === 'on' ? 'turn_on' : body.state === 'off' ? 'turn_off' : 'toggle';
     const started = Date.now();
@@ -402,7 +402,7 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
     return new Response(MANIFEST, { headers: { 'content-type': 'application/manifest+json' } });
   }
 
-  if (path === '/_/agent' || path === '/_/agent/state' || path === '/_/agent/traffic') {
+  if (path === '/_/agent' || path === '/_/agent/state' || path === '/_/agent/traffic' || path === '/_/agent/party') {
     // The home side: the agent's socket, Home Assistant's own state pushes,
     // and Home Assistant's copy of the master switch. All carry AGENT_TOKEN,
     // and all are deliberately outside the login lockout — a random
@@ -414,11 +414,11 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     if (Number(request.headers.get('content-length') ?? 0) > 4096) return json({ error: 'Too large' }, 413);
     const body = (await request.json().catch(() => ({}))) as { states?: unknown; on?: unknown };
-    if (path === '/_/agent/traffic') {
+    if (path === '/_/agent/traffic' || path === '/_/agent/party') {
       // "on"/"off" as strings too: that is what a Home Assistant template
       // renders most naturally.
       const on = body.on === true || body.on === 'on' || body.on === 'true';
-      await callState(env, 'set-traffic', { on });
+      await callState(env, path.endsWith('party') ? 'set-party' : 'set-traffic', { on });
       return json({ on });
     }
     await callState(env, 'home-report', { states: body.states });
@@ -546,6 +546,12 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
   if (route === 'traffic' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
     await callState(env, 'set-traffic', { on: body.on });
+    return json(await view(env));
+  }
+
+  if (route === 'party' && request.method === 'POST') {
+    const body = (await request.json()) as { on: boolean };
+    await callState(env, 'set-party', { on: body.on });
     return json(await view(env));
   }
 
@@ -731,7 +737,7 @@ async function view(env: Env) {
     // For a picker: what each bookmark is called, in list order.
     bookmarkLabels: state.bookmarks.map((b) => bookmarkLabel(b, state)),
     // The lamps and what the agent last said about them.
-    home: { lights: LIGHTS, ...(await callState(env, 'home-state')) },
+    home: { lights: [...LIGHTS, PARTY], ...(await callState(env, 'home-state')) },
   };
 }
 

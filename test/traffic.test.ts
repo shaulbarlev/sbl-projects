@@ -221,7 +221,7 @@ describe('state reported by home assistant itself', () => {
     // Setting it to what it already is says nothing more.
     await traffic(true);
     await new Promise((resolve) => setTimeout(resolve, 60));
-    expect(heard.filter((m) => m.type === 'switch')).toHaveLength(2);
+    expect(heard.filter((m) => m.type === 'switch' && !m.name)).toHaveLength(2);
     ws.close();
   });
 
@@ -232,6 +232,73 @@ describe('state reported by home assistant itself', () => {
       method: 'POST', body: new URLSearchParams({ password: PASSWORD }), redirect: 'manual',
     });
     expect(login.status).toBe(303);
+  });
+});
+
+describe('the party button', () => {
+  const party = (on: boolean) => SELF.fetch(`${ORIGIN}/_/api/party`, authed(cookie, { on }));
+  const agentSocket = async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/agent`, {
+      headers: { upgrade: 'websocket', authorization: 'Bearer test-agent-token' },
+    });
+    const ws = response.webSocket!;
+    ws.accept();
+    const inbox: any[] = [];
+    ws.addEventListener('message', (event) => inbox.push(JSON.parse(String(event.data))));
+    return { ws, inbox };
+  };
+
+  beforeEach(async () => {
+    await party(false);
+  });
+
+  it('is on the page only while its switch is on, and only then takes a tap', async () => {
+    await traffic(true);
+    const { ws, inbox } = await agentSocket();
+    let state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.party).toBe(false);
+    // Off: the entity is known, but the tap is refused as if the light were off.
+    expect((await toggle('input_boolean.party')).status).toBe(404);
+
+    await party(true);
+    state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.party).toBe(true);
+    const tap = toggle('input_boolean.party');
+    await vi.waitFor(() => expect(inbox.some((m) => m.type === 'call' && m.entity === 'input_boolean.party')).toBe(true));
+    const call = inbox.find((m) => m.type === 'call' && m.entity === 'input_boolean.party');
+    expect(call.service).toBe('turn_on');
+    ws.send(JSON.stringify({ type: 'reply', id: call.id, ok: true }));
+    expect((await tap).status).toBe(200);
+    ws.close();
+  });
+
+  it('remembers what home reports for it', async () => {
+    await traffic(true);
+    await SELF.fetch(`${ORIGIN}/_/agent/state`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-agent-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ states: { 'input_boolean.party': 'on' } }),
+    });
+    const state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.states['input_boolean.party']).toBe('on');
+  });
+
+  it('mirrors its switch to home on change and on connect, and takes it from home', async () => {
+    const { ws, inbox } = await agentSocket();
+    const partySwitches = () => inbox.filter((m) => m.type === 'switch' && m.name === 'party');
+    await vi.waitFor(() => expect(partySwitches()).toEqual([{ type: 'switch', name: 'party', on: false }]));
+    await party(true);
+    await vi.waitFor(() => expect(partySwitches().at(-1)).toEqual({ type: 'switch', name: 'party', on: true }));
+    // Home flips it: no echo back, since nothing changed after the set.
+    const set = await SELF.fetch(`${ORIGIN}/_/agent/party`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-agent-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ on: 'off' }),
+    });
+    expect(((await set.json()) as any).on).toBe(false);
+    await vi.waitFor(() => expect(partySwitches().at(-1)).toEqual({ type: 'switch', name: 'party', on: false }));
+    expect(partySwitches()).toHaveLength(3);
+    ws.close();
   });
 });
 

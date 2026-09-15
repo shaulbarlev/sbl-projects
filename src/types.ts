@@ -129,6 +129,8 @@ export interface State {
    * stray path and a `traffic` target is skipped like an empty set.
    */
   trafficEnabled: boolean;
+  /** The party button under the light. Off, it is not on the page at all. */
+  partyEnabled: boolean;
   hits: number;
 }
 

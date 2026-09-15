@@ -1,6 +1,6 @@
 import { searchGifs } from './giphy';
 import { targetKey } from './resolve';
-import { LIGHT_ENTITIES } from './traffic';
+import { HOME_ENTITIES, PARTY } from './traffic';
 import type { Bookmark, MruEntry, Pool, SequenceStep, State, StoredFile, Target } from './types';
 
 const EMPTY: State = {
@@ -15,6 +15,7 @@ const EMPTY: State = {
   pools: [],
   giphy: {},
   trafficEnabled: false,
+  partyEnabled: false,
   hits: 0,
 };
 
@@ -33,6 +34,8 @@ const HOME_CALL_TIMEOUT_MS = 4000;
  * per-lamp rate guard as the last line.
  */
 const HOME_CALLS_PER_DAY = 2000;
+/** The party button is a mood, not a relay: far fewer flips a day. */
+const PARTY_CALLS_PER_DAY = 100;
 /** What a tap may ask of a lamp. Mirrored in the agent's allowlist. */
 const HOME_SERVICES = new Set(['toggle', 'turn_on', 'turn_off']);
 /**
@@ -400,8 +403,10 @@ export class RedirectState implements DurableObject {
         for (const old of this.agents()) old.close(1000, 'replaced');
         const pair = new WebSocketPair();
         this.state.acceptWebSocket(pair[1], ['agent']);
-        // Resync home's mirror of the master switch after any outage.
-        pair[1].send(JSON.stringify({ type: 'switch', on: (await this.load()).trafficEnabled }));
+        // Resync home's mirrors of both switches after any outage.
+        const s = await this.load();
+        pair[1].send(JSON.stringify({ type: 'switch', on: s.trafficEnabled }));
+        pair[1].send(JSON.stringify({ type: 'switch', name: 'party', on: s.partyEnabled }));
         await this.broadcast({ online: true });
         return new Response(null, { status: 101, webSocket: pair[0] });
       }
@@ -434,6 +439,19 @@ export class RedirectState implements DurableObject {
         // Home keeps a mirror of this switch. Only a real change is sent, so
         // the echo Home Assistant makes when it hears it dies in one round.
         if (changed) this.tellHome({ type: 'switch', on });
+        return json(s);
+      }
+
+      case 'set-party': {
+        const s = await this.load();
+        const on = Boolean(body.on);
+        const changed = s.partyEnabled !== on;
+        s.partyEnabled = on;
+        await this.save(s);
+        if (changed) {
+          this.tellHome({ type: 'switch', name: 'party', on });
+          await this.broadcast();
+        }
         return json(s);
       }
 
@@ -525,11 +543,13 @@ export class RedirectState implements DurableObject {
    */
   private async callHome(entity: string, service: string): Promise<Record<string, unknown>> {
     // Cheapest refusals first; the storage reads come after.
-    if (!LIGHT_ENTITIES.has(entity) || !HOME_SERVICES.has(service)) return { error: 'unknown' };
+    if (!HOME_ENTITIES.has(entity) || !HOME_SERVICES.has(service)) return { error: 'unknown' };
     const agent = this.agents().at(-1);
     if (!agent) return { error: 'offline', ...(await this.homeView()) };
     const now = Date.now();
-    if (!(await this.load()).trafficEnabled) return { error: 'off' };
+    const s = await this.load();
+    if (!s.trafficEnabled) return { error: 'off' };
+    if (entity === PARTY.entity && !s.partyEnabled) return { error: 'off' };
     if (!(await this.takeQuota(entity, now))) return { error: 'quota', ...(await this.homeView()) };
     // Home only knows "on" and "off": the webhook there sets a state rather
     // than toggling, so a toggle is resolved here from the last known state.
@@ -594,7 +614,7 @@ export class RedirectState implements DurableObject {
     let quota = await this.state.storage.get<HomeQuota>('homeQuota');
     if (!quota || quota.day !== day) quota = { day, counts: {} };
     const used = quota.counts[entity] ?? 0;
-    if (used >= HOME_CALLS_PER_DAY) return false;
+    if (used >= (entity === PARTY.entity ? PARTY_CALLS_PER_DAY : HOME_CALLS_PER_DAY)) return false;
     quota.counts[entity] = used + 1;
     await this.state.storage.put('homeQuota', quota);
     return true;
@@ -603,7 +623,7 @@ export class RedirectState implements DurableObject {
   /** What the traffic page and the panel need to know, in one answer. */
   private async homeView() {
     const [s, cache] = await Promise.all([this.load(), this.homeCache()]);
-    return { enabled: s.trafficEnabled, online: this.agents().length > 0, ...cache };
+    return { enabled: s.trafficEnabled, party: s.partyEnabled, online: this.agents().length > 0, ...cache };
   }
 
   /** Remember what the agent reports, for the known lamps only. */
@@ -611,7 +631,7 @@ export class RedirectState implements DurableObject {
     if (!states || typeof states !== 'object') return;
     const cache = await this.homeCache();
     for (const [entity, value] of Object.entries(states as Record<string, unknown>)) {
-      if (LIGHT_ENTITIES.has(entity) && typeof value === 'string') {
+      if (HOME_ENTITIES.has(entity) && typeof value === 'string') {
         cache.states[entity] = value.slice(0, 32);
       }
     }

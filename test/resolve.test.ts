@@ -20,6 +20,7 @@ function state(partial: Partial<State> = {}): State {
     pools: [],
     giphy: {},
     trafficEnabled: false,
+    partyEnabled: false,
     hits: 0,
     ...partial,
   };
