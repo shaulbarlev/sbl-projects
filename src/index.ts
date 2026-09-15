@@ -402,17 +402,25 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
     return new Response(MANIFEST, { headers: { 'content-type': 'application/manifest+json' } });
   }
 
-  if (path === '/_/agent' || path === '/_/agent/state') {
-    // The home side: the agent's socket, and Home Assistant's own state
-    // pushes. Both carry AGENT_TOKEN, and both are deliberately outside the
-    // login lockout — a random 48-character token compared in constant time
-    // needs none, and sharing the counter would let a stranger's bad guesses
-    // at the password keep the light offline.
+  if (path === '/_/agent' || path === '/_/agent/state' || path === '/_/agent/traffic') {
+    // The home side: the agent's socket, Home Assistant's own state pushes,
+    // and Home Assistant's copy of the master switch. All carry AGENT_TOKEN,
+    // and all are deliberately outside the login lockout — a random
+    // 48-character token compared in constant time needs none, and sharing
+    // the counter would let a stranger's bad guesses at the password keep
+    // the light offline.
     if (!(await checkBearer(request, env.AGENT_TOKEN))) return json({ error: 'Bad token' }, 401);
     if (path === '/_/agent') return stub(env).fetch(new Request('https://do/agent', request));
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     if (Number(request.headers.get('content-length') ?? 0) > 4096) return json({ error: 'Too large' }, 413);
-    const body = (await request.json().catch(() => ({}))) as { states?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { states?: unknown; on?: unknown };
+    if (path === '/_/agent/traffic') {
+      // "on"/"off" as strings too: that is what a Home Assistant template
+      // renders most naturally.
+      const on = body.on === true || body.on === 'on' || body.on === 'true';
+      await callState(env, 'set-traffic', { on });
+      return json({ on });
+    }
     await callState(env, 'home-report', { states: body.states });
     return json({ ok: true });
   }

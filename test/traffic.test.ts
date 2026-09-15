@@ -194,6 +194,37 @@ describe('state reported by home assistant itself', () => {
     expect(state.states['switch.traffic_1_power1']).toBe('on');
   });
 
+  it('lets home flip the master switch, in either spelling', async () => {
+    const set = (on: unknown) => SELF.fetch(`${ORIGIN}/_/agent/traffic`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-agent-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ on }),
+    });
+    expect((await (await set('on')).json() as any).on).toBe(true);
+    expect((await SELF.fetch(`${ORIGIN}/traffic`)).status).toBe(200);
+    expect((await (await set(false)).json() as any).on).toBe(false);
+    expect((await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' })).status).toBe(302);
+  });
+
+  it('tells home when the master switch changes, and on connect', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/agent`, {
+      headers: { upgrade: 'websocket', authorization: 'Bearer test-agent-token' },
+    });
+    const ws = response.webSocket!;
+    ws.accept();
+    const heard: any[] = [];
+    ws.addEventListener('message', (event) => heard.push(JSON.parse(String(event.data))));
+    // The resync on connect: the switch is off from beforeEach.
+    await vi.waitFor(() => expect(heard.some((m) => m.type === 'switch' && m.on === false)).toBe(true));
+    await traffic(true);
+    await vi.waitFor(() => expect(heard.some((m) => m.type === 'switch' && m.on === true)).toBe(true));
+    // Setting it to what it already is says nothing more.
+    await traffic(true);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(heard.filter((m) => m.type === 'switch')).toHaveLength(2);
+    ws.close();
+  });
+
   it('refuses a report with any other token, and never counts it as a login failure', async () => {
     for (let i = 0; i < 10; i++) expect((await report('nope', {})).status).toBe(401);
     // Still not locked: the panel login is unaffected by home-side noise.
@@ -246,7 +277,9 @@ describe('the home agent socket', () => {
     const read = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
     expect(read.states['switch.tasmota']).toBe('off');
 
-    // A burst lands in full and in order, each tap naming the state it wants.
+    // A burst of separate HTTP taps lands in full, each naming the state it
+    // wants. Order across separate requests is not promised — that is what
+    // the page socket is for, and the socket test asserts it.
     const burst = ['on', 'off', 'on'].map((state) => SELF.fetch(`${ORIGIN}/traffic/toggle`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-skin-request': '1' },
@@ -254,7 +287,7 @@ describe('the home agent socket', () => {
     }));
     const orange = () => inbox.filter((m) => m.type === 'call' && m.entity === 'switch.traffic_1_power1');
     await vi.waitFor(() => expect(orange()).toHaveLength(3));
-    expect(orange().map((c) => c.service)).toEqual(['turn_on', 'turn_off', 'turn_on']);
+    expect(orange().map((c) => c.service).sort()).toEqual(['turn_off', 'turn_on', 'turn_on']);
     for (const c of orange()) ws.send(JSON.stringify({ type: 'reply', id: c.id, ok: true }));
     for (const response of await Promise.all(burst)) expect(response.status).toBe(200);
 

@@ -400,6 +400,8 @@ export class RedirectState implements DurableObject {
         for (const old of this.agents()) old.close(1000, 'replaced');
         const pair = new WebSocketPair();
         this.state.acceptWebSocket(pair[1], ['agent']);
+        // Resync home's mirror of the master switch after any outage.
+        pair[1].send(JSON.stringify({ type: 'switch', on: (await this.load()).trafficEnabled }));
         await this.broadcast({ online: true });
         return new Response(null, { status: 101, webSocket: pair[0] });
       }
@@ -425,8 +427,13 @@ export class RedirectState implements DurableObject {
 
       case 'set-traffic': {
         const s = await this.load();
-        s.trafficEnabled = Boolean(body.on);
+        const on = Boolean(body.on);
+        const changed = s.trafficEnabled !== on;
+        s.trafficEnabled = on;
         await this.save(s);
+        // Home keeps a mirror of this switch. Only a real change is sent, so
+        // the echo Home Assistant makes when it hears it dies in one round.
+        if (changed) this.tellHome({ type: 'switch', on });
         return json(s);
       }
 
@@ -550,6 +557,17 @@ export class RedirectState implements DurableObject {
     // and the truth arrives as a push when the device reports. Painting a
     // possibly stale view here would flicker it back and forth.
     return { ok: true, agentMs, haMs: result.haMs ?? null };
+  }
+
+  /** A message for home, if home is connected. */
+  private tellHome(message: Record<string, unknown>): void {
+    const agent = this.agents().at(-1);
+    if (!agent) return;
+    try {
+      agent.send(JSON.stringify(message));
+    } catch {
+      // Closing; the resync on reconnect covers it.
+    }
   }
 
   /** Tell every open page what the lamps show now. */
