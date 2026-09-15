@@ -160,6 +160,12 @@ as a helper: flipping either side sets the other through `/_/agent/traffic`
 one way and the agent socket the other, and only real changes cross, so the
 echo dies in one round.
 
+Under the light there can be a party button: a smaller housing with one lamp
+that becomes a mirror ball when on, flipping `input_boolean.party` at home
+through the same path as a lamp, at 100 flips a day. It has its own switch,
+next to the master in the Home card and mirrored the same way through
+`/_/agent/party`; off, the page hides it and a tap at it is refused.
+
 The page is public while it is on; that is the point of a traffic light. What
 keeps that from being dangerous is in layers:
 
