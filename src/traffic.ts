@@ -113,13 +113,25 @@ export function renderTraffic(): string {
     opacity: 0; transition: opacity .8s;
   }
   .who[hidden] { display: none; }
+  .who .field { position: relative; display: flex; }
   .who input {
-    width: min(58vw, 240px); padding: 10px 16px;
+    width: min(58vw, 240px); padding: 10px 44px 10px 16px; /* room for the arrow */
     background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 999px;
     color: #d4d4d4; font: inherit; font-size: 16px; /* 16px: smaller zooms iOS in */
     outline: none; -webkit-appearance: none;
   }
   .who input::placeholder { color: #6b6b6e; }
+  /* The arrow inside the pill: the keyboard's return key works too, but on a
+     phone that key is not always a send, and nothing else here says "done". */
+  .who .go {
+    position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+    display: grid; place-items: center;
+    background: #2c2c2e; color: #8e8e93; font: inherit; font-size: 15px; line-height: 1;
+    cursor: pointer; transition: background .2s, color .2s, opacity .2s;
+  }
+  .who .go[disabled] { opacity: .35; cursor: default; }
+  .who .go:not([disabled]) { background: #3a3a3c; color: #e5e5e7; }
   .who button { padding: 0 8px; background: none; border: 0; color: #6b6b6e; font: inherit; font-size: 22px; cursor: pointer; }
 </style>
 </head>
@@ -134,8 +146,12 @@ ${lamps}
   </div>
 </main>
 <form class="who" id="who" hidden>
-  <input id="who-name" type="text" name="name" autocomplete="name" autocapitalize="words"
-    autocorrect="off" spellcheck="false" maxlength="40" placeholder="what's your name?" aria-label="Your name">
+  <div class="field">
+    <input id="who-name" type="text" name="name" autocomplete="name" autocapitalize="words"
+      autocorrect="off" spellcheck="false" maxlength="40" placeholder="what's your name?" aria-label="Your name"
+      enterkeyhint="send">
+    <button class="go" type="submit" id="who-go" aria-label="Send" disabled>&#8593;</button>
+  </div>
   <button type="button" id="who-no" aria-label="Dismiss">&times;</button>
 </form>
 <script>
@@ -307,6 +323,7 @@ ${lamps}
     if (fresh && me.dismissed) return;            // a no lasts the week
     if (fresh && me.name) { report(me.name, false); return; }  // known: no prompt
     field.value = me.name || '';                  // stale name prefills, one tap to confirm
+    go.disabled = !field.value.trim();            // so a prefill arrives ready to send
     form.hidden = false;
     requestAnimationFrame(function () { form.style.opacity = 1; });
   }
@@ -321,6 +338,10 @@ ${lamps}
       if (pauses >= 2) ask();
     }, PAUSE);
   }
+  // The arrow lights up once there is something to send, and is the only
+  // affordance on the page that says "this is finished".
+  var go = document.getElementById('who-go');
+  field.oninput = function () { go.disabled = !field.value.trim(); };
   form.onsubmit = function (e) {
     e.preventDefault();
     var name = field.value.trim();
