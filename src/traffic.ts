@@ -308,7 +308,7 @@ ${lamps}
   var visit = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
-  var returning = me.visits > 0, sticky = false;
+  var returning = me.visits > 0;
   // Away since the last visit; phones from before seen fall back to the
   // last answer.
   var away = Date.now() - (me.seen || me.at || 0);
@@ -368,9 +368,8 @@ ${lamps}
   // A burst is taps less than two seconds apart; only bursts of two or more
   // count, so a single curious prod and a walk away is not "played".
   function played() {
-    // Playing on is how the prompt goes away. Nobody is made to answer, and
-    // saying nothing records nothing: no name, no row, no dismissal.
-    if (!form.hidden && !sticky) hide();
+    // Once shown, the field stays until a name is sent. Nobody is made to
+    // answer; the lamps work the same either way.
     taps++; burst++;
     clearTimeout(idle);
     idle = setTimeout(function () {
@@ -389,9 +388,7 @@ ${lamps}
     report(name);
     hide();
   };
-  // Shown on arrival it stays while they play: a tap would otherwise take
-  // it away before it was ever read.
-  if (returning && !me.name) { asked = true; sticky = true; show(); }
+  if (returning && !me.name) { asked = true; show(); }
   lamps.forEach(function (el) {
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.

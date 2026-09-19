@@ -166,8 +166,8 @@ Somebody who scans this has no idea whose lights they just flipped, and the
 page says nothing. Once they have actually played — two taps, then a pause of
 two seconds — one field fades in under the light:
 *what's your name?*, with a drawn arrow to send. It is the only text on the
-page, and playing on is how it goes away. From the second visit on, somebody
-who never gave a name sees it from the start, and it stays while they play.
+page, and once shown it stays until a name is sent. From the second visit on,
+somebody who never gave a name sees it from the start.
 
 A name is remembered in `localStorage` and reused without asking for as long
 as the phone keeps coming back; only a week away brings the prompt back, with
