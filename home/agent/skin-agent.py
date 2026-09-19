@@ -21,9 +21,12 @@ Configuration comes from the environment (see skin-agent.service):
                   {"switch": "traffic"|"party", "on"}
 """
 import asyncio
+import html
+import http.server
 import json
 import logging
 import os
+import threading
 import time
 import urllib.request
 
@@ -45,6 +48,11 @@ LEDGER = os.path.join(os.environ.get('STATE_DIRECTORY', '/var/lib/skin-agent'), 
 # A guest book that cannot fill the disk the agent runs on. Fifty megabytes
 # is roughly 80,000 visits; past it, records are refused rather than written.
 LEDGER_MAX = 50 * 1024 * 1024
+# The ledger as a page, for the iframe card on the Advanced controls
+# dashboard. LAN only: this CT is not port-forwarded, and the page carries no
+# address or user-agent even so -- a dashboard on a wall is a different
+# exposure from a 0600 file.
+LEDGER_PORT = int(os.environ.get('LEDGER_PORT', '8099'))
 
 log = logging.getLogger('skin-agent')
 locks = {}      # entity -> asyncio.Lock: calls land in order per lamp, lamps in parallel
@@ -129,6 +137,92 @@ def record_player(msg):
     log.info('player: %s (%s taps, %ss, %s)', row['name'] or '—', row['taps'], row['seconds'], row['geo'])
 
 
+def ledger_rows(limit=100):
+    """The newest records first, skipping anything unparseable."""
+    rows = []
+    try:
+        with open(LEDGER) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except ValueError:
+                    continue
+    except FileNotFoundError:
+        return []
+    return rows[::-1][:limit]
+
+
+def render_ledger():
+    """One table, Home Assistant's own dark colours, refreshing itself."""
+    rows = ledger_rows()
+    body = []
+    for r in rows:
+        when = str(r.get('at', ''))[:19].replace('T', ' ')
+        # "IL / Tel Aviv / Some Network Ltd" -> "Tel Aviv, IL": the network
+        # name is noise on a dashboard.
+        parts = [p.strip() for p in str(r.get('geo') or '').split('/')]
+        where = ', '.join([p for p in reversed(parts[:2]) if p])
+        body.append(
+            '<tr><td class="t">{}</td><td class="n">{}</td><td>{}</td>'
+            '<td class="r">{}</td><td class="r">{}s</td></tr>'.format(
+                html.escape(when), html.escape(str(r.get('name') or '—')),
+                html.escape(where), r.get('taps', 0), r.get('seconds', 0)))
+    return """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="20">
+<title>Who played</title><style>
+ :root { color-scheme: dark; }
+ body { margin: 0; padding: 12px; background: #111417; color: #e1e1e1;
+        font: 14px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+ table { width: 100%; border-collapse: collapse; }
+ th { text-align: left; font-weight: 500; font-size: 12px; letter-spacing: .04em;
+      text-transform: uppercase; color: #9b9b9b; padding: 0 8px 6px; }
+ td { padding: 7px 8px; border-top: 1px solid #23282d; vertical-align: baseline; }
+ tr:hover td { background: #191d21; }
+ .t { color: #9b9b9b; white-space: nowrap; font-variant-numeric: tabular-nums; }
+ .n { font-weight: 600; }
+ .r { text-align: right; font-variant-numeric: tabular-nums; }
+ .none { color: #9b9b9b; padding: 16px 8px; }
+</style></head><body>
+""" + ("<table><thead><tr><th>When</th><th>Who</th><th>Where</th><th>Taps</th><th>For</th></tr></thead><tbody>"
+       + "".join(body) + "</tbody></table>"
+       if body else '<div class="none">Nobody has played yet.</div>') + "</body></html>"
+
+
+class LedgerHandler(http.server.BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+
+    def do_GET(self):  # noqa: N802 - the stdlib spells it this way
+        if self.path.split('?')[0] not in ('/', '/index.html'):
+            self.send_error(404)
+            return
+        page = render_ledger().encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(page)))
+        self.send_header('Cache-Control', 'no-store')
+        # Deliberately no X-Frame-Options: Home Assistant is a different
+        # origin and SAMEORIGIN would blank the card. There is nothing to
+        # click on this page and nothing it can act on, so framing it costs
+        # nothing; what protects it is being on the LAN only.
+        self.end_headers()
+        self.wfile.write(page)
+
+    def log_message(self, *args):
+        pass  # a page that refreshes every 20 s would fill the journal
+
+
+def serve_ledger():
+    """A page on the LAN, in its own thread, never touching the event loop."""
+    try:
+        http.server.ThreadingHTTPServer(('', LEDGER_PORT), LedgerHandler).serve_forever()
+    except Exception as err:  # noqa: BLE001
+        log.warning('ledger page not served: %s', err)
+
+
 async def write_player(msg):
     """The ledger write, off the event loop and unable to kill it."""
     try:
@@ -193,4 +287,6 @@ async def skin_loop():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    threading.Thread(target=serve_ledger, daemon=True).start()
+    log.info('ledger page on :%s', LEDGER_PORT)
     asyncio.run(skin_loop())

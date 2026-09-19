@@ -53,7 +53,18 @@ One JSON object per line, appended when somebody answers the name prompt:
  "ip":"203.0.113.7","ua":"Mozilla/5.0 (iPhone…)","lang":"he-IL","geo":"IL / Tel Aviv / Bezeq","at":"2026-09-19T12:04:22+0300"}
 ```
 
-Read it with `ssh serv "pct exec 300 -- tail /var/lib/skin-agent/players.jsonl"`,
+### On the dashboard
+
+The agent also serves the ledger as a page on the LAN, `http://192.168.50.171:8099/`,
+which the **Advanced controls** dashboard embeds in an `iframe` card under
+"Who played". It refreshes itself every 20 seconds, newest first, and shows
+time, name, city, taps and seconds — **no address and no user-agent**: a
+dashboard on a wall is a different exposure from a 0600 file. Port from
+`LEDGER_PORT`, nothing else is served, and there is deliberately no
+`X-Frame-Options` because Home Assistant is a different origin and
+`SAMEORIGIN` would blank the card.
+
+Read the raw file with `ssh serv "pct exec 300 -- tail /var/lib/skin-agent/players.jsonl"`,
 or `jq .` for names in Hebrew, which are written as `\uXXXX` escapes on
 purpose: raw U+2028 or a lone surrogate in a name would split or break a
 record for whatever reads the file next.
