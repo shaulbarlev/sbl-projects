@@ -296,11 +296,15 @@ ${lamps}
   // says nothing. Once they have actually played — two taps and a pause of
   // two seconds — ask once. A name or a dismissal is
   // remembered on this phone for a week; a dismissal is a no for that week
-  // and a name is reused without asking again.
+  // and a name is reused without asking again. Somebody back for a second
+  // visit who never gave a name sees the field from the start.
   var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
   var me = read();
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
+  var returning = me.visits > 0, sticky = false;
+  me.visits = (me.visits || 0) + 1;
+  try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
 
   function read() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (err) { return {}; }
@@ -335,6 +339,9 @@ ${lamps}
     if (fresh && me.dismissed) return;            // a no lasts the week
     if (fresh && me.name) { report(me.name, false, true); return; }  // known: no prompt
     field.value = me.name || '';                  // stale name prefills, one tap to confirm
+    show();
+  }
+  function show() {
     form.hidden = false;
     requestAnimationFrame(function () { form.style.opacity = 1; });
   }
@@ -343,7 +350,7 @@ ${lamps}
   function played() {
     // Playing on is how the prompt goes away. Nobody is made to answer, and
     // saying nothing records nothing: no name, no row, no dismissal.
-    if (!form.hidden) hide();
+    if (!form.hidden && !sticky) hide();
     taps++; burst++;
     clearTimeout(idle);
     idle = setTimeout(function () {
@@ -359,6 +366,9 @@ ${lamps}
     report(name, false);
     hide();
   };
+  // Shown on arrival it stays while they play: a tap would otherwise take
+  // it away before it was ever read.
+  if (returning && !me.name) { asked = true; sticky = true; show(); }
   lamps.forEach(function (el) {
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.
