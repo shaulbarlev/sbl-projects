@@ -104,6 +104,23 @@ export function renderTraffic(): string {
   .ball .sq i { display: block; transform-origin: 0 0; backface-visibility: hidden; animation: shimmer 2s linear infinite;
                 background: color-mix(in srgb, var(--gc) calc(30% * var(--t)), var(--grey)); }
   @keyframes shimmer { 0% { opacity: 1; } 50% { opacity: .4; } 100% { opacity: 1; } }
+
+  /* The one place this page says anything. It appears only after somebody
+     has really played, and never again on that phone for a week. */
+  .who {
+    position: fixed; left: 0; right: 0; bottom: max(18px, env(safe-area-inset-bottom));
+    display: flex; justify-content: center; align-items: center; gap: 6px;
+    opacity: 0; transition: opacity .8s;
+  }
+  .who[hidden] { display: none; }
+  .who input {
+    width: min(58vw, 240px); padding: 10px 16px;
+    background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 999px;
+    color: #d4d4d4; font: inherit; font-size: 16px; /* 16px: smaller zooms iOS in */
+    outline: none; -webkit-appearance: none;
+  }
+  .who input::placeholder { color: #6b6b6e; }
+  .who button { padding: 0 8px; background: none; border: 0; color: #6b6b6e; font: inherit; font-size: 22px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -116,6 +133,11 @@ ${lamps}
       aria-label="${PARTY.label}" aria-pressed="false" disabled onclick="return false"><div class="ball" id="ball"></div></button>
   </div>
 </main>
+<form class="who" id="who" hidden>
+  <input id="who-name" type="text" name="name" autocomplete="name" autocapitalize="words"
+    autocorrect="off" spellcheck="false" maxlength="40" placeholder="what's your name?" aria-label="Your name">
+  <button type="button" id="who-no" aria-label="Dismiss">&times;</button>
+</form>
 <script>
 (function () {
   var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
@@ -244,12 +266,80 @@ ${lamps}
     pollTimer = setInterval(refresh, 3000);
   }
 
+  // ---------------------------------------------------------------- who
+  // Somebody who scans this has no idea whose light it is, and the page
+  // says nothing. Once they have actually played — two taps, a pause, two
+  // more taps, another pause — ask once. A name or a dismissal is
+  // remembered on this phone for a week; a dismissal is a no for that week
+  // and a name is reused without asking again.
+  var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000;
+  var me = read();
+  var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
+  var form = document.getElementById('who'), field = document.getElementById('who-name');
+
+  function read() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (err) { return {}; }
+  }
+  function remember(patch) {
+    me.id = me.id || (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+    for (var k in patch) me[k] = patch[k];
+    me.at = Date.now();
+    try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
+  }
+  // Fire and forget: no socket, no record. The ledger is a nice-to-have and
+  // must never cost a tap its latency.
+  function report(name, dismissed) {
+    remember({ name: name || '', dismissed: !!dismissed });
+    if (!open()) return;
+    ws.send(JSON.stringify({
+      type: 'player', id: me.id, name: name || '', dismissed: !!dismissed,
+      taps: taps, seconds: Math.round((performance.now() - opened) / 1000)
+    }));
+  }
+  function hide() {
+    form.style.opacity = 0;
+    setTimeout(function () { form.hidden = true; }, 800);
+  }
+  function ask() {
+    if (asked) return;
+    asked = true;
+    var fresh = me.at && Date.now() - me.at < WEEK;
+    if (fresh && me.dismissed) return;            // a no lasts the week
+    if (fresh && me.name) { report(me.name, false); return; }  // known: no prompt
+    field.value = me.name || '';                  // stale name prefills, one tap to confirm
+    form.hidden = false;
+    requestAnimationFrame(function () { form.style.opacity = 1; });
+  }
+  // A burst is taps less than two seconds apart; only bursts of two or more
+  // count, so a single curious prod either side of a pause is not "played".
+  function played() {
+    taps++; burst++;
+    clearTimeout(idle);
+    idle = setTimeout(function () {
+      if (burst >= 2) pauses++;
+      burst = 0;
+      if (pauses >= 2) ask();
+    }, PAUSE);
+  }
+  form.onsubmit = function (e) {
+    e.preventDefault();
+    var name = field.value.trim();
+    if (!name) return;
+    report(name, false);
+    hide();
+  };
+  document.getElementById('who-no').onclick = function () {
+    report('', true);
+    hide();
+  };
+
   lamps.forEach(function (el) {
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.
     el.onpointerdown = function (e) {
       if (el.disabled) return;
       e.preventDefault();
+      played();
       var entity = el.dataset.entity;
       if (navigator.vibrate) navigator.vibrate(10);
       // Optimistic: the lamp flips now, and the tap names the state it wants

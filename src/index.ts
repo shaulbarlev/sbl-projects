@@ -302,7 +302,19 @@ async function handleTraffic(
 
   // The page's own socket: state pushed as it changes, taps as messages.
   // The object owns it, so this is a hand-off, not a round trip.
-  if (path === '/traffic/ws') return stub(env).fetch(new Request('https://do/page', request));
+  if (path === '/traffic/ws') {
+    // What the ledger will record about this visit, read here because the
+    // object never sees the original request. All of it is what any web
+    // server is handed; nothing is probed on the device.
+    const cf = (request as unknown as { cf?: Record<string, unknown> }).cf ?? {};
+    const who = new URLSearchParams({
+      ip: request.headers.get('cf-connecting-ip') ?? '',
+      ua: request.headers.get('user-agent') ?? '',
+      lang: request.headers.get('accept-language') ?? '',
+      geo: [cf.country, cf.city, cf.asOrganization].filter(Boolean).join(' / '),
+    });
+    return stub(env).fetch(new Request(`https://do/page?${who}`, request));
+  }
 
   // One object round trip per call: a far edge pays a few hundred
   // milliseconds for each hop, and the timing header says how much.

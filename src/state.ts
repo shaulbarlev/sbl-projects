@@ -425,6 +425,16 @@ export class RedirectState implements DurableObject {
         }
         const pair = new WebSocketPair();
         this.state.acceptWebSocket(pair[1], ['page']);
+        // Who is looking, for the ledger at home. Kept on the socket rather
+        // than in storage: it is worth nothing once the page closes, and an
+        // attachment survives hibernation, which a field on `this` does not.
+        pair[1].serializeAttachment({
+          ip: url.searchParams.get('ip') ?? '',
+          ua: (url.searchParams.get('ua') ?? '').slice(0, 300),
+          lang: (url.searchParams.get('lang') ?? '').slice(0, 100),
+          geo: (url.searchParams.get('geo') ?? '').slice(0, 120),
+          at: Date.now(),
+        });
         pair[1].send(JSON.stringify({ type: 'state', ...(await this.homeView()) }));
         return new Response(null, { status: 101, webSocket: pair[0] });
       }
@@ -661,6 +671,23 @@ export class RedirectState implements DurableObject {
         }
       }
       if (msg?.states) await this.mergeStates(msg.states);
+      return;
+    }
+    if (tags.includes('page') && msg?.type === 'player') {
+      // Somebody who played answered the prompt, or waved it away. One line
+      // down to home, fire and forget: if the agent is not connected the
+      // visit goes unrecorded, which is the price of having no buffer here.
+      const who = (ws.deserializeAttachment() ?? {}) as Record<string, unknown>;
+      this.tellHome({
+        type: 'player',
+        // Control characters would ruin a line-per-record file at home.
+        name: String(msg.name ?? '').replace(/[ -]/g, '').trim().slice(0, 40),
+        dismissed: msg.dismissed === true,
+        browser: String(msg.id ?? '').slice(0, 32),
+        taps: Math.min(Number(msg.taps) || 0, 10000),
+        seconds: Math.min(Math.round(Number(msg.seconds) || 0), 86400),
+        ...who,
+      });
       return;
     }
     if (tags.includes('page') && (msg?.type === 'toggle' || msg?.type === 'set')) {

@@ -125,6 +125,56 @@ describe('the page socket', () => {
     expect(response.status).toBe(404);
   });
 
+  it('sends a player record home, with the visit metadata of that page alone', async () => {
+    const agentRes = await SELF.fetch(`${ORIGIN}/_/agent`, {
+      headers: { upgrade: 'websocket', authorization: 'Bearer test-agent-token' },
+    });
+    const agent = agentRes.webSocket!;
+    agent.accept();
+    const players: any[] = [];
+    agent.addEventListener('message', (event) => {
+      const m = JSON.parse(String(event.data));
+      if (m.type === 'player') players.push(m);
+    });
+    await traffic(true);
+
+    // Two pages at once, each with its own device and address: the record
+    // must carry the metadata of the socket that spoke, not the other's.
+    const openPage = async (ua: string, ip: string) => {
+      const res = await SELF.fetch(`${ORIGIN}/traffic/ws`, {
+        headers: { upgrade: 'websocket', 'user-agent': ua, 'cf-connecting-ip': ip },
+      });
+      const socket = res.webSocket!;
+      socket.accept();
+      return socket;
+    };
+    const one = await openPage('iPhone', '203.0.113.7');
+    const two = await openPage('Pixel', '198.51.100.9');
+
+    one.send(JSON.stringify({ type: 'player', id: 'browser-one', name: 'Yossi', taps: 6, seconds: 41 }));
+    two.send(JSON.stringify({ type: 'player', id: 'browser-two', dismissed: true, taps: 4, seconds: 12 }));
+
+    await vi.waitFor(() => expect(players).toHaveLength(2));
+    const named = players.find((p) => p.browser === 'browser-one');
+    expect(named.name).toBe('Yossi'); // the control character is stripped
+    expect(named.ua).toBe('iPhone');
+    expect(named.ip).toBe('203.0.113.7');
+    expect(named.taps).toBe(6);
+    const quiet = players.find((p) => p.browser === 'browser-two');
+    expect(quiet.dismissed).toBe(true);
+    expect(quiet.name).toBe('');
+    expect(quiet.ua).toBe('Pixel');
+
+    // A page still cannot reach anything else by calling itself a player.
+    one.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'on' } }));
+    const state = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(state.states['switch.tasmota']).toBeUndefined();
+
+    one.close();
+    two.close();
+    agent.close();
+  });
+
   it('pushes state on connect and after a tap, and never takes state from a page', async () => {
     const agentRes = await SELF.fetch(`${ORIGIN}/_/agent`, {
       headers: { upgrade: 'websocket', authorization: 'Bearer test-agent-token' },
