@@ -165,14 +165,17 @@ echo dies in one round.
 Somebody who scans this has no idea whose lights they just flipped, and the
 page says nothing. Once they have actually played — two taps, then a pause of
 two seconds — one field fades in under the light:
-*what's your name?*, with a × beside it. It is the only text on the page, and
-it appears once.
+*what's your name?*, with a drawn arrow to send. It is the only text on the
+page, and playing on is how it goes away. From the second visit on, somebody
+who never gave a name sees it from the start, and it stays while they play.
 
-The answer, or the dismissal, is remembered in `localStorage` for a week: a no
-stays a no for that week, and a name is reused without asking again, reported
-on the first real play of each visit so the ledger shows who is playing now.
-After a week the prompt returns with the old name prefilled, one tap to
-confirm.
+A name is remembered in `localStorage` and reused without asking for as long
+as the phone keeps coming back; only a week away brings the prompt back, with
+the old name prefilled, one tap to confirm.
+
+Every visit that touches a lamp is recorded at its first two-second pause,
+named or not. A name typed after that goes as a second record for the same
+visit, and the dashboard shows that one in its place.
 
 The record goes down the agent's socket — fire and forget, so it never costs a
 tap any latency — and is appended as one JSON line to
@@ -183,14 +186,14 @@ names. Nothing is probed from the device: no canvas, no audio, no font
 tricks. Home Assistant is not in this path at all — reading the file, and
 deciding what of it belongs on a dashboard, is a separate question.
 
-One record per page, ever — a real page asks once, and without that ceiling a
-socket could write to a disk at home as fast as the wire allows. Of what
+At most two records per page — a nameless one, then the name — and without
+that ceiling a socket could write to a disk at home as fast as the wire allows. Of what
 lands there, only the address and the Cloudflare geography are attested; the
 name, the counts and the user-agent are whatever the page said. A dismissal
 is recorded without the address or the browser.
 
-If the agent is not connected when somebody answers, that visit goes
-unrecorded. There is no buffer, by choice: a guest book is not worth a queue.
+A record made while the page's socket is down waits for it to open. If the
+agent is not connected when it arrives, that visit goes unrecorded. There is no buffer, by choice: a guest book is not worth a queue.
 
 Under the light there can be a party button: a smaller housing with one lamp
 that becomes a mirror ball when on, flipping `input_boolean.party` at home

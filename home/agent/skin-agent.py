@@ -126,7 +126,7 @@ def record_player(msg):
         log.warning('ledger at %s bytes: refusing to grow it', LEDGER_MAX)
         return
     row = {k: msg.get(k) for k in
-           ('name', 'dismissed', 'browser', 'taps', 'seconds', 'ip', 'ua', 'lang', 'geo')}
+           ('name', 'dismissed', 'browser', 'visit', 'taps', 'seconds', 'ip', 'ua', 'lang', 'geo')}
     row['at'] = time.strftime('%Y-%m-%dT%H:%M:%S%z')
     # Other people's addresses live in here: 0600, not the 0644 that open()
     # would give it.
@@ -138,7 +138,9 @@ def record_player(msg):
 
 
 def ledger_rows(limit=100):
-    """The newest records first, skipping anything unparseable."""
+    """The newest records first, skipping anything unparseable. A visit that
+    was recorded nameless and then named shows once, as the named row; the
+    file keeps both lines."""
     rows = []
     try:
         with open(LEDGER) as f:
@@ -152,6 +154,11 @@ def ledger_rows(limit=100):
                     continue
     except FileNotFoundError:
         return []
+    latest = {}
+    for i, r in enumerate(rows):
+        if r.get('visit'):
+            latest[r['visit']] = i
+    rows = [r for i, r in enumerate(rows) if not r.get('visit') or latest[r['visit']] == i]
     return rows[::-1][:limit]
 
 

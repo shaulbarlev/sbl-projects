@@ -177,13 +177,27 @@ describe('the page socket', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(players).toHaveLength(2);
 
+    // A nameless record, then the name for the same visit, and nothing after.
+    const fourth = await openPage('Galaxy', '192.0.2.9');
+    fourth.send(JSON.stringify({ type: 'player', id: 'browser-four', visit: 'v4', name: '', taps: 3, seconds: 5 }));
+    await vi.waitFor(() => expect(players).toHaveLength(3));
+    expect(players[2]).toMatchObject({ name: '', visit: 'v4', ip: '192.0.2.9', ua: 'Galaxy' });
+    fourth.send(JSON.stringify({ type: 'player', id: 'browser-four', visit: 'v4', name: '', taps: 9, seconds: 9 }));
+    fourth.send(JSON.stringify({ type: 'player', id: 'browser-four', visit: 'v4', name: 'Dana', taps: 9, seconds: 20 }));
+    await vi.waitFor(() => expect(players).toHaveLength(4));
+    expect(players[3]).toMatchObject({ name: 'Dana', visit: 'v4' });
+    fourth.send(JSON.stringify({ type: 'player', id: 'browser-four', visit: 'v4', name: 'Again', taps: 1, seconds: 1 }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(players).toHaveLength(4);
+    fourth.close();
+
     // Counts a stranger sent are clamped: no negatives, no Infinity, no NaN.
     const third = await openPage('Nokia', '192.0.2.5');
     // 1e309 is not representable in JSON and arrives as null, so the ceiling
     // is exercised with a large finite number instead.
     third.send(JSON.stringify({ type: 'player', id: 'b/../../three', name: 'x', taps: -5, seconds: 99999999 }));
-    await vi.waitFor(() => expect(players).toHaveLength(3));
-    const clamped = players[2];
+    await vi.waitFor(() => expect(players).toHaveLength(5));
+    const clamped = players[4];
     expect(clamped.taps).toBe(0);
     expect(clamped.seconds).toBe(86400);
     expect(clamped.browser).toBe('bthree'); // path characters stripped

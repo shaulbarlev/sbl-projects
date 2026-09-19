@@ -678,11 +678,14 @@ export class RedirectState implements DurableObject {
       // down to home, fire and forget: if the agent is not connected the
       // visit goes unrecorded, which is the price of having no buffer here.
       const who = (ws.deserializeAttachment() ?? {}) as Record<string, unknown>;
-      // One record per page, ever. A real page asks once; without this a
-      // socket can write to a disk at home as fast as the wire allows, and
-      // the writes queue in front of the taps that actually matter.
-      if (who.reported) return;
-      ws.serializeAttachment({ ...who, reported: true });
+      // Control characters would ruin a line-per-record file at home.
+      const name = String(msg.name ?? '').replace(/[\x00-\x1f\x7f-\x9f]/g, '').trim().slice(0, 40);
+      // At most two records per page: a nameless one when they play, then
+      // one with the name if they give it. Without a limit a socket can
+      // write to a disk at home as fast as the wire allows, and the writes
+      // queue in front of the taps that actually matter.
+      if (who.reported === 'named' || (who.reported && !name)) return;
+      ws.serializeAttachment({ ...who, reported: name ? 'named' : 'nameless' });
       const dismissed = msg.dismissed === true;
       this.tellHome({
         // Spread first: what the page said must never overwrite what the
@@ -693,10 +696,12 @@ export class RedirectState implements DurableObject {
         // record of their address and browser.
         ...(dismissed ? { ip: undefined, ua: undefined, lang: undefined } : {}),
         type: 'player',
-        // Control characters would ruin a line-per-record file at home.
-        name: String(msg.name ?? '').replace(/[\x00-\x1f\x7f-\x9f]/g, '').trim().slice(0, 40),
+        name,
         dismissed,
         browser: String(msg.id ?? '').replace(/[^\w-]/g, '').slice(0, 32),
+        // One visit may send a nameless record and then a named one; the
+        // ledger shows the later in place of the earlier.
+        visit: String(msg.visit ?? '').replace(/[^\w-]/g, '').slice(0, 32),
         taps: clamp(msg.taps, 10000),
         seconds: clamp(msg.seconds, 86400),
         reported: undefined,

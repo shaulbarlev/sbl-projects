@@ -46,10 +46,12 @@ the ledger.
 
 ## The ledger
 
-One JSON object per line, appended when somebody answers the name prompt:
+One JSON object per line, appended when somebody plays (`name` empty) and
+again if they then give a name. Both lines share `visit`; the dashboard page
+shows the last line of each visit.
 
 ```json
-{"name":"Yossi","dismissed":false,"browser":"k3f…","taps":11,"seconds":48,
+{"name":"Yossi","dismissed":false,"browser":"k3f…","visit":"p9x…","taps":11,"seconds":48,
  "ip":"203.0.113.7","ua":"Mozilla/5.0 (iPhone…)","lang":"he-IL","geo":"IL / Tel Aviv / Bezeq","at":"2026-09-19T12:04:22+0300"}
 ```
 

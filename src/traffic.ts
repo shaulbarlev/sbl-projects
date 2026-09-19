@@ -260,6 +260,7 @@ ${lamps}
     } catch (err) { poll(); return; }
     ws.onopen = function () {
       backoff = 1000;
+      flush();
       clearInterval(pollTimer);
       pollTimer = null;
     };
@@ -298,8 +299,13 @@ ${lamps}
   // this phone keeps coming back; only a week away brings the question back,
   // prefilled. Somebody back for a second visit who never gave a name sees
   // the field from the start.
+  //
+  // Every visit that touches a lamp is recorded at its first pause, named or
+  // not. A name typed after that goes as a second record for the same visit,
+  // and the ledger shows that one in its place.
   var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
-  var me = read();
+  var me = read(), pending = null, logged = false;
+  var visit = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
   var returning = me.visits > 0, sticky = false;
@@ -320,15 +326,27 @@ ${lamps}
     if (touch || !me.at) me.at = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
   }
-  // Fire and forget: no socket, no record. The ledger is a nice-to-have and
-  // must never cost a tap its latency.
-  function report(name, dismissed, silent) {
-    remember({ name: name || '', dismissed: !!dismissed }, !silent);
-    if (!open()) return;
-    ws.send(JSON.stringify({
-      type: 'player', id: me.id, name: name || '', dismissed: !!dismissed,
+  // Fire and forget, never costing a tap its latency. A record made while
+  // the socket is down waits for it to open rather than being dropped.
+  function report(name) {
+    if (!me.id) remember({});
+    pending = {
+      type: 'player', id: me.id, visit: visit, name: name || '', dismissed: false,
       taps: taps, seconds: Math.round((performance.now() - opened) / 1000)
-    }));
+    };
+    flush();
+  }
+  function flush() {
+    if (!pending || !open()) return;
+    ws.send(JSON.stringify(pending));
+    pending = null;
+  }
+  // The first record of a visit: the remembered name while it is fresh,
+  // otherwise none.
+  function log() {
+    if (logged) return;
+    logged = true;
+    report(me.name && away < WEEK ? me.name : '');
   }
   function hide() {
     form.style.opacity = 0;
@@ -339,7 +357,7 @@ ${lamps}
     asked = true;
     var fresh = away < WEEK;
     if (fresh && me.dismissed) return;            // a no lasts the week
-    if (fresh && me.name) { report(me.name, false, true); return; }  // known: no prompt
+    if (fresh && me.name) return;                 // known: no prompt, log() named them
     field.value = me.name || '';                  // stale name prefills, one tap to confirm
     show();
   }
@@ -358,6 +376,7 @@ ${lamps}
     idle = setTimeout(function () {
       if (burst >= 2) pauses++;
       burst = 0;
+      log();
       if (pauses >= BURSTS) ask();
     }, PAUSE);
   }
@@ -365,7 +384,9 @@ ${lamps}
     e.preventDefault();
     var name = field.value.trim();
     if (!name) return;
-    report(name, false);
+    remember({ name: name, dismissed: false }, true);
+    logged = true;
+    report(name);
     hide();
   };
   // Shown on arrival it stays while they play: a tap would otherwise take
