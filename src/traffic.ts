@@ -127,15 +127,20 @@ export function renderTraffic(): string {
     position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
     width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
     display: grid; place-items: center;
-    background: #2c2c2e; color: #8e8e93; font: inherit; font-size: 15px; line-height: 1;
-    cursor: pointer; transition: background .2s, color .2s, opacity .2s;
+    background: #2c2c2e; cursor: pointer;
+    transition: background .2s, opacity .2s;
+  }
+  .who .go svg {
+    width: 16px; height: 16px; display: block;
+    fill: none; stroke: #8e8e93; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    transition: stroke .2s;
   }
   /* Dimmed while the field is empty, by CSS rather than by disabling it: a
      disabled default button also suppresses the keyboard's return key, and
      an autofill that fires no input event would leave it that way. */
   .who input:placeholder-shown + .go { opacity: .35; }
-  .who input:not(:placeholder-shown) + .go { background: #3a3a3c; color: #e5e5e7; }
-  .who button { padding: 0 8px; background: none; border: 0; color: #6b6b6e; font: inherit; font-size: 22px; cursor: pointer; }
+  .who input:not(:placeholder-shown) + .go { background: #3a3a3c; }
+  .who input:not(:placeholder-shown) + .go svg { stroke: #e5e5e7; }
 </style>
 </head>
 <body>
@@ -153,9 +158,10 @@ ${lamps}
     <input id="who-name" type="text" name="name" autocomplete="name" autocapitalize="words"
       autocorrect="off" spellcheck="false" maxlength="40" placeholder="what's your name?" aria-label="Your name"
       enterkeyhint="send">
-    <button class="go" type="submit" id="who-go" aria-label="Send">&#8593;</button>
+    <button class="go" type="submit" id="who-go" aria-label="Send">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 12l6-6 6 6"/></svg>
+    </button>
   </div>
-  <button type="button" id="who-no" aria-label="Dismiss">&times;</button>
 </form>
 <script>
 (function () {
@@ -335,6 +341,9 @@ ${lamps}
   // A burst is taps less than two seconds apart; only bursts of two or more
   // count, so a single curious prod either side of a pause is not "played".
   function played() {
+    // Playing on is how the prompt goes away. Nobody is made to answer, and
+    // saying nothing records nothing: no name, no row, no dismissal.
+    if (!form.hidden) hide();
     taps++; burst++;
     clearTimeout(idle);
     idle = setTimeout(function () {
@@ -350,11 +359,6 @@ ${lamps}
     report(name, false);
     hide();
   };
-  document.getElementById('who-no').onclick = function () {
-    report('', true);
-    hide();
-  };
-
   lamps.forEach(function (el) {
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.
