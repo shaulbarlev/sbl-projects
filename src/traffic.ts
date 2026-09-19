@@ -294,24 +294,26 @@ ${lamps}
   // ---------------------------------------------------------------- who
   // Somebody who scans this has no idea whose light it is, and the page
   // says nothing. Once they have actually played — two taps and a pause of
-  // two seconds — ask once. A name or a dismissal is
-  // remembered on this phone for a week; a dismissal is a no for that week
-  // and a name is reused without asking again. Somebody back for a second
-  // visit who never gave a name sees the field from the start.
+  // two seconds — ask once. A name is reused without asking for as long as
+  // this phone keeps coming back; only a week away brings the question back,
+  // prefilled. Somebody back for a second visit who never gave a name sees
+  // the field from the start.
   var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
   var me = read();
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
   var returning = me.visits > 0, sticky = false;
+  // Away since the last visit; phones from before seen fall back to the
+  // last answer.
+  var away = Date.now() - (me.seen || me.at || 0);
   me.visits = (me.visits || 0) + 1;
+  me.seen = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
 
   function read() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (err) { return {}; }
   }
-  // The touch flag is what restarts the week, and only an answer or a
-  // dismissal does that. A silent reuse must not, or somebody who plays
-  // every few days is never asked again and the week never ends.
+  // at is when they last answered, kept only as the fallback above.
   function remember(patch, touch) {
     me.id = me.id || (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
     for (var k in patch) me[k] = patch[k];
@@ -335,7 +337,7 @@ ${lamps}
   function ask() {
     if (asked) return;
     asked = true;
-    var fresh = me.at && Date.now() - me.at < WEEK;
+    var fresh = away < WEEK;
     if (fresh && me.dismissed) return;            // a no lasts the week
     if (fresh && me.name) { report(me.name, false, true); return; }  // known: no prompt
     field.value = me.name || '';                  // stale name prefills, one tap to confirm
