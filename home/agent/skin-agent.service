@@ -16,6 +16,8 @@ DynamicUser=yes
 # The player ledger lives here: /var/lib/skin-agent, created and chowned to
 # the dynamic user by systemd, and kept across restarts.
 StateDirectory=skin-agent
+# The ledger holds other people's addresses: not world-readable.
+StateDirectoryMode=0700
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

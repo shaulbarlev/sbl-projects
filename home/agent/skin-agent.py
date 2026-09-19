@@ -42,6 +42,9 @@ WEBHOOK_SWITCH = os.environ['WEBHOOK_SWITCH']
 # under DynamicUser and ProtectSystem=strict; $STATE_DIRECTORY is where
 # systemd says it landed.
 LEDGER = os.path.join(os.environ.get('STATE_DIRECTORY', '/var/lib/skin-agent'), 'players.jsonl')
+# A guest book that cannot fill the disk the agent runs on. Fifty megabytes
+# is roughly 80,000 visits; past it, records are refused rather than written.
+LEDGER_MAX = 50 * 1024 * 1024
 
 log = logging.getLogger('skin-agent')
 locks = {}      # entity -> asyncio.Lock: calls land in order per lamp, lamps in parallel
@@ -96,13 +99,41 @@ def record_player(msg):
     """Append one visit to the ledger. A line per record, opened in append
     mode for each write, so a crash costs at most the line being written and
     `tail -f` shows visits as they happen. Nothing here reaches Home
-    Assistant: this is a guest book, not a control path."""
+    Assistant: this is a guest book, not a control path.
+
+    Three things this file has to survive, all of them reachable by a
+    stranger with a browser:
+      * growth — the object at sbl.cx allows one record per page, but a
+        reconnect loop can still write, so the file is capped and the cap is
+        the real backstop. This disk also holds the agent itself.
+      * unpaired surrogates — a name like "Yo\\ud800ssi" is valid to
+        JavaScript and to json.loads, and raises on a utf-8 write. With
+        ensure_ascii the escape is kept as text and nothing raises.
+      * U+2028, U+2029 and NEL — raw, they split one record into three for
+        anything reading with splitlines(). ensure_ascii escapes those too,
+        which is why it is left at its default here rather than turned off
+        for prettier Hebrew. Read the file with `jq` and names render fine.
+    """
+    if os.path.exists(LEDGER) and os.path.getsize(LEDGER) > LEDGER_MAX:
+        log.warning('ledger at %s bytes: refusing to grow it', LEDGER_MAX)
+        return
     row = {k: msg.get(k) for k in
            ('name', 'dismissed', 'browser', 'taps', 'seconds', 'ip', 'ua', 'lang', 'geo')}
     row['at'] = time.strftime('%Y-%m-%dT%H:%M:%S%z')
-    with open(LEDGER, 'a') as f:
-        f.write(json.dumps(row, ensure_ascii=False) + '\n')
+    # Other people's addresses live in here: 0600, not the 0644 that open()
+    # would give it.
+    fd = os.open(LEDGER, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, 'a') as f:
+        f.write(json.dumps(row) + '\n')
     log.info('player: %s (%s taps, %ss, %s)', row['name'] or '—', row['taps'], row['seconds'], row['geo'])
+
+
+async def write_player(msg):
+    """The ledger write, off the event loop and unable to kill it."""
+    try:
+        await asyncio.to_thread(record_player, msg)
+    except Exception as err:  # noqa: BLE001
+        log.warning('ledger write failed: %s', err)
 
 
 async def skin_loop():
@@ -139,11 +170,12 @@ async def skin_loop():
                         continue
                     if msg.get('type') == 'player':
                         # Somebody who played gave a name or waved the prompt
-                        # away. Written here and nowhere else.
-                        try:
-                            await asyncio.to_thread(record_player, msg)
-                        except Exception as err:  # noqa: BLE001
-                            log.warning('ledger write failed: %s', err)
+                        # away. Written here and nowhere else — and not
+                        # awaited, so a disk that is slow or full can never
+                        # queue in front of somebody's tap.
+                        task = asyncio.create_task(write_player(msg))
+                        tasks.add(task)
+                        task.add_done_callback(tasks.discard)
                         continue
                     if msg.get('type') == 'call':
                         # Not awaited: a burst of taps must not queue behind

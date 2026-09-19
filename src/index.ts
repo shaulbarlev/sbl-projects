@@ -307,11 +307,16 @@ async function handleTraffic(
     // object never sees the original request. All of it is what any web
     // server is handed; nothing is probed on the device.
     const cf = (request as unknown as { cf?: Record<string, unknown> }).cf ?? {};
+    // Cut and clean here rather than at the object: a header is whatever the
+    // client felt like sending, and a 32 KB user-agent should not become a
+    // 100 KB internal URL on its way to being trimmed.
+    const header = (name: string, max: number) =>
+      (request.headers.get(name) ?? '').replace(/[\x00-\x1f\x7f-\x9f]/g, '').slice(0, max);
     const who = new URLSearchParams({
-      ip: request.headers.get('cf-connecting-ip') ?? '',
-      ua: request.headers.get('user-agent') ?? '',
-      lang: request.headers.get('accept-language') ?? '',
-      geo: [cf.country, cf.city, cf.asOrganization].filter(Boolean).join(' / '),
+      ip: header('cf-connecting-ip', 45),
+      ua: header('user-agent', 300),
+      lang: header('accept-language', 100),
+      geo: [cf.country, cf.city, cf.asOrganization].filter(Boolean).join(' / ').slice(0, 120),
     });
     return stub(env).fetch(new Request(`https://do/page?${who}`, request));
   }

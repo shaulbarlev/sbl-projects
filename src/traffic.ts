@@ -130,8 +130,11 @@ export function renderTraffic(): string {
     background: #2c2c2e; color: #8e8e93; font: inherit; font-size: 15px; line-height: 1;
     cursor: pointer; transition: background .2s, color .2s, opacity .2s;
   }
-  .who .go[disabled] { opacity: .35; cursor: default; }
-  .who .go:not([disabled]) { background: #3a3a3c; color: #e5e5e7; }
+  /* Dimmed while the field is empty, by CSS rather than by disabling it: a
+     disabled default button also suppresses the keyboard's return key, and
+     an autofill that fires no input event would leave it that way. */
+  .who input:placeholder-shown + .go { opacity: .35; }
+  .who input:not(:placeholder-shown) + .go { background: #3a3a3c; color: #e5e5e7; }
   .who button { padding: 0 8px; background: none; border: 0; color: #6b6b6e; font: inherit; font-size: 22px; cursor: pointer; }
 </style>
 </head>
@@ -150,7 +153,7 @@ ${lamps}
     <input id="who-name" type="text" name="name" autocomplete="name" autocapitalize="words"
       autocorrect="off" spellcheck="false" maxlength="40" placeholder="what's your name?" aria-label="Your name"
       enterkeyhint="send">
-    <button class="go" type="submit" id="who-go" aria-label="Send" disabled>&#8593;</button>
+    <button class="go" type="submit" id="who-go" aria-label="Send">&#8593;</button>
   </div>
   <button type="button" id="who-no" aria-label="Dismiss">&times;</button>
 </form>
@@ -296,16 +299,19 @@ ${lamps}
   function read() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (err) { return {}; }
   }
-  function remember(patch) {
+  // The touch flag is what restarts the week, and only an answer or a
+  // dismissal does that. A silent reuse must not, or somebody who plays
+  // every few days is never asked again and the week never ends.
+  function remember(patch, touch) {
     me.id = me.id || (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
     for (var k in patch) me[k] = patch[k];
-    me.at = Date.now();
+    if (touch || !me.at) me.at = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
   }
   // Fire and forget: no socket, no record. The ledger is a nice-to-have and
   // must never cost a tap its latency.
-  function report(name, dismissed) {
-    remember({ name: name || '', dismissed: !!dismissed });
+  function report(name, dismissed, silent) {
+    remember({ name: name || '', dismissed: !!dismissed }, !silent);
     if (!open()) return;
     ws.send(JSON.stringify({
       type: 'player', id: me.id, name: name || '', dismissed: !!dismissed,
@@ -321,9 +327,8 @@ ${lamps}
     asked = true;
     var fresh = me.at && Date.now() - me.at < WEEK;
     if (fresh && me.dismissed) return;            // a no lasts the week
-    if (fresh && me.name) { report(me.name, false); return; }  // known: no prompt
+    if (fresh && me.name) { report(me.name, false, true); return; }  // known: no prompt
     field.value = me.name || '';                  // stale name prefills, one tap to confirm
-    go.disabled = !field.value.trim();            // so a prefill arrives ready to send
     form.hidden = false;
     requestAnimationFrame(function () { form.style.opacity = 1; });
   }
@@ -338,10 +343,6 @@ ${lamps}
       if (pauses >= 2) ask();
     }, PAUSE);
   }
-  // The arrow lights up once there is something to send, and is the only
-  // affordance on the page that says "this is finished".
-  var go = document.getElementById('who-go');
-  field.oninput = function () { go.disabled = !field.value.trim(); };
   form.onsubmit = function (e) {
     e.preventDefault();
     var name = field.value.trim();

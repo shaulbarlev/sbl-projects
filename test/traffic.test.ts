@@ -160,10 +160,34 @@ describe('the page socket', () => {
     expect(named.ua).toBe('iPhone');
     expect(named.ip).toBe('203.0.113.7');
     expect(named.taps).toBe(6);
+    // A refusal is counted, but it does not buy a record of who refused:
+    // the address, the browser and the language are left out.
     const quiet = players.find((p) => p.browser === 'browser-two');
     expect(quiet.dismissed).toBe(true);
     expect(quiet.name).toBe('');
-    expect(quiet.ua).toBe('Pixel');
+    expect(quiet.ua).toBeUndefined();
+    expect(quiet.ip).toBeUndefined();
+    expect(quiet.lang).toBeUndefined();
+
+    // One record per page, ever. Without this a socket can write to a disk
+    // at home as fast as the wire allows.
+    for (let i = 0; i < 5; i++) {
+      one.send(JSON.stringify({ type: 'player', id: 'browser-one', name: 'flood', taps: 1, seconds: 1 }));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(players).toHaveLength(2);
+
+    // Counts a stranger sent are clamped: no negatives, no Infinity, no NaN.
+    const third = await openPage('Nokia', '192.0.2.5');
+    // 1e309 is not representable in JSON and arrives as null, so the ceiling
+    // is exercised with a large finite number instead.
+    third.send(JSON.stringify({ type: 'player', id: 'b/../../three', name: 'x', taps: -5, seconds: 99999999 }));
+    await vi.waitFor(() => expect(players).toHaveLength(3));
+    const clamped = players[2];
+    expect(clamped.taps).toBe(0);
+    expect(clamped.seconds).toBe(86400);
+    expect(clamped.browser).toBe('bthree'); // path characters stripped
+    third.close();
 
     // A page still cannot reach anything else by calling itself a player.
     one.send(JSON.stringify({ type: 'state', states: { 'switch.tasmota': 'on' } }));

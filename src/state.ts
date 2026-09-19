@@ -678,15 +678,28 @@ export class RedirectState implements DurableObject {
       // down to home, fire and forget: if the agent is not connected the
       // visit goes unrecorded, which is the price of having no buffer here.
       const who = (ws.deserializeAttachment() ?? {}) as Record<string, unknown>;
+      // One record per page, ever. A real page asks once; without this a
+      // socket can write to a disk at home as fast as the wire allows, and
+      // the writes queue in front of the taps that actually matter.
+      if (who.reported) return;
+      ws.serializeAttachment({ ...who, reported: true });
+      const dismissed = msg.dismissed === true;
       this.tellHome({
+        // Spread first: what the page said must never overwrite what the
+        // agent dispatches on, and `type` is how it tells a record from a
+        // lamp call.
+        ...who,
+        // A refusal is still a person. It is counted, but it does not buy a
+        // record of their address and browser.
+        ...(dismissed ? { ip: undefined, ua: undefined, lang: undefined } : {}),
         type: 'player',
         // Control characters would ruin a line-per-record file at home.
-        name: String(msg.name ?? '').replace(/[ -]/g, '').trim().slice(0, 40),
-        dismissed: msg.dismissed === true,
-        browser: String(msg.id ?? '').slice(0, 32),
-        taps: Math.min(Number(msg.taps) || 0, 10000),
-        seconds: Math.min(Math.round(Number(msg.seconds) || 0), 86400),
-        ...who,
+        name: String(msg.name ?? '').replace(/[\x00-\x1f\x7f-\x9f]/g, '').trim().slice(0, 40),
+        dismissed,
+        browser: String(msg.id ?? '').replace(/[^\w-]/g, '').slice(0, 32),
+        taps: clamp(msg.taps, 10000),
+        seconds: clamp(msg.seconds, 86400),
+        reported: undefined,
       });
       return;
     }
@@ -712,6 +725,17 @@ export class RedirectState implements DurableObject {
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
     console.warn('home agent socket error', error);
   }
+}
+
+/**
+ * A count a stranger sent: a whole number between zero and a ceiling.
+ * `Number()` alone lets through negatives, Infinity and NaN, all of which
+ * reach the ledger as nonsense.
+ */
+function clamp(value: unknown, ceiling: number): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, ceiling);
 }
 
 /** Fisher-Yates, in place, seeded from the platform CSPRNG. */

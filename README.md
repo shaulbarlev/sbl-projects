@@ -183,6 +183,12 @@ names. Nothing is probed from the device: no canvas, no audio, no font
 tricks. Home Assistant is not in this path at all — reading the file, and
 deciding what of it belongs on a dashboard, is a separate question.
 
+One record per page, ever — a real page asks once, and without that ceiling a
+socket could write to a disk at home as fast as the wire allows. Of what
+lands there, only the address and the Cloudflare geography are attested; the
+name, the counts and the user-agent are whatever the page said. A dismissal
+is recorded without the address or the browser.
+
 If the agent is not connected when somebody answers, that visit goes
 unrecorded. There is no buffer, by choice: a guest book is not worth a queue.
 

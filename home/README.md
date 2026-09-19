@@ -54,9 +54,24 @@ waves it away:
  "ip":"203.0.113.7","ua":"Mozilla/5.0 (iPhone…)","lang":"he-IL","geo":"IL / Tel Aviv / Bezeq","at":"2026-09-19T12:04:22+0300"}
 ```
 
-Read it with `ssh serv "pct exec 300 -- tail /var/lib/skin-agent/players.jsonl"`.
-Nothing rotates it; it grows by a line per player, which at this scale is
-nothing. It holds other people's addresses — treat it accordingly.
+Read it with `ssh serv "pct exec 300 -- tail /var/lib/skin-agent/players.jsonl"`,
+or `jq .` for names in Hebrew, which are written as `\uXXXX` escapes on
+purpose: raw U+2028 or a lone surrogate in a name would split or break a
+record for whatever reads the file next.
+
+**Only two columns are attested.** `ip` and `geo` come from Cloudflare. The
+name, the browser id, the tap count, the seconds, the user-agent and the
+language are all sent by the page, which means a stranger with a console can
+put anything there, including somebody else's name and browser id. Read the
+file as a guest book, not as evidence.
+
+A dismissal is recorded with no `ip`, `ua` or `lang`: it is counted without
+buying a record of who refused.
+
+The file is `0600` inside a `0700` directory, and it stops accepting records
+at 50 MB (roughly 80,000 visits) rather than filling the disk the agent runs
+on. Nothing rotates it. It holds other people's addresses — treat it
+accordingly.
 
 ## Home Assistant, once
 
