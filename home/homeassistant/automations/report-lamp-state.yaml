@@ -1,0 +1,22 @@
+# automation.sbl_cx_traffic_light_report_lamp_state — created through the
+# config API on 2026-09-14, party added 2026-09-15. Fires on any on/off
+# change of either switch or the party toggle, and on a local-only webhook the agent calls when it connects. The action is the
+# rest_command in ../rest_command.yaml.
+alias: "sbl.cx traffic light: report lamp state"
+description: >-
+  Posts the two traffic light switches' and the party toggle's state to the
+  sbl.cx Worker whenever any changes, and on request through a local-only webhook the home agent
+  calls when it connects. This is how the QR page learns what the lamps show;
+  the agent holds no Home Assistant credential.
+mode: queued
+max: 50
+triggers:
+  - trigger: state
+    entity_id: [switch.traffic_1_power1, switch.tasmota, input_boolean.party]
+    to: [on, off]
+  - trigger: webhook
+    webhook_id: <WEBHOOK_REPORT>
+    allowed_methods: [POST]
+    local_only: true
+actions:
+  - action: rest_command.skin_state

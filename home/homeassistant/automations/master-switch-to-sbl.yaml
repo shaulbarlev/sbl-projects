@@ -1,0 +1,16 @@
+# automation.sbl_cx_traffic_light_master_switch_sbl_cx — created through the
+# config API on 2026-09-15. The helper input_boolean.sbl_cx_traffic_light is
+# home's copy of the page's master switch; flipping it pushes to sbl.cx.
+alias: "sbl.cx traffic light: master switch → sbl.cx"
+description: >-
+  When the sbl.cx traffic light helper is flipped here, push it to sbl.cx
+  through rest_command.skin_traffic. The Worker only tells home about real
+  changes, so the echo of this push dies in one round.
+mode: queued
+max: 10
+triggers:
+  - trigger: state
+    entity_id: [input_boolean.sbl_cx_traffic_light]
+    to: [on, off]
+actions:
+  - action: rest_command.skin_traffic

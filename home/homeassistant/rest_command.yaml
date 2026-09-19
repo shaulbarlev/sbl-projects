@@ -1,0 +1,31 @@
+# Append to /config/configuration.yaml. A new YAML integration only loads on a
+# Core restart; afterwards edits reload with rest_command.reload.
+# The bearer lives in secrets.yaml, see secrets.example.yaml.
+rest_command:
+  skin_state:
+    url: https://sbl.cx/_/agent/state
+    method: post
+    headers:
+      authorization: !secret skin_agent_token
+    content_type: application/json
+    payload: >-
+      {"states": {"switch.traffic_1_power1": "{{ states('switch.traffic_1_power1') }}",
+                  "switch.tasmota": "{{ states('switch.tasmota') }}",
+                  "input_boolean.party": "{{ states('input_boolean.party') }}"}}
+  # Home's copy of the master switch, pushed to sbl.cx whenever it changes.
+  # Added 2026-09-15. Loaded with rest_command.reload once rest_command exists.
+  skin_traffic:
+    url: https://sbl.cx/_/agent/traffic
+    method: post
+    headers:
+      authorization: !secret skin_agent_token
+    content_type: application/json
+    payload: '{"on": "{{ states(''input_boolean.sbl_cx_traffic_light'') }}"}'
+  # Home's copy of the party button's switch. Added 2026-09-15.
+  skin_party:
+    url: https://sbl.cx/_/agent/party
+    method: post
+    headers:
+      authorization: !secret skin_agent_token
+    content_type: application/json
+    payload: '{"on": "{{ states(''input_boolean.sbl_cx_party_button'') }}"}'

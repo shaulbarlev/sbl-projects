@@ -129,8 +129,8 @@ state and refreshes it every few seconds. It is a destination like any other,
 so **Send** from the Home card takes over the root with it for as long as a
 temp lasts.
 
-Nothing at home listens for inbound connections. A small agent (its own
-repo, `shaulbarlev/skin-home`) on the home network dials out and holds one WebSocket to the
+Nothing at home listens for inbound connections. A small agent, in `home/` in
+this repo, on the home network dials out and holds one WebSocket to the
 Durable Object; the object relays a tap over that socket, and the agent posts
 it to a local-only Home Assistant webhook whose automation sets the switch.
 Lamp state comes back without the agent: a second automation, on every change
@@ -159,6 +159,32 @@ pointing at it falls through to main. Home Assistant keeps a live mirror of it
 as a helper: flipping either side sets the other through `/_/agent/traffic`
 one way and the agent socket the other, and only real changes cross, so the
 echo dies in one round.
+
+### Who played
+
+Somebody who scans this has no idea whose lights they just flipped, and the
+page says nothing. Once they have actually played — two taps, a pause of two
+seconds, two more taps, another pause — one field fades in under the light:
+*what's your name?*, with a × beside it. It is the only text on the page, and
+it appears once.
+
+The answer, or the dismissal, is remembered in `localStorage` for a week: a no
+stays a no for that week, and a name is reused without asking again, reported
+on the first real play of each visit so the ledger shows who is playing now.
+After a week the prompt returns with the old name prefilled, one tap to
+confirm.
+
+The record goes down the agent's socket — fire and forget, so it never costs a
+tap any latency — and is appended as one JSON line to
+`/var/lib/skin-agent/players.jsonl` in the LXC. It carries the name, the
+browser id, taps and seconds, and what the request already told the Worker:
+address, user-agent, language, and the country, city and network Cloudflare
+names. Nothing is probed from the device: no canvas, no audio, no font
+tricks. Home Assistant is not in this path at all — reading the file, and
+deciding what of it belongs on a dashboard, is a separate question.
+
+If the agent is not connected when somebody answers, that visit goes
+unrecorded. There is no buffer, by choice: a guest book is not worth a queue.
 
 Under the light there can be a party button: a smaller housing with one lamp
 that becomes a mirror ball when on, flipping `input_boolean.party` at home

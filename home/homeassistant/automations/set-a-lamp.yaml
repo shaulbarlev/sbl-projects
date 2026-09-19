@@ -1,0 +1,57 @@
+# automation.sbl_cx_traffic_light_set_a_lamp — created through the config API
+# on 2026-09-14, party branches added 2026-09-15. The live copy holds the
+# real webhook id; it is the only credential for setting a lamp, so it is
+# not committed. local_only: only the
+# LAN can reach it. Entity ids are hardcoded per branch on purpose: the payload
+# cannot name anything else.
+alias: "sbl.cx traffic light: set a lamp"
+description: >-
+  Called by the sbl.cx home agent over the LAN (webhook, local only, POST).
+  Sets one of the two traffic light switches, or the party toggle, to the
+  requested state. This automation is the only thing that touches them on
+  behalf of the QR page; the agent holds no Home Assistant credential.
+mode: queued
+max: 50
+triggers:
+  - trigger: webhook
+    webhook_id: <WEBHOOK_SET>
+    allowed_methods: [POST]
+    local_only: true
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'switch.traffic_1_power1' and trigger.json.state == 'on' }}"
+        sequence:
+          - action: switch.turn_on
+            target: { entity_id: switch.traffic_1_power1 }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'switch.traffic_1_power1' and trigger.json.state == 'off' }}"
+        sequence:
+          - action: switch.turn_off
+            target: { entity_id: switch.traffic_1_power1 }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'switch.tasmota' and trigger.json.state == 'on' }}"
+        sequence:
+          - action: switch.turn_on
+            target: { entity_id: switch.tasmota }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'switch.tasmota' and trigger.json.state == 'off' }}"
+        sequence:
+          - action: switch.turn_off
+            target: { entity_id: switch.tasmota }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'input_boolean.party' and trigger.json.state == 'on' }}"
+        sequence:
+          - action: input_boolean.turn_on
+            target: { entity_id: input_boolean.party }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.entity == 'input_boolean.party' and trigger.json.state == 'off' }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target: { entity_id: input_boolean.party }
