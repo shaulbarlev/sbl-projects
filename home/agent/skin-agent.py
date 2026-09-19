@@ -123,6 +123,7 @@ def record_player(msg):
     # Other people's addresses live in here: 0600, not the 0644 that open()
     # would give it.
     fd = os.open(LEDGER, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    os.fchmod(fd, 0o600)  # the mode above applies only on creation
     with os.fdopen(fd, 'a') as f:
         f.write(json.dumps(row) + '\n')
     log.info('player: %s (%s taps, %ss, %s)', row['name'] or '—', row['taps'], row['seconds'], row['geo'])

@@ -163,8 +163,8 @@ echo dies in one round.
 ### Who played
 
 Somebody who scans this has no idea whose lights they just flipped, and the
-page says nothing. Once they have actually played — two taps, a pause of two
-seconds, two more taps, another pause — one field fades in under the light:
+page says nothing. Once they have actually played — two taps, then a pause of
+two seconds — one field fades in under the light:
 *what's your name?*, with a × beside it. It is the only text on the page, and
 it appears once.
 

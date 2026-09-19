@@ -46,8 +46,7 @@ the ledger.
 
 ## The ledger
 
-One JSON object per line, appended when somebody answers the name prompt or
-waves it away:
+One JSON object per line, appended when somebody answers the name prompt:
 
 ```json
 {"name":"Yossi","dismissed":false,"browser":"k3f…","taps":11,"seconds":48,

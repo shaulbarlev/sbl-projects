@@ -293,11 +293,11 @@ ${lamps}
 
   // ---------------------------------------------------------------- who
   // Somebody who scans this has no idea whose light it is, and the page
-  // says nothing. Once they have actually played — two taps, a pause, two
-  // more taps, another pause — ask once. A name or a dismissal is
+  // says nothing. Once they have actually played — two taps and a pause of
+  // two seconds — ask once. A name or a dismissal is
   // remembered on this phone for a week; a dismissal is a no for that week
   // and a name is reused without asking again.
-  var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000;
+  var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
   var me = read();
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
@@ -339,7 +339,7 @@ ${lamps}
     requestAnimationFrame(function () { form.style.opacity = 1; });
   }
   // A burst is taps less than two seconds apart; only bursts of two or more
-  // count, so a single curious prod either side of a pause is not "played".
+  // count, so a single curious prod and a walk away is not "played".
   function played() {
     // Playing on is how the prompt goes away. Nobody is made to answer, and
     // saying nothing records nothing: no name, no row, no dismissal.
@@ -349,7 +349,7 @@ ${lamps}
     idle = setTimeout(function () {
       if (burst >= 2) pauses++;
       burst = 0;
-      if (pauses >= 2) ask();
+      if (pauses >= BURSTS) ask();
     }, PAUSE);
   }
   form.onsubmit = function (e) {
