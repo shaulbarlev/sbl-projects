@@ -33,7 +33,8 @@ export function animateLogo(el: HTMLElement) {
         c.animate([{ fontWeight: 100 }, { fontWeight: 800 }], {
           duration: 50,
           delay: i * 70,
-          iterations: 23,
+          // 2s of blinking more than the original 23, at the same speed; odd, so it ends bold
+          iterations: 63,
           direction: 'alternate',
           fill: 'forwards',
         }),
@@ -46,7 +47,7 @@ export function animateLogo(el: HTMLElement) {
           ],
           {
             duration: 2500,
-            delay: 1900 + i * 600,
+            delay: 3900 + i * 600,
             iterations: 31,
             direction: 'alternate',
             easing: 'steps(9, end)',
