@@ -55,6 +55,8 @@ export function renderTraffic(): string {
   main { display: grid; justify-items: center; gap: 22px; }
   .housing {
     display: grid; gap: 22px; padding: 26px;
+    /* A shade under full: the lit lamps were glaring in a dark hallway. */
+    filter: brightness(.85);
     background: #1c1c1e; border-radius: 40px;
     border: 3px solid #000;
     box-shadow: 0 30px 60px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.06);
@@ -74,6 +76,10 @@ export function renderTraffic(): string {
   }
   .lamp[disabled] { cursor: default; opacity: .45; }
   .lamp.busy { opacity: .7; }
+  /* While the name is being asked, the lamps are held: they dim and a tap
+     goes to the field instead of the lights. */
+  body.gated .lamp { opacity: .4; cursor: default; }
+  body.gated .who input { border-color: #3a3a3c; }
 
   /* The party button: a smaller housing, a dim magenta lamp off, a mirror
      ball on. Hidden until home says the button is enabled. */
@@ -306,7 +312,7 @@ ${lamps}
   var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
   var me = read(), pending = null, logged = false;
   var visit = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false;
+  var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false, gated = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
   var returning = me.visits > 0;
   // Away since the last visit; phones from before seen fall back to the
@@ -348,7 +354,13 @@ ${lamps}
     logged = true;
     report(me.name && away < WEEK ? me.name : '');
   }
+  // The lamps are held while the field is up, and released by sending a name.
+  function gate(on) {
+    gated = on;
+    document.body.classList.toggle('gated', on);
+  }
   function hide() {
+    gate(false);
     form.style.opacity = 0;
     setTimeout(function () { form.hidden = true; }, 800);
   }
@@ -362,6 +374,7 @@ ${lamps}
     show();
   }
   function show() {
+    gate(true);
     form.hidden = false;
     requestAnimationFrame(function () { form.style.opacity = 1; });
   }
@@ -395,6 +408,8 @@ ${lamps}
     el.onpointerdown = function (e) {
       if (el.disabled) return;
       e.preventDefault();
+      // Name first: until one is sent, a tap only points at the field.
+      if (gated) { field.focus(); return; }
       played();
       var entity = el.dataset.entity;
       if (navigator.vibrate) navigator.vibrate(10);
