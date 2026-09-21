@@ -1,5 +1,6 @@
 import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import './style.css'
+import { diveIn, diveOut } from './dive'
 import { h } from './dom'
 import { NARROW, WIDE, scatter } from './layout'
 import { closeLightbox, lightboxOpen } from './lightbox'
@@ -68,7 +69,7 @@ for (const project of PROJECTS) {
     e.preventDefault()
     opener = a
     history.pushState({ fromMap: true }, '', a.href)
-    morph(sync)
+    diveIn(picture(project.id), sync)
   })
   // Tabbing to a tile that is off screen brings it into view.
   a.addEventListener('focus', () => {
@@ -115,16 +116,18 @@ function sync() {
       // Moving between projects replaces the entry, so back still returns to the map.
       history.replaceState(history.state, '', `/${to.id}/`)
       opener = null
-      morph(sync)
+      sync()
     })
     projectRoot.append(view)
     window.scrollTo(0, 0)
     view.querySelector<HTMLElement>('.pv-panel')?.focus()
     markSeen(project.id)
-    // Unless its tile was just clicked, bring the map to this project, so that
-    // closing it lands where it lives. Behind a phone's project page that is a cut.
+    // Bring the map to this project, so that closing it lands where it lives. On a
+    // phone the page hides the map, so that is a free cut; on a wide screen the map
+    // shows behind the modal, so a tile that was just clicked is left where it is.
     const tile = world.tiles.find((t) => t.id === project.id)
-    if (tile && opener !== tiles.get(project.id)) map.focus(tile, narrow.matches ? 0 : undefined)
+    if (tile && narrow.matches) map.focus(tile, 0)
+    else if (tile && opener !== tiles.get(project.id)) map.focus(tile)
   } else {
     opener?.focus({ preventScroll: true })
     opener = null
@@ -132,26 +135,16 @@ function sync() {
   current = project?.id ?? null
 }
 
-/**
- * Runs `update` as a view transition where the browser can: the tile grows into
- * the project and shrinks back into its place on the map.
- */
-function morph(update: () => void) {
-  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return update()
-  const name = (id: string | null | undefined, on: boolean) => {
-    const tile = id ? tiles.get(id) : undefined
-    if (tile) tile.style.viewTransitionName = on ? 'project' : ''
-  }
+const picture = (id: string | null) => (id ? tiles.get(id)?.querySelector('img') ?? undefined : undefined)
+
+/** Back to the map from whatever project is showing, its picture shrinking back into its tile. */
+function leave() {
   const from = current
-  // Opening from the map: the tile about to open carries the name into the transition.
-  if (from === null) name(findProject(slugNow())?.id, true)
-  const transition = document.startViewTransition(() => {
-    tiles.forEach((t) => (t.style.viewTransitionName = ''))
-    update()
-    // Closing: the panel is gone now, and its tile takes over the name.
-    if (current === null) name(from, true)
+  diveOut(sync, () => {
+    // On a phone the map was hidden behind the page: have it measure itself before the tile is located.
+    map.refresh()
+    return current === null ? picture(from) : undefined
   })
-  transition.finished.finally(() => tiles.forEach((t) => (t.style.viewTransitionName = '')))
 }
 
 function closeProject() {
@@ -159,12 +152,15 @@ function closeProject() {
   else {
     // Arrived by direct link: there is no map entry to go back to.
     history.replaceState(null, '', '/')
-    morph(sync)
+    leave()
   }
 }
 
-// A back swipe on iOS is animated by the browser already.
-window.addEventListener('popstate', (e) => (e.hasUAVisualTransition ? sync() : morph(sync)))
+window.addEventListener('popstate', (e) => {
+  // A back swipe on iOS is animated by the browser already; and only leaving a project is a dive.
+  if (e.hasUAVisualTransition || current === null) sync()
+  else leave()
+})
 
 window.addEventListener('keydown', (e) => {
   // The image viewer has its own keys, and Esc there must not close the project too.

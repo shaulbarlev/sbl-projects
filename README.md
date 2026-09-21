@@ -21,7 +21,8 @@ over a 2D plane you explore like a map.
 
 1. Put the media in `public/<folder>/`. `./scripts/mp4-thumbnails.sh` makes poster frames for videos.
 2. Add an entry to `src/projects.ts`, and its id to `ORDER` there (earlier = closer to the centre of the map).
-3. `npm run thumbs` to generate the square map tile in `public/thumbs/`, and commit it.
+3. `npm run thumbs` to generate the square map tile (`public/thumbs/`) and the
+   display-size pictures the project page loads (`public/m/`), and commit them.
 
 The map lays itself out (`src/layout.ts`): same project list, same map. There are two
 scatters, a loose one for wide screens and a dense one for phones, where the
@@ -35,5 +36,6 @@ tiles are packed close enough that several fill the screen.
 | `src/layout.ts` | scatters the tiles, sizes the world |
 | `src/map.ts` | camera, drag / pinch / wheel input, inertia, rubber-band edges, minimap, edge markers |
 | `src/project.ts` | project view (modal or page), `src/lightbox.ts` image viewer |
-| `src/main.ts` | wiring, routing, the opening sequence, tile ↔ project view transitions, seen state |
+| `src/dive.ts` | the zoom between a tile and its project (transform and opacity only) |
+| `src/main.ts` | wiring, routing, the opening sequence, seen state |
 | `vite.config.ts` | also writes `dist/<id>/index.html` per project, so project URLs work on any static host and share with their own title and image |

@@ -357,6 +357,8 @@ export function createMap(opts: {
       render()
     },
     markSeen,
+    /** Measure and draw now, rather than when the browser next reports a resize */
+    refresh: resize,
     /** Cut to a view of the whole world, as far as the zoom range allows */
     overview() {
       halt()

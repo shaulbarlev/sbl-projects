@@ -332,7 +332,6 @@ iframe {
   position: absolute;
   inset: 0;
   background: rgb(0 0 0 / 0.7);
-  backdrop-filter: blur(1px);
 }
 .pv-panel {
   position: relative;
@@ -688,24 +687,25 @@ iframe {
   color: var(--dim);
 }
 
-/* ---------- the tile grows into its project, and shrinks back ---------- */
+/* ---------- the dive between a tile and its project (dive.ts) ---------- */
 
-.pv-panel {
-  view-transition-name: project;
+.pv.shell {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  will-change: opacity;
 }
-::view-transition-group(project) {
-  animation-duration: 0.38s;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-::view-transition-old(project),
-::view-transition-new(project) {
-  width: 100%;
+.shell .pv-panel {
   height: 100%;
-  object-fit: cover;
-  object-position: top;
-  overflow: clip;
+  min-height: 0;
 }
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.25s;
+.dive {
+  position: fixed;
+  z-index: 61;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform, opacity;
 }

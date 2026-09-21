@@ -368,3 +368,10 @@ export function findProject(slug: string): Project | undefined {
 }
 
 export const thumbUrl = (p: Project) => `/thumbs/${p.id}.jpg`
+
+/**
+ * The display-size copy of a picture under /public (`npm run thumbs` makes them,
+ * 1200px at most). The originals are camera files of up to 24 megapixels: fine
+ * for the full-screen viewer, far too heavy for a grid cell on a phone.
+ */
+export const displayUrl = (src: string) => `/m${src}.jpg`

@@ -1,7 +1,9 @@
-// Crops each project's thumbnail source to a 640px square at public/thumbs/<id>.jpg.
-// The map loads these instead of the full-size photos. Run after adding a project
+// Makes the pictures the site actually loads, from the originals under public/:
+//   public/thumbs/<id>.jpg   640px square map tile, cropped from the project's thumbnail
+//   public/m/<path>.jpg      every picture a project page shows, 1200px at most (the
+//                            full-screen viewer still opens the original) Run after adding a project
 // or changing a thumbnail: npm run thumbs
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { transform } from 'esbuild'
@@ -18,3 +20,26 @@ for (const p of PROJECTS) {
   const { size } = await sharp(src).rotate().resize(640, 640, { fit: 'cover' }).jpeg({ quality: 82, mozjpeg: true }).toFile(out)
   console.log(`${p.id}  ${(size / 1024).toFixed(0)} KB`)
 }
+
+const shown = new Set()
+for (const p of PROJECTS) {
+  for (const m of p.media ?? []) shown.add(m.type === 'image' ? m.src : m.thumbnail)
+  shown.add(p.asideImage?.src)
+}
+shown.delete(undefined)
+let before = 0
+let after = 0
+for (const src of shown) {
+  const file = join(root, 'public', decodeURI(src))
+  const out = join(root, 'public/m', `${decodeURI(src)}.jpg`)
+  await mkdir(dirname(out), { recursive: true })
+  const { size } = await sharp(file)
+    .rotate()
+    .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+    .flatten({ background: '#000' })
+    .jpeg({ quality: 80, mozjpeg: true })
+    .toFile(out)
+  before += (await stat(file)).size
+  after += size
+}
+console.log(`${shown.size} display pictures: ${(before / 1e6).toFixed(1)} MB of originals -> ${(after / 1e6).toFixed(1)} MB`)

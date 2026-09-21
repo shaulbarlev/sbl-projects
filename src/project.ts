@@ -1,6 +1,6 @@
 import { h } from './dom'
 import { openLightbox } from './lightbox'
-import type { Project, ProjectMediaItem } from './projects'
+import { displayUrl, type Project, type ProjectMediaItem } from './projects'
 // simple-icons (CC0)
 import whatsappIcon from './icons/whatsapp.svg?raw'
 
@@ -50,7 +50,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
 
     if (item.type === 'image') {
       const n = images.indexOf(item)
-      const img = h('img', { src: item.src, alt: item.alt, loading: 'lazy' })
+      const img = h('img', { src: displayUrl(item.src), alt: item.alt, loading: 'lazy', decoding: 'async' })
       const btn = h(
         'button',
         { type: 'button', 'aria-label': `View image ${n + 1} of ${images.length} full size` },
@@ -77,7 +77,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
     const video = h(
       'video',
       // With a poster to show, nothing is fetched until play: this is mostly read on phones.
-      { controls: true, preload: item === firstVideo || !item.thumbnail ? 'metadata' : 'none', playsinline: true, poster: item.thumbnail },
+      { controls: true, preload: item === firstVideo || !item.thumbnail ? 'metadata' : 'none', playsinline: true, poster: item.thumbnail && displayUrl(item.thumbnail) },
       h('source', { src: item.src, type: 'video/mp4' }),
     )
     // Set as properties: the muted attribute is ignored on script-created videos.
@@ -119,7 +119,7 @@ export function renderProject(
   const text = h(
     'aside',
     { class: 'pv-text' },
-    project.asideImage && h('div', { class: 'box' }, h('img', { src: project.asideImage.src, alt: project.asideImage.alt, loading: 'lazy' })),
+    project.asideImage && h('div', { class: 'box' }, h('img', { src: displayUrl(project.asideImage.src), alt: project.asideImage.alt, loading: 'lazy', decoding: 'async' })),
     cta,
     he && h('div', { class: 'box sans prose', dir: 'rtl' }, ...prose(he)),
     en && h('div', { class: 'box prose' }, ...prose(en)),
