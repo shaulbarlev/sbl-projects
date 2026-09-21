@@ -10,7 +10,7 @@ import { h } from './dom'
  * page many screens long with videos in it.
  */
 
-const OPEN_MS = 360
+const OPEN_MS = 400
 const CLOSE_MS = 300
 const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
 
@@ -20,8 +20,16 @@ const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
  * the picture flies back to where it started.
  */
 const travel = (from: string, to: string): Keyframe[] => [{ transform: from }, { transform: to }]
-const FADE_AWAY: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0, offset: 0.9 }, { opacity: 0 }]
-const FADE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 1 }]
+/*
+ * The fades run on linear time, not on the zoom's easing: an ease-out is nearly
+ * done by half time, so a fade sharing it goes dark while the zoom is still
+ * moving. Opening, the picture holds until the zoom has all but arrived and only
+ * then dissolves into the panel; closing, it is back early and lands in plain sight.
+ */
+const PICTURE_AWAY: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }]
+const PANEL_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1 }]
+const PICTURE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.35 }, { opacity: 1 }]
+const PANEL_OUT: Keyframe[] = [{ opacity: 1 }, { opacity: 0, offset: 0.6 }, { opacity: 0 }]
 
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
@@ -61,8 +69,8 @@ export async function diveIn(picture: HTMLImageElement | undefined, build: () =>
   finishNow = finish
 
   const timing = { duration: OPEN_MS, easing: EASE, fill: 'both' } as const
-  shell.animate([{ opacity: 0 }, { opacity: 1 }], timing)
-  zoom.animate(FADE_AWAY, timing)
+  shell.animate(PANEL_IN, { ...timing, easing: 'linear' })
+  zoom.animate(PICTURE_AWAY, { ...timing, easing: 'linear' })
   await zoom.animate(travel(near, far), timing).finished.catch(() => {})
   if (done) return
 
@@ -107,8 +115,8 @@ export async function diveOut(clear: () => void, find: () => HTMLImageElement | 
   finishNow = finish
 
   const timing = { duration: CLOSE_MS, easing: EASE, fill: 'both' } as const
-  cover.animate([{ opacity: 1 }, { opacity: 0 }], timing)
-  zoom.animate(FADE_BACK, timing)
+  cover.animate(PANEL_OUT, { ...timing, easing: 'linear' })
+  zoom.animate(PICTURE_BACK, { ...timing, easing: 'linear' })
   await zoom.animate(travel(far, near), timing).finished.catch(() => {})
   finish()
 }

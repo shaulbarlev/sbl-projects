@@ -111,17 +111,6 @@ iframe {
   cursor: pointer;
   width: max-content;
 }
-.tagline {
-  margin: 0.25rem 0 0;
-  color: rgb(var(--red) / 0.4);
-}
-.tagline span {
-  color: #fff;
-  margin-right: 0.5rem;
-}
-.tagline a {
-  color: inherit;
-}
 .hint {
   margin: 1.5rem 0 0;
   font-size: 12px;
@@ -204,6 +193,15 @@ iframe {
   place-items: center;
   aspect-ratio: 1;
   font-size: 58cqw;
+}
+/* letters standing in for an icon, in a pixel font to sit with the pixel icons */
+.tile.link i.px {
+  font-family: 'Silkscreen', var(--mono);
+  font-size: 46cqw;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.1em;
 }
 /* a link that is words rather than an icon: stacked rows filling the same square,
    framed like a project tile, since bare text does not read as something to press */
@@ -609,9 +607,6 @@ iframe {
 @media (max-width: 699px) {
   .logo {
     font-size: 2.9em;
-  }
-  .tagline span {
-    display: block;
   }
   .hint {
     margin-top: 1rem;

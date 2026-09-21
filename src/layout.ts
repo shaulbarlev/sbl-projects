@@ -28,7 +28,7 @@ export type Profile = {
 
 export const WIDE: Profile = {
   sizes: [300, 220, 260, 200, 280, 240],
-  home: { w: 400, h: 230 },
+  home: { w: 400, h: 192 },
   label: 56,
   gap: 100,
   margin: 300,
@@ -40,7 +40,7 @@ export const WIDE: Profile = {
 
 export const NARROW: Profile = {
   sizes: [240, 180, 210, 170, 230, 190],
-  home: { w: 250, h: 178 },
+  home: { w: 250, h: 146 },
   label: 44,
   gap: 24,
   margin: 120,
