@@ -128,6 +128,8 @@ place()
 
 homeButton.addEventListener('click', () => map.goHome())
 animateLogo($('logo'))
+// A tap on the wordmark centres the map on it again (and replays its flicker).
+$('logo').addEventListener('click', () => map.goHome())
 
 // --- what has been opened before: red marks the unexplored, on tiles, minimap and edge markers
 const SEEN_KEY = 'seen'
@@ -167,12 +169,12 @@ function sync() {
     window.scrollTo(0, 0)
     view.querySelector<HTMLElement>('.pv-panel')?.focus()
     markSeen(project.id)
-    // Bring the map to this project, so that closing it lands where it lives. On a
-    // phone the page hides the map, so that is a free cut; on a wide screen the map
-    // shows behind the modal, so a tile that was just clicked is left where it is.
+    // A tapped tile leaves the map exactly as it was, so closing returns to the
+    // same view. Only when the project was reached some other way (a direct link,
+    // previous / next) is the map brought to it, so that closing lands where it
+    // lives; behind a phone's project page that is a cut.
     const tile = world.tiles.find((t) => t.id === project.id)
-    if (tile && narrow.matches) map.focus(tile, 0)
-    else if (tile && opener !== tiles.get(project.id)) map.focus(tile)
+    if (tile && opener !== tiles.get(project.id)) map.focus(tile, narrow.matches ? 0 : undefined)
   } else {
     opener?.focus({ preventScroll: true })
     opener = null
