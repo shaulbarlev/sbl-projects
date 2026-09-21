@@ -23,8 +23,9 @@ export function createMap(opts: {
   /** Called when home scrolls in or out of view */
   onHomeVisible: (visible: boolean) => void
 }) {
-  const { viewport, plane, minimap, readout, world } = opts
-  const home = centre(world.home)
+  const { viewport, plane, minimap, readout } = opts
+  let world = opts.world
+  let home = centre(world.home)
   const cam: Camera = { ...home, z: 1 }
   let vw = 0
   let vh = 0
@@ -39,26 +40,32 @@ export function createMap(opts: {
   // --- minimap
   const frame = document.createElement('div')
   frame.className = 'mm-view'
-  const dot = (r: Rect, cls: string) => {
-    const d = document.createElement('div')
-    d.className = cls
-    d.style.left = `${(r.x / world.w) * 100}%`
-    d.style.top = `${(r.y / world.h) * 100}%`
-    d.style.width = `${(r.w / world.w) * 100}%`
-    d.style.height = `${(r.h / world.h) * 100}%`
-    return d
+  function drawMinimap() {
+    const dot = (r: Rect, cls: string) => {
+      const d = document.createElement('div')
+      d.className = cls
+      d.style.left = `${(r.x / world.w) * 100}%`
+      d.style.top = `${(r.y / world.h) * 100}%`
+      d.style.width = `${(r.w / world.w) * 100}%`
+      d.style.height = `${(r.h / world.h) * 100}%`
+      return d
+    }
+    minimap.style.aspectRatio = `${world.w} / ${world.h}`
+    minimap.replaceChildren(dot(world.home, 'mm-home'), ...world.tiles.map((t) => dot(t, 'mm-tile')), frame)
   }
-  minimap.style.aspectRatio = `${world.w} / ${world.h}`
-  minimap.append(dot(world.home, 'mm-home'), ...world.tiles.map((t) => dot(t, 'mm-tile')), frame)
+  drawMinimap()
 
   function render() {
     cam.z = clamp(cam.z, MIN_ZOOM, MAX_ZOOM)
-    cam.x = clamp(cam.x, 0, world.w)
-    cam.y = clamp(cam.y, 0, world.h)
+    // Keep the view inside the world; where the world is the smaller one, centre it.
+    const halfW = vw / cam.z / 2
+    const halfH = vh / cam.z / 2
+    cam.x = world.w > halfW * 2 ? clamp(cam.x, halfW, world.w - halfW) : world.w / 2
+    cam.y = world.h > halfH * 2 ? clamp(cam.y, halfH, world.h - halfH) : world.h / 2
     plane.style.transform = `translate(${vw / 2 - cam.x * cam.z}px, ${vh / 2 - cam.y * cam.z}px) scale(${cam.z})`
 
-    const w = vw / cam.z
-    const h = vh / cam.z
+    const w = halfW * 2
+    const h = halfH * 2
     frame.style.left = `${((cam.x - w / 2) / world.w) * 100}%`
     frame.style.top = `${((cam.y - h / 2) / world.h) * 100}%`
     frame.style.width = `${(w / world.w) * 100}%`
@@ -86,7 +93,8 @@ export function createMap(opts: {
     } else if (Math.hypot(vx, vy) > 0.02) {
       cam.x -= (vx * dt) / cam.z
       cam.y -= (vy * dt) / cam.z
-      const decay = Math.pow(0.995, dt)
+      // A flick of the finger glides further than a throw of the mouse.
+      const decay = Math.pow(touch ? 0.9975 : 0.995, dt)
       vx *= decay
       vy *= decay
       busy = true
@@ -128,6 +136,7 @@ export function createMap(opts: {
   let travelled = 0
   let dragged = false
   let lastMove = 0
+  let touch = false
 
   const local = (e: PointerEvent | WheelEvent) => {
     const b = viewport.getBoundingClientRect()
@@ -137,6 +146,7 @@ export function createMap(opts: {
   viewport.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     halt()
+    touch = e.pointerType !== 'mouse'
     if (pointers.size === 0) {
       travelled = 0
       dragged = false
@@ -205,6 +215,8 @@ export function createMap(opts: {
     true,
   )
   viewport.addEventListener('dragstart', (e) => e.preventDefault())
+  // iOS Safari: keep a pinch from zooming the page instead of the map.
+  viewport.addEventListener('gesturestart', (e) => e.preventDefault())
 
   viewport.addEventListener(
     'wheel',
@@ -259,7 +271,16 @@ export function createMap(opts: {
   resize()
 
   return {
-    goHome: (ms?: number) => flyTo({ ...home, z: vw < 700 ? 0.8 : 1 }, ms),
+    /** Swap in a new layout and start again from home */
+    setWorld(next: World) {
+      world = next
+      home = centre(world.home)
+      drawMinimap()
+      halt()
+      Object.assign(cam, home, { z: 1 })
+      render()
+    },
+    goHome: (ms?: number) => flyTo({ ...home, z: 1 }, ms),
     focus: (r: Rect) => flyTo(centre(r)),
     panBy(dx: number, dy: number) {
       const from = flight?.to ?? cam

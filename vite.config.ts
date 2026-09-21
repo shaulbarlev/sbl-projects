@@ -49,7 +49,7 @@ function projectPages(): Plugin {
   }
 }
 
-// Built for Cloudflare Pages at https://shaulb.com
+// Deployed to https://shaulb.com by Cloudflare Workers Builds (see wrangler.jsonc)
 export default defineConfig({
   base: '/',
   plugins: [projectPages()],

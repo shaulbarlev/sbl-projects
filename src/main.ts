@@ -1,7 +1,7 @@
 import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import './style.css'
 import { h } from './dom'
-import { scatter } from './layout'
+import { NARROW, WIDE, scatter } from './layout'
 import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
@@ -11,17 +11,27 @@ import { PROJECTS, findProject, thumbUrl } from './projects'
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-// --- the map
-const world = scatter(PROJECTS.map((p) => p.id))
-const plane = $('plane')
-const homeButton = $('home-button')
-plane.style.width = `${world.w}px`
-plane.style.height = `${world.h}px`
+// --- the map: phones get their own, denser layout
+const narrow = matchMedia('(max-width: 699px)')
+const layout = () => scatter(PROJECTS.map((p) => p.id), narrow.matches ? NARROW : WIDE)
+let world = layout()
 
+const plane = $('plane')
 const homeEl = $('home')
-homeEl.style.left = `${world.home.x}px`
-homeEl.style.top = `${world.home.y}px`
-homeEl.style.width = `${world.home.w}px`
+const homeButton = $('home-button')
+const tiles = new Map<string, HTMLAnchorElement>()
+
+function place() {
+  plane.style.width = `${world.w}px`
+  plane.style.height = `${world.h}px`
+  homeEl.style.left = `${world.home.x}px`
+  homeEl.style.top = `${world.home.y}px`
+  homeEl.style.width = `${world.home.w}px`
+  for (const t of world.tiles) {
+    const a = tiles.get(t.id)
+    if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px` })
+  }
+}
 
 const map = createMap({
   viewport: $('map'),
@@ -32,18 +42,23 @@ const map = createMap({
   onHomeVisible: (visible) => (homeButton.hidden = visible),
 })
 
+narrow.addEventListener('change', () => {
+  world = layout()
+  place()
+  map.setWorld(world)
+})
+
 // True while focus is moving by Tab, as opposed to a click or a restored focus.
 let tabbing = false
 window.addEventListener('keydown', (e) => (tabbing = e.key === 'Tab'), true)
 window.addEventListener('pointerdown', () => (tabbing = false), true)
 
 let opener: HTMLElement | null = null
-for (const tile of world.tiles) {
-  const project = PROJECTS.find((p) => p.id === tile.id)!
+for (const project of PROJECTS) {
   const a = h(
     'a',
-    { class: 'tile', href: `/${project.id}/`, style: `left:${tile.x}px;top:${tile.y}px;width:${tile.w}px` },
-    h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: tile.w, height: tile.h, draggable: 'false' }),
+    { class: 'tile', href: `/${project.id}/` },
+    h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false' }),
     h('span', {}, project.title),
   )
   a.addEventListener('click', (e) => {
@@ -55,10 +70,13 @@ for (const tile of world.tiles) {
   })
   // Tabbing to a tile that is off screen brings it into view.
   a.addEventListener('focus', () => {
-    if (tabbing) map.focus(tile)
+    const tile = world.tiles.find((t) => t.id === project.id)
+    if (tabbing && tile) map.focus(tile)
   })
+  tiles.set(project.id, a)
   plane.append(a)
 }
+place()
 
 homeButton.addEventListener('click', () => map.goHome())
 animateLogo($('logo'))

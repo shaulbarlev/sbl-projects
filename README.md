@@ -9,7 +9,8 @@ over a 2D plane you explore like a map.
 - **Projects**: every project has its own URL, `/<id>/`. On wide screens it
   opens as a modal over the map, on narrow ones it is a page of its own with a
   back link. `/pikud` is an extra entry for Pikud HaoLED with its own share card.
-- Vite + TypeScript, no framework. Deployed by Cloudflare Pages (`npm run build`, output `dist`).
+- Vite + TypeScript, no framework. Deployed by Cloudflare Workers Builds as static
+  assets (`wrangler.jsonc`): `npm run build`, output `dist`.
 
 ## Adding a project
 
@@ -17,7 +18,9 @@ over a 2D plane you explore like a map.
 2. Add an entry to `src/projects.ts`, and its id to `ORDER` there (earlier = closer to the centre of the map).
 3. `npm run thumbs` to generate the square map tile in `public/thumbs/`, and commit it.
 
-The map lays itself out (`src/layout.ts`): same project list, same map.
+The map lays itself out (`src/layout.ts`): same project list, same map. There are two
+scatters, a loose one for wide screens and a dense one for phones, where the
+tiles are packed close enough that several fill the screen.
 
 ## Layout of the code
 

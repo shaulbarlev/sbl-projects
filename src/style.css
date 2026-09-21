@@ -15,7 +15,8 @@
   box-sizing: border-box;
 }
 
-html {
+html,
+body {
   overscroll-behavior: none;
 }
 
@@ -188,6 +189,7 @@ iframe {
   z-index: 10;
 }
 .home-button {
+  touch-action: manipulation;
   top: max(1rem, env(safe-area-inset-top));
   left: max(1rem, env(safe-area-inset-left));
   padding: 0.25rem 0.5rem;
@@ -456,8 +458,30 @@ iframe {
 /* ---------- project: a page of its own on narrow screens ---------- */
 
 @media (max-width: 699px) {
+  .logo {
+    font-size: 2.9em;
+  }
+  .tagline span {
+    display: block;
+  }
+  .links {
+    gap: 0.625rem;
+  }
+  .hint {
+    margin-top: 1rem;
+  }
+  .tile span {
+    padding: 0.375rem 0.5rem;
+    font-size: 12px;
+  }
+  .home-button {
+    font-size: 1rem;
+  }
   .locator {
-    width: 112px;
+    width: 92px;
+  }
+  .readout {
+    font-size: 9px;
   }
 
   body.has-project .viewport,

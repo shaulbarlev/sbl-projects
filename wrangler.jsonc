@@ -1,0 +1,11 @@
+// Workers Builds deploys this repo: static assets only, no Worker script.
+// The name must match the Worker in the Cloudflare dashboard.
+{
+  "name": "sbl-projects",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "./dist",
+    // unknown paths get the map rather than a 404
+    "not_found_handling": "single-page-application"
+  }
+}
