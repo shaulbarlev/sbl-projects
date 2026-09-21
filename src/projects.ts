@@ -375,3 +375,10 @@ export const thumbUrl = (p: Project) => `/thumbs/${p.id}.jpg`
  * for the full-screen viewer, far too heavy for a grid cell on a phone.
  */
 export const displayUrl = (src: string) => `/m${src}.jpg`
+
+/** The pictures a project page shows, in page order: what is worth fetching before it opens. */
+export function displayPictures(p: Project): string[] {
+  const shown = (p.media ?? []).map((m) => (m.type === 'image' ? m.src : m.thumbnail))
+  const all = p.textFirst ? [p.asideImage?.src, ...shown] : [...shown, p.asideImage?.src]
+  return all.filter((src): src is string => src !== undefined).map(displayUrl)
+}

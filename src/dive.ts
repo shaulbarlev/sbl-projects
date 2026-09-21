@@ -14,6 +14,15 @@ const OPEN_MS = 360
 const CLOSE_MS = 300
 const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
 
+/**
+ * The picture's two tracks. Every keyframe list here ends at offset 1 on purpose:
+ * leave the end out and the browser supplies the element's own state there, and
+ * the picture flies back to where it started.
+ */
+const travel = (from: string, to: string): Keyframe[] => [{ transform: from }, { transform: to }]
+const FADE_AWAY: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0, offset: 0.9 }, { opacity: 0 }]
+const FADE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 1 }]
+
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
 
@@ -52,8 +61,9 @@ export async function diveIn(picture: HTMLImageElement | undefined, build: () =>
   finishNow = finish
 
   const timing = { duration: OPEN_MS, easing: EASE, fill: 'both' } as const
-  shell.animate({ opacity: [0, 1] }, timing)
-  await zoom.animate({ transform: [near, far], opacity: [1, 1, 0], offset: [0, 0.3, 0.9] }, timing).finished.catch(() => {})
+  shell.animate([{ opacity: 0 }, { opacity: 1 }], timing)
+  zoom.animate(FADE_AWAY, timing)
+  await zoom.animate(travel(near, far), timing).finished.catch(() => {})
   if (done) return
 
   // Build under cover: the shell's panel hides the page while it lays out and
@@ -65,7 +75,7 @@ export async function diveIn(picture: HTMLImageElement | undefined, build: () =>
   shell.querySelector('.pv-backdrop')?.remove()
   await frame()
   await frame()
-  await shell.animate({ opacity: [1, 0] }, { duration: 160, easing: 'ease-out', fill: 'both' }).finished.catch(() => {})
+  await shell.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'both' }).finished.catch(() => {})
   shell.remove()
 }
 
@@ -97,7 +107,8 @@ export async function diveOut(clear: () => void, find: () => HTMLImageElement | 
   finishNow = finish
 
   const timing = { duration: CLOSE_MS, easing: EASE, fill: 'both' } as const
-  cover.animate({ opacity: [1, 0] }, timing)
-  await zoom.animate({ transform: [far, near], opacity: [0, 1, 1], offset: [0, 0.6, 1] }, timing).finished.catch(() => {})
+  cover.animate([{ opacity: 1 }, { opacity: 0 }], timing)
+  zoom.animate(FADE_BACK, timing)
+  await zoom.animate(travel(far, near), timing).finished.catch(() => {})
   finish()
 }

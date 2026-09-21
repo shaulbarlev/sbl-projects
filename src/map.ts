@@ -33,6 +33,8 @@ export function createMap(opts: {
   label: (id: string) => string
   /** Called when home scrolls in or out of view */
   onHomeVisible: (visible: boolean) => void
+  /** Called once, the first time the visitor moves the map themselves */
+  onExplore: () => void
 }) {
   const { viewport, plane, minimap, readout, markers } = opts
   let world = opts.world
@@ -177,6 +179,13 @@ export function createMap(opts: {
     raf = requestAnimationFrame(tick)
   }
 
+  let explored = false
+  function exploring() {
+    if (explored) return
+    explored = true
+    opts.onExplore()
+  }
+
   function halt() {
     flight = null
     vx = vy = 0
@@ -234,6 +243,7 @@ export function createMap(opts: {
       travelled += Math.hypot(dx, dy)
       if (!dragged && travelled > DRAG_THRESHOLD) {
         dragged = true
+        exploring()
         // Capturing only once it is a drag keeps plain clicks landing on tiles.
         viewport.setPointerCapture(e.pointerId)
         viewport.classList.add('dragging')
@@ -252,6 +262,7 @@ export function createMap(opts: {
       const before = Math.hypot(prev.x - other.x, prev.y - other.y)
       const after = Math.hypot(p.x - other.x, p.y - other.y)
       dragged = true
+      exploring()
       cam.x -= (p.x - prev.x) / 2 / cam.z
       cam.y -= (p.y - prev.y) / 2 / cam.z
       if (before > 0) zoomAt((p.x + other.x) / 2, (p.y + other.y) / 2, after / before)
@@ -298,6 +309,7 @@ export function createMap(opts: {
     (e) => {
       e.preventDefault()
       halt()
+      exploring()
       const unit = e.deltaMode === 1 ? 16 : 1
       if (e.ctrlKey || e.metaKey) {
         // ctrl+wheel, which is also what a trackpad pinch sends
@@ -369,6 +381,7 @@ export function createMap(opts: {
     /** `ms` 0 cuts straight there, for when the map is not on screen */
     focus: (r: Rect, ms?: number) => flyTo({ ...centre(r), z: Math.max(cam.z, 0.8) }, ms),
     panBy(dx: number, dy: number) {
+      exploring()
       const from = flight?.to ?? cam
       flyTo({ x: from.x + dx / cam.z, y: from.y + dy / cam.z }, 200)
     },

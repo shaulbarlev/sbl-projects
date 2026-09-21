@@ -7,7 +7,7 @@ import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
 import { renderProject } from './project'
-import { PROJECTS, findProject, thumbUrl } from './projects'
+import { PROJECTS, displayPictures, findProject, thumbUrl, type Project } from './projects'
 
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -59,6 +59,8 @@ const map = createMap({
   world,
   label: (id) => findProject(id)?.title ?? id,
   onHomeVisible: (visible) => (homeButton.hidden = visible),
+  // The minimap stays out of the way until there is somewhere to have been.
+  onExplore: () => document.body.classList.add('explored'),
 })
 
 narrow.addEventListener('change', () => {
@@ -90,6 +92,31 @@ for (const project of PROJECTS) {
   tiles.set(project.id, a)
   plane.append(a)
 }
+// --- warming up: a project's pictures are fetched before it is opened, so the
+// page arrives with them. The first screenful when its tile scrolls into view,
+// the rest the moment a finger lands on the tile.
+const warmed = new Set<string>()
+function warm(project: Project, count: number) {
+  for (const src of displayPictures(project).slice(0, count)) {
+    if (warmed.has(src)) continue
+    warmed.add(src)
+    new Image().src = src
+  }
+}
+const onScreen = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    const project = e.isIntersecting && findProject((e.target as HTMLElement).dataset.project ?? '')
+    if (project) warm(project, 3)
+  }
+})
+for (const project of PROJECTS) {
+  const a = tiles.get(project.id)!
+  a.dataset.project = project.id
+  a.addEventListener('pointerdown', () => warm(project, Infinity))
+}
+// Not during the opening, whose wide shot has every tile on screen at once.
+setTimeout(() => tiles.forEach((a) => a.dataset.project && onScreen.observe(a)), 2500)
+
 // Tabbing to a tile that is off screen brings it into view.
 tiles.forEach((a, id) =>
   a.addEventListener('focus', () => {
