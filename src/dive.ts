@@ -22,14 +22,17 @@ const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
 const travel = (from: string, to: string): Keyframe[] => [{ transform: from }, { transform: to }]
 /*
  * The fades run on linear time, not on the zoom's easing: an ease-out is nearly
- * done by half time, so a fade sharing it goes dark while the zoom is still
- * moving. Opening, the picture holds until the zoom has all but arrived and only
- * then dissolves into the panel; closing, it is back early and lands in plain sight.
+ * done by half time, so a fade sharing it goes dark while the zoom is still moving.
+ *
+ * And the two layers are never see-through at the same moment, or the map shows
+ * between them. Opening: the panel sits under the picture and is solid by the
+ * time the picture, by then covering the screen, starts to dissolve into it.
+ * Closing: the picture is solid before the panel starts to clear around it.
  */
 const PICTURE_AWAY: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }]
-const PANEL_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1 }]
-const PICTURE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.35 }, { opacity: 1 }]
-const PANEL_OUT: Keyframe[] = [{ opacity: 1 }, { opacity: 0, offset: 0.6 }, { opacity: 0 }]
+const PANEL_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 0, offset: 0.2 }, { opacity: 1, offset: 0.6 }, { opacity: 1 }]
+const PICTURE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1 }]
+const PANEL_OUT: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0, offset: 0.75 }, { opacity: 0 }]
 
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
