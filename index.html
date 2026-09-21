@@ -2,8 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Shaul Bar Lev — electronics &amp; IoT projects</title>
     <meta name="description" content="Personal portfolio of electronics and IoT projects by Shaul Bar Lev: smart door lock, levitating bulb, Pac-Man controller, Comfy keyboard, ZigBee bell, WiFi shades, MIDI controller. DIY, ESP32, ESPHome, Home Assistant." />
     <!-- Open Graph / WhatsApp / Facebook -->
@@ -20,9 +19,37 @@
     <meta name="twitter:title" content="Shaul builds things" />
     <meta name="twitter:description" content="I take things and add wifi to them" />
     <meta name="twitter:image" content="https://shaulb.com/og-image.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght,ROND@100..900,100&display=swap" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main id="map" class="viewport" aria-label="Map of projects. Drag to explore.">
+      <div id="plane" class="plane">
+        <section id="home" class="home">
+          <h1 id="logo" class="logo">shaul<br />bar-lev</h1>
+          <p class="tagline">
+            <span>electronics &amp; iot</span>
+            <a href="https://shaulbarlev.com" target="_blank" rel="noreferrer">film &amp; art projects</a>
+          </p>
+          <nav class="links" aria-label="Contact">
+            <a href="https://www.instagram.com/barlevshaul" target="_blank" rel="noreferrer" aria-label="Instagram"><i class="hn hn-instagram" aria-hidden="true"></i></a>
+            <a href="https://www.linkedin.com/in/shaul-bar-lev/" target="_blank" rel="noreferrer" aria-label="LinkedIn"><i class="hn hn-linkedin" aria-hidden="true"></i></a>
+            <a href="mailto:shaulbarlev1@gmail.com" aria-label="Email"><i class="hn hn-envelope" aria-hidden="true"></i></a>
+            <a href="/shaul-bar-lev-cv.pdf" target="_blank" rel="noreferrer" class="cv"><i class="hn hn-paperclip" aria-hidden="true"></i><span>See my CV</span></a>
+          </nav>
+          <p class="hint">drag to explore</p>
+        </section>
+      </div>
+    </main>
+
+    <button id="home-button" class="hud home-button" type="button" hidden>shaul bar-lev</button>
+    <div class="hud locator">
+      <div id="minimap" class="minimap" aria-hidden="true"></div>
+      <div id="readout" class="readout" aria-hidden="true"></div>
+    </div>
+
+    <div id="project"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
