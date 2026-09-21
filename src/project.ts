@@ -80,9 +80,9 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
       { controls: true, preload: item === firstVideo || !item.thumbnail ? 'metadata' : 'none', playsinline: true, poster: item.thumbnail && displayUrl(item.thumbnail) },
       h('source', { src: item.src, type: 'video/mp4' }),
     )
-    // Set as properties: the muted attribute is ignored on script-created videos.
+    // Set as a property: the muted attribute is ignored on script-created videos.
+    // The first video is the one main.ts starts by itself, so it has to be silent.
     video.muted = item === firstVideo || project.muteAll === true
-    video.autoplay = item === firstVideo
     return h('div', { class: cls }, video)
   })
 

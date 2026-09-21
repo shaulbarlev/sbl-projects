@@ -348,8 +348,6 @@ export function createMap(opts: {
 
   function resize() {
     const b = viewport.getBoundingClientRect()
-    // Hidden (a project page is showing on mobile): keep the last known size.
-    if (b.width === 0) return
     vw = b.width
     vh = b.height
     render()
@@ -369,8 +367,6 @@ export function createMap(opts: {
       render()
     },
     markSeen,
-    /** Measure and draw now, rather than when the browser next reports a resize */
-    refresh: resize,
     /** Cut to a view of the whole world, as far as the zoom range allows */
     overview() {
       halt()

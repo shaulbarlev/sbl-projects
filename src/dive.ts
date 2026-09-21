@@ -1,125 +1,76 @@
 import { h } from './dom'
 
 /**
- * The move between a tile and its project: the tile's picture zooms to fill the
- * screen and dissolves into the project's empty panel, or the reverse.
+ * The move between a tile and its project: the tile's picture grows until it
+ * covers the project's panel and the project fades in over it, or the reverse.
  *
- * Only transform and opacity are animated, on screen-sized layers at most, and
- * the project itself is built while an opaque panel covers it — never during
- * the zoom. That is what keeps this smooth on a phone, where the project is a
- * page many screens long with videos in it.
+ * The project is a fixed, screen-sized layer with its scrolling inside, and the
+ * map stays put underneath it. So all that is animated is a transform on the
+ * picture and an opacity on that layer, never anything as tall as the page.
+ * The picture is opaque from start to finish: once it covers the screen, the
+ * map cannot show through the half-faded project.
  */
 
-const OPEN_MS = 400
-const CLOSE_MS = 300
+const MS = 320
 const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
 
-/**
- * The picture's two tracks. Every keyframe list here ends at offset 1 on purpose:
- * leave the end out and the browser supplies the element's own state there, and
- * the picture flies back to where it started.
- */
-const travel = (from: string, to: string): Keyframe[] => [{ transform: from }, { transform: to }]
-/*
- * The fades run on linear time, not on the zoom's easing: an ease-out is nearly
- * done by half time, so a fade sharing it goes dark while the zoom is still moving.
- *
- * And the two layers are never see-through at the same moment, or the map shows
- * between them. Opening: the panel sits under the picture and is solid by the
- * time the picture, by then covering the screen, starts to dissolve into it.
- * Closing: the picture is solid before the panel starts to clear around it.
- */
-const PICTURE_AWAY: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }]
-const PANEL_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 0, offset: 0.2 }, { opacity: 1, offset: 0.6 }, { opacity: 1 }]
-const PICTURE_BACK: Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1 }]
-const PANEL_OUT: Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0, offset: 0.75 }, { opacity: 0 }]
+const still = matchMedia('(prefers-reduced-motion: reduce)')
 
-const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
-const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
+/** Ends the dive in progress, so that a second one never stacks on it. */
+let settle = () => {}
 
-/** Ends the dive in progress, if any, so a second one never stacks on it. */
-let finishNow: (() => void) | null = null
+function dive(picture: HTMLImageElement | undefined, opening: boolean, done: () => void) {
+  const page = document.querySelector<HTMLElement>('.pv')
+  if (!picture || !page || still.matches) return done()
 
-function stage(picture: HTMLImageElement) {
   const from = picture.getBoundingClientRect()
-  // The project's own skeleton, so the panel that fades in is exactly where the real one will be.
-  const shell = h('div', { class: 'pv shell' }, h('div', { class: 'pv-backdrop' }), h('article', { class: 'pv-panel' }))
-  const zoom = h('img', { class: 'dive', src: picture.currentSrc || picture.src, alt: '' })
+  const to = page.querySelector('.pv-panel')!.getBoundingClientRect()
+  // A phone's page is covered edge to edge. A modal has the map showing around it, so there the picture stays inside.
+  const scale = (to.width < innerWidth ? Math.min : Math.max)(to.width, to.height) / from.width
+  const dx = to.left + to.width / 2 - (from.left + from.width / 2)
+  const dy = to.top + to.height / 2 - (from.top + from.height / 2)
+
+  const zoom = h('img', { class: 'dive', src: picture.src, alt: '', decoding: 'sync' })
   Object.assign(zoom.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` })
-  // Centred on the screen and big enough to cover it
-  const scale = Math.max(innerWidth, innerHeight) / from.width
-  const dx = innerWidth / 2 - (from.left + from.width / 2)
-  const dy = innerHeight / 2 - (from.top + from.height / 2)
-  return { shell, zoom, near: 'translate(0px, 0px) scale(1)', far: `translate(${dx}px, ${dy}px) scale(${scale})` }
+  page.before(zoom)
+  page.classList.add('diving')
+
+  // One clock for both layers. The curve sits on the picture's moving keyframe alone: as the timing's easing it
+  // would bend the fade too, and have it over before the picture arrives. And every list ends at offset 1: left
+  // out, that end is the element's own state, and the picture flies back.
+  const timing = { duration: MS, fill: 'both' } as const
+  const near = 'none'
+  const far = `translate(${dx}px, ${dy}px) scale(${scale})`
+  const moves = opening
+    ? [
+        zoom.animate([{ transform: near, easing: EASE }, { transform: far, offset: 0.85 }, { transform: far }], timing),
+        page.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], timing),
+      ]
+    : [
+        zoom.animate([{ transform: far }, { transform: far, offset: 0.2, easing: EASE }, { transform: near }], timing),
+        page.animate([{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }], timing),
+      ]
+  const finish = () => {
+    settle = () => {}
+    for (const move of moves) move.cancel()
+    zoom.remove()
+    page.classList.remove('diving')
+    done()
+  }
+  settle = finish
+  // A cancelled move rejects, and has been finished already.
+  Promise.all(moves.map((move) => move.finished)).then(finish, () => {})
 }
 
-/** Tile → project. `build` puts the project on the page. */
-export async function diveIn(picture: HTMLImageElement | undefined, build: () => void) {
-  finishNow?.()
-  if (!picture || still()) return build()
-
-  const { shell, zoom, near, far } = stage(picture)
-  document.body.append(shell, zoom)
-  let done = false
-  const finish = () => {
-    if (done) return
-    done = true
-    finishNow = null
-    build()
-    shell.remove()
-    zoom.remove()
-  }
-  finishNow = finish
-
-  const timing = { duration: OPEN_MS, easing: EASE, fill: 'both' } as const
-  shell.animate(PANEL_IN, { ...timing, easing: 'linear' })
-  zoom.animate(PICTURE_AWAY, { ...timing, easing: 'linear' })
-  await zoom.animate(travel(near, far), timing).finished.catch(() => {})
-  if (done) return
-
-  // Build under cover: the shell's panel hides the page while it lays out and
-  // first paints, then fades away. Its backdrop goes at once, as the real one is there now.
-  done = true
-  finishNow = null
+/** Tile → project. `build` puts the project on the page; `arrived` is called once it is in full view. */
+export function diveIn(picture: HTMLImageElement | undefined, build: () => void, arrived: () => void) {
+  settle()
   build()
-  zoom.remove()
-  shell.querySelector('.pv-backdrop')?.remove()
-  await frame()
-  await frame()
-  await shell.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'both' }).finished.catch(() => {})
-  shell.remove()
+  dive(picture, true, arrived)
 }
 
-/** Project → tile. `clear` takes the project off the page; `find` then locates the tile's picture on the map. */
-export async function diveOut(clear: () => void, find: () => HTMLImageElement | undefined) {
-  finishNow?.()
-  if (still()) return clear()
-
-  // Cover first, so the map can come back underneath unseen.
-  const cover = h('div', { class: 'pv shell' }, h('div', { class: 'pv-backdrop' }), h('article', { class: 'pv-panel' }))
-  document.body.append(cover)
-  clear()
-  const picture = find()
-  if (!picture) {
-    cover.remove()
-    return
-  }
-
-  const { zoom, near, far } = stage(picture)
-  document.body.append(zoom)
-  let done = false
-  const finish = () => {
-    if (done) return
-    done = true
-    finishNow = null
-    cover.remove()
-    zoom.remove()
-  }
-  finishNow = finish
-
-  const timing = { duration: CLOSE_MS, easing: EASE, fill: 'both' } as const
-  cover.animate(PANEL_OUT, { ...timing, easing: 'linear' })
-  zoom.animate(PICTURE_BACK, { ...timing, easing: 'linear' })
-  await zoom.animate(travel(far, near), timing).finished.catch(() => {})
-  finish()
+/** Project → tile, or with no picture just the switch. `clear` takes the project off the page. */
+export function diveOut(picture: HTMLImageElement | undefined, clear: () => void) {
+  settle()
+  dive(picture, false, clear)
 }

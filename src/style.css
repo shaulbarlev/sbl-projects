@@ -628,27 +628,17 @@ iframe {
     font-size: 9px;
   }
 
-  body.has-project .viewport,
-  body.has-project .hud {
-    display: none;
-  }
   .pv {
-    position: static;
     padding: 0;
   }
   .pv-backdrop {
     display: none;
   }
   .pv-panel {
-    height: auto;
-    min-height: 100dvh;
     border: 0;
     box-shadow: none;
   }
   .pv-head {
-    position: sticky;
-    top: 0;
-    z-index: 1;
     flex-wrap: wrap;
     padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
     background: var(--bg);
@@ -662,7 +652,6 @@ iframe {
     display: none;
   }
   .pv-body {
-    overflow: visible;
     padding: 1rem 1rem max(1.5rem, env(safe-area-inset-bottom));
   }
   .pv-body.text-first .pv-text {
@@ -727,23 +716,14 @@ iframe {
 
 /* ---------- the dive between a tile and its project (dive.ts) ---------- */
 
-.pv.shell {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-  will-change: opacity;
-}
-.shell .pv-panel {
-  height: 100%;
-  min-height: 0;
-}
 .dive {
   position: fixed;
-  z-index: 61;
+  z-index: 49; /* over the map, under the project */
   max-width: none;
   object-fit: cover;
   pointer-events: none;
-  transform-origin: center;
-  will-change: transform, opacity;
+}
+/* The project swallows taps itself meanwhile: the second of a double tap reaches neither its buttons nor the map. */
+.pv.diving > * {
+  pointer-events: none;
 }

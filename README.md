@@ -16,7 +16,7 @@ over a 2D plane you explore like a map.
   rubber-bands. The first visit of a session opens on the whole field while the
   tiles scatter out from the logo.
 - **Projects**: every project has its own URL, `/<id>/`. On wide screens it
-  opens as a modal over the map, on narrow ones it is a page of its own with a
+  opens as a modal over the map, on narrow ones it covers the map whole, with a
   back link. `/pikud` is an extra entry for Pikud HaoLED with its own share card.
 - Vite + TypeScript, no framework. Deployed by Cloudflare Workers Builds as static
   assets (`wrangler.jsonc`): `npm run build`, output `dist`.
@@ -40,6 +40,6 @@ tiles are packed close enough that several fill the screen.
 | `src/layout.ts` | scatters the tiles, sizes the world |
 | `src/map.ts` | camera, drag / pinch / wheel input, inertia, rubber-band edges, minimap, edge markers |
 | `src/project.ts` | project view (modal or page), `src/lightbox.ts` image viewer |
-| `src/dive.ts` | the zoom between a tile and its project (transform and opacity only) |
+| `src/dive.ts` | the zoom between a tile and its project: a transform on the tile's picture, an opacity on the project |
 | `src/main.ts` | wiring, routing, the opening sequence, seen state |
 | `vite.config.ts` | also writes `dist/<id>/index.html` per project, so project URLs work on any static host and share with their own title and image |

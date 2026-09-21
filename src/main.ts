@@ -87,7 +87,7 @@ for (const project of PROJECTS) {
     e.preventDefault()
     opener = a
     history.pushState({ fromMap: true }, '', a.href)
-    diveIn(picture(project.id), sync)
+    diveIn(picture(project.id), () => sync(false), playFirst)
   })
   tiles.set(project.id, a)
   plane.append(a)
@@ -147,7 +147,10 @@ const projectRoot = $('project')
 let current: string | null = null
 const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
 
-function sync() {
+// In place of autoplay, so that a dive can hold it back: a decoder starting up under the zoom costs it frames.
+const playFirst = () => void projectRoot.querySelector('video')?.play().catch(() => {})
+
+function sync(play = true) {
   const project = findProject(slugNow())
   closeLightbox()
   projectRoot.replaceChildren()
@@ -166,9 +169,9 @@ function sync() {
       sync()
     })
     projectRoot.append(view)
-    window.scrollTo(0, 0)
     view.querySelector<HTMLElement>('.pv-panel')?.focus()
     markSeen(project.id)
+    if (play) playFirst()
     // A tapped tile leaves the map exactly as it was, so closing returns to the
     // same view. Only when the project was reached some other way (a direct link,
     // previous / next) is the map brought to it, so that closing lands where it
@@ -184,29 +187,18 @@ function sync() {
 
 const picture = (id: string | null) => (id ? tiles.get(id)?.querySelector('img') ?? undefined : undefined)
 
-/** Back to the map from whatever project is showing, its picture shrinking back into its tile. */
-function leave() {
-  const from = current
-  diveOut(sync, () => {
-    // On a phone the map was hidden behind the page: have it measure itself before the tile is located.
-    map.refresh()
-    return current === null ? picture(from) : undefined
-  })
-}
-
 function closeProject() {
   if (history.state?.fromMap) history.back()
   else {
     // Arrived by direct link: there is no map entry to go back to.
     history.replaceState(null, '', '/')
-    leave()
+    diveOut(picture(current), sync)
   }
 }
 
 window.addEventListener('popstate', (e) => {
-  // A back swipe on iOS is animated by the browser already; and only leaving a project is a dive.
-  if (e.hasUAVisualTransition || current === null) sync()
-  else leave()
+  // A back swipe on iOS is animated by the browser already; and only leaving a project has a picture to follow.
+  diveOut(e.hasUAVisualTransition ? undefined : picture(current), sync)
 })
 
 window.addEventListener('keydown', (e) => {
