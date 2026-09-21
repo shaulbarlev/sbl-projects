@@ -35,20 +35,21 @@ export const WIDE: Profile = {
   ring: 250,
   spread: 190,
   aspect: 1.35,
-  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315] },
+  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315, 0] },
 }
 
 export const NARROW: Profile = {
   sizes: [240, 180, 210, 170, 230, 190],
-  home: { w: 250, h: 200 },
+  home: { w: 250, h: 178 },
   label: 44,
   gap: 24,
   margin: 120,
   ring: 170,
   spread: 150,
   aspect: 0.8,
-  // steeper than the corners, so that all four fit across a phone with the wordmark
-  link: { size: 72, label: 0, gap: 18, angles: [64, 116, 244, 296] },
+  // chosen so that all five fit across a phone with the wordmark: two above, and
+  // below it two fanned out wide with the fifth between them, straight down
+  link: { size: 72, label: 0, gap: 18, angles: [48, 132, 244, 296, 90] },
 }
 
 function mulberry32(seed: number) {
