@@ -14,13 +14,29 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 // --- the map: phones get their own, denser layout
 const narrow = matchMedia('(max-width: 699px)')
-const layout = () => scatter(PROJECTS.map((p) => p.id), narrow.matches ? NARROW : WIDE)
-let world = layout()
-
 const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
 const tiles = new Map<string, HTMLAnchorElement>()
+
+// The contact links are written in the page under the wordmark, and become the
+// small tiles nearest to it.
+const links = [...document.querySelectorAll<HTMLAnchorElement>('.links a')]
+for (const a of links) {
+  a.classList.add('tile', 'link')
+  tiles.set(a.dataset.id!, a)
+  plane.append(a)
+}
+document.querySelector('.links')?.remove()
+
+const layout = () =>
+  scatter(
+    PROJECTS.map((p) => p.id),
+    links.map((a) => a.dataset.id!),
+    narrow.matches ? NARROW : WIDE,
+  )
+let world = layout()
+const placed = () => [...world.links, ...world.tiles]
 
 function place() {
   plane.style.width = `${world.w}px`
@@ -28,7 +44,7 @@ function place() {
   homeEl.style.left = `${world.home.x}px`
   homeEl.style.top = `${world.home.y}px`
   homeEl.style.width = `${world.home.w}px`
-  for (const t of world.tiles) {
+  for (const t of placed()) {
     const a = tiles.get(t.id)
     if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px` })
   }
@@ -71,14 +87,16 @@ for (const project of PROJECTS) {
     history.pushState({ fromMap: true }, '', a.href)
     diveIn(picture(project.id), sync)
   })
-  // Tabbing to a tile that is off screen brings it into view.
-  a.addEventListener('focus', () => {
-    const tile = world.tiles.find((t) => t.id === project.id)
-    if (tabbing && tile) map.focus(tile)
-  })
   tiles.set(project.id, a)
   plane.append(a)
 }
+// Tabbing to a tile that is off screen brings it into view.
+tiles.forEach((a, id) =>
+  a.addEventListener('focus', () => {
+    const tile = placed().find((t) => t.id === id)
+    if (tabbing && tile) map.focus(tile)
+  }),
+)
 place()
 
 homeButton.addEventListener('click', () => map.goHome())
@@ -202,7 +220,7 @@ adoptLegacyHash()
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
 if (current === null && !calm && !sessionStorage.getItem('intro')) {
   sessionStorage.setItem('intro', '1')
-  world.tiles.forEach((t, i) => {
+  placed().forEach((t, i) => {
     const a = tiles.get(t.id)!
     a.style.setProperty('--dx', `${world.home.x + world.home.w / 2 - (t.x + t.w / 2)}px`)
     a.style.setProperty('--dy', `${world.home.y + world.home.h / 2 - (t.y + t.h / 2)}px`)

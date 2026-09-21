@@ -91,7 +91,7 @@ export function createMap(opts: {
     }
     for (const id of seen) markSeen(id)
     minimap.style.aspectRatio = `${world.w} / ${world.h}`
-    minimap.replaceChildren(dot(world.home, 'mm-home'), ...dots.values(), frame)
+    minimap.replaceChildren(dot(world.home, 'mm-home'), ...world.links.map((t) => dot(t, 'mm-link')), ...dots.values(), frame)
     markers.replaceChildren(...pointersTo.values())
   }
 
