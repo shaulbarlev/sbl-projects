@@ -4,6 +4,13 @@ const MIN_ZOOM = 0.4
 const MAX_ZOOM = 2
 /** Pointer travel (px) before a press counts as a drag rather than a click */
 const DRAG_THRESHOLD = 6
+/** How much of a drag gets through once the view is past the edge of the world */
+const RUBBER = 0.35
+/** Grid pitch in world px, and how much slower than the tiles it moves (it reads as further away) */
+const GRID = 120
+const GRID_DEPTH = 0.85
+/** Distance of the edge markers from the edge of the screen */
+const MARKER_INSET = 14
 
 type Camera = { x: number; y: number; z: number }
 
@@ -19,16 +26,21 @@ export function createMap(opts: {
   plane: HTMLElement
   minimap: HTMLElement
   readout: HTMLElement
+  /** Holds the markers that point at tiles off screen */
+  markers: HTMLElement
   world: World
+  /** Accessible name for a tile's marker */
+  label: (id: string) => string
   /** Called when home scrolls in or out of view */
   onHomeVisible: (visible: boolean) => void
 }) {
-  const { viewport, plane, minimap, readout } = opts
+  const { viewport, plane, minimap, readout, markers } = opts
   let world = opts.world
   let home = centre(world.home)
   const cam: Camera = { ...home, z: 1 }
   let vw = 0
   let vh = 0
+  const seen = new Set<string>()
 
   // --- animation state: either coasting on velocity, or flying to a target
   let vx = 0
@@ -37,10 +49,25 @@ export function createMap(opts: {
   let raf = 0
   let last = 0
 
-  // --- minimap
+  /** The camera pulled back inside the world; where the world is the smaller one, centred on it. */
+  function bounded(c: Camera): Camera {
+    const z = clamp(c.z, MIN_ZOOM, MAX_ZOOM)
+    const halfW = vw / z / 2
+    const halfH = vh / z / 2
+    return {
+      x: world.w > halfW * 2 ? clamp(c.x, halfW, world.w - halfW) : world.w / 2,
+      y: world.h > halfH * 2 ? clamp(c.y, halfH, world.h - halfH) : world.h / 2,
+      z,
+    }
+  }
+
+  // --- minimap dots and edge markers, one of each per tile
   const frame = document.createElement('div')
   frame.className = 'mm-view'
-  function drawMinimap() {
+  const dots = new Map<string, HTMLElement>()
+  const pointersTo = new Map<string, HTMLElement>()
+
+  function drawOverlays() {
     const dot = (r: Rect, cls: string) => {
       const d = document.createElement('div')
       d.className = cls
@@ -50,32 +77,68 @@ export function createMap(opts: {
       d.style.height = `${(r.h / world.h) * 100}%`
       return d
     }
+    dots.clear()
+    pointersTo.clear()
+    for (const t of world.tiles) {
+      dots.set(t.id, dot(t, 'mm-tile'))
+      const m = document.createElement('button')
+      m.type = 'button'
+      m.className = 'marker'
+      m.tabIndex = -1 // the tiles themselves are the tab stops
+      m.setAttribute('aria-label', `Go to ${opts.label(t.id)}`)
+      m.addEventListener('click', () => flyTo(centre(t), 600))
+      pointersTo.set(t.id, m)
+    }
+    for (const id of seen) markSeen(id)
     minimap.style.aspectRatio = `${world.w} / ${world.h}`
-    minimap.replaceChildren(dot(world.home, 'mm-home'), ...world.tiles.map((t) => dot(t, 'mm-tile')), frame)
+    minimap.replaceChildren(dot(world.home, 'mm-home'), ...dots.values(), frame)
+    markers.replaceChildren(...pointersTo.values())
   }
-  drawMinimap()
 
-  function render() {
+  function markSeen(id: string) {
+    seen.add(id)
+    dots.get(id)?.classList.add('seen')
+    pointersTo.get(id)?.classList.add('seen')
+  }
+
+  /** `soft` leaves the camera where it is even if that is past the edge (mid-drag, or springing back). */
+  function render(soft = false) {
+    if (!soft) Object.assign(cam, bounded(cam))
     cam.z = clamp(cam.z, MIN_ZOOM, MAX_ZOOM)
-    // Keep the view inside the world; where the world is the smaller one, centre it.
-    const halfW = vw / cam.z / 2
-    const halfH = vh / cam.z / 2
-    cam.x = world.w > halfW * 2 ? clamp(cam.x, halfW, world.w - halfW) : world.w / 2
-    cam.y = world.h > halfH * 2 ? clamp(cam.y, halfH, world.h - halfH) : world.h / 2
-    plane.style.transform = `translate(${vw / 2 - cam.x * cam.z}px, ${vh / 2 - cam.y * cam.z}px) scale(${cam.z})`
+    const tx = vw / 2 - cam.x * cam.z
+    const ty = vh / 2 - cam.y * cam.z
+    plane.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.z})`
+    viewport.style.backgroundSize = `${GRID * cam.z}px ${GRID * cam.z}px`
+    viewport.style.backgroundPosition = `${tx * GRID_DEPTH}px ${ty * GRID_DEPTH}px`
 
-    const w = halfW * 2
-    const h = halfH * 2
-    frame.style.left = `${((cam.x - w / 2) / world.w) * 100}%`
-    frame.style.top = `${((cam.y - h / 2) / world.h) * 100}%`
+    const w = vw / cam.z
+    const h = vh / cam.z
+    const left = cam.x - w / 2
+    const top = cam.y - h / 2
+    frame.style.left = `${(left / world.w) * 100}%`
+    frame.style.top = `${(top / world.h) * 100}%`
     frame.style.width = `${(w / world.w) * 100}%`
     frame.style.height = `${(h / world.h) * 100}%`
     readout.textContent = `x ${Math.round(cam.x - home.x)}  y ${Math.round(cam.y - home.y)}  ${Math.round(cam.z * 100)}%`
 
-    const r = world.home
-    opts.onHomeVisible(
-      r.x + r.w > cam.x - w / 2 && r.x < cam.x + w / 2 && r.y + r.h > cam.y - h / 2 && r.y < cam.y + h / 2,
-    )
+    const inView = (r: Rect) => r.x + r.w > left && r.x < left + w && r.y + r.h > top && r.y < top + h
+    opts.onHomeVisible(inView(world.home))
+
+    // A marker sits where the line from the middle of the screen to its tile leaves the screen.
+    for (const t of world.tiles) {
+      const m = pointersTo.get(t.id)
+      if (!m) continue
+      const hidden = inView(t) || vw === 0
+      m.hidden = hidden
+      if (hidden) continue
+      const c = centre(t)
+      const dx = (c.x - cam.x) * cam.z
+      const dy = (c.y - cam.y) * cam.z
+      const k = Math.min((vw / 2 - MARKER_INSET) / Math.abs(dx || 1), (vh / 2 - MARKER_INSET) / Math.abs(dy || 1))
+      m.style.transform = `translate(${vw / 2 + dx * k}px, ${vh / 2 + dy * k}px)`
+      // nearer tiles are brighter
+      m.style.opacity = String(clamp(1.15 - Math.hypot(dx, dy) / 1400, 0.3, 1))
+    }
   }
 
   function tick(now: number) {
@@ -97,9 +160,14 @@ export function createMap(opts: {
       const decay = Math.pow(touch ? 0.9975 : 0.995, dt)
       vx *= decay
       vy *= decay
+      // Coasting into an edge ends the glide on that axis.
+      const b = bounded(cam)
+      if (b.x !== cam.x) vx = 0
+      if (b.y !== cam.y) vy = 0
       busy = true
     }
-    render()
+    // A flight may start past the edge (springing back from a rubber-banded drag).
+    render(busy && flight !== null)
     raf = busy ? requestAnimationFrame(tick) : 0
   }
 
@@ -117,7 +185,7 @@ export function createMap(opts: {
   function flyTo(to: Partial<Camera>, ms = 450) {
     halt()
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) ms = 0
-    flight = { from: { ...cam }, to: { ...cam, ...to }, t0: performance.now(), ms: Math.max(1, ms) }
+    flight = { from: { ...cam }, to: bounded({ ...cam, ...to }), t0: performance.now(), ms: Math.max(1, ms) }
     run()
   }
 
@@ -171,8 +239,10 @@ export function createMap(opts: {
         viewport.classList.add('dragging')
       }
       if (!dragged) return
-      cam.x -= dx / cam.z
-      cam.y -= dy / cam.z
+      // Past the edge the world resists, and springs back on release.
+      const b = bounded(cam)
+      cam.x -= (dx / cam.z) * (b.x === cam.x ? 1 : RUBBER)
+      cam.y -= (dy / cam.z) * (b.y === cam.y ? 1 : RUBBER)
       const dt = Math.max(1, e.timeStamp - lastMove)
       vx = vx * 0.6 + (dx / dt) * 0.4
       vy = vy * 0.6 + (dy / dt) * 0.4
@@ -186,7 +256,7 @@ export function createMap(opts: {
       cam.y -= (p.y - prev.y) / 2 / cam.z
       if (before > 0) zoomAt((p.x + other.x) / 2, (p.y + other.y) / 2, after / before)
     }
-    render()
+    render(true)
   })
 
   const release = (e: PointerEvent) => {
@@ -196,6 +266,11 @@ export function createMap(opts: {
       return
     }
     viewport.classList.remove('dragging')
+    const b = bounded(cam)
+    if (b.x !== cam.x || b.y !== cam.y) {
+      flyTo(b, 350)
+      return
+    }
     // A pause before letting go means "stop here", not "throw".
     if (e.timeStamp - lastMove > 80) vx = vy = 0
     if (dragged) run()
@@ -268,6 +343,7 @@ export function createMap(opts: {
     render()
   }
   new ResizeObserver(resize).observe(viewport)
+  drawOverlays()
   resize()
 
   return {
@@ -275,13 +351,21 @@ export function createMap(opts: {
     setWorld(next: World) {
       world = next
       home = centre(world.home)
-      drawMinimap()
+      drawOverlays()
       halt()
       Object.assign(cam, home, { z: 1 })
       render()
     },
+    markSeen,
+    /** Cut to a view of the whole world, as far as the zoom range allows */
+    overview() {
+      halt()
+      Object.assign(cam, { x: world.w / 2, y: world.h / 2, z: Math.min(vw / world.w, vh / world.h, 1) })
+      render()
+    },
     goHome: (ms?: number) => flyTo({ ...home, z: 1 }, ms),
-    focus: (r: Rect) => flyTo(centre(r)),
+    /** `ms` 0 cuts straight there, for when the map is not on screen */
+    focus: (r: Rect, ms?: number) => flyTo({ ...centre(r), z: Math.max(cam.z, 0.8) }, ms),
     panBy(dx: number, dy: number) {
       const from = flight?.to ?? cam
       flyTo({ x: from.x + dx / cam.z, y: from.y + dy / cam.z }, 200)

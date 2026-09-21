@@ -6,6 +6,11 @@ over a 2D plane you explore like a map.
 - **Map**: drag, swipe or scroll to pan; pinch or ctrl+scroll to zoom; arrow
   keys, `+`/`-` and `0` (home) on a keyboard. The minimap in the corner shows
   the whole space and the region in view; press or drag on it to move there.
+- **Finding your way**: red marks what has not been opened yet, on the tiles, on
+  the minimap and on the small markers at the edge of the screen that point at
+  tiles out of view (tap one to fly there). Dragging past the edge of the world
+  rubber-bands. The first visit of a session opens on the whole field while the
+  tiles scatter out from the logo.
 - **Projects**: every project has its own URL, `/<id>/`. On wide screens it
   opens as a modal over the map, on narrow ones it is a page of its own with a
   back link. `/pikud` is an extra entry for Pikud HaoLED with its own share card.
@@ -28,7 +33,7 @@ tiles are packed close enough that several fill the screen.
 |---|---|
 | `src/projects.ts` | all content |
 | `src/layout.ts` | scatters the tiles, sizes the world |
-| `src/map.ts` | camera, drag / pinch / wheel input, inertia, minimap |
+| `src/map.ts` | camera, drag / pinch / wheel input, inertia, rubber-band edges, minimap, edge markers |
 | `src/project.ts` | project view (modal or page), `src/lightbox.ts` image viewer |
-| `src/main.ts` | wiring and routing |
+| `src/main.ts` | wiring, routing, the opening sequence, tile ↔ project view transitions, seen state |
 | `vite.config.ts` | also writes `dist/<id>/index.html` per project, so project URLs work on any static host and share with their own title and image |

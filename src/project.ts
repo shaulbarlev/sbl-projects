@@ -76,7 +76,8 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
     }
     const video = h(
       'video',
-      { controls: true, preload: 'metadata', playsinline: true, poster: item.thumbnail },
+      // With a poster to show, nothing is fetched until play: this is mostly read on phones.
+      { controls: true, preload: item === firstVideo || !item.thumbnail ? 'metadata' : 'none', playsinline: true, poster: item.thumbnail },
       h('source', { src: item.src, type: 'video/mp4' }),
     )
     // Set as properties: the muted attribute is ignored on script-created videos.
@@ -89,7 +90,12 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
 }
 
 /** The project view: a modal over the map on wide screens, a page of its own on narrow ones. */
-export function renderProject(project: Project, onClose: () => void): HTMLElement {
+export function renderProject(
+  project: Project,
+  around: { prev: Project; next: Project },
+  onClose: () => void,
+  onNavigate: (to: Project) => void,
+): HTMLElement {
   const { he, en } = splitByScript(project.description ?? '')
 
   const back = h('a', { class: 'pv-back', href: '/' }, '← map')
@@ -119,6 +125,22 @@ export function renderProject(project: Project, onClose: () => void): HTMLElemen
     en && h('div', { class: 'box prose' }, ...prose(en)),
   )
 
+  const step = (to: Project, cls: string, text: string) => {
+    const a = h('a', { class: cls, href: `/${to.id}/` }, h('small', {}, text), h('span', {}, to.title))
+    a.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return
+      e.preventDefault()
+      onNavigate(to)
+    })
+    return a
+  }
+  const more = h(
+    'nav',
+    { class: 'pv-more', 'aria-label': 'More projects' },
+    step(around.prev, 'pv-prev', '← previous'),
+    step(around.next, 'pv-next', 'next →'),
+  )
+
   return h(
     'div',
     { class: 'pv', role: 'dialog', 'aria-modal': 'true', 'aria-label': `${project.title} details` },
@@ -138,6 +160,7 @@ export function renderProject(project: Project, onClose: () => void): HTMLElemen
         { class: `pv-body${project.textFirst ? ' text-first' : ''}` },
         project.media?.length ? mediaGrid(project, project.media) : null,
         text,
+        more,
       ),
     ),
   )

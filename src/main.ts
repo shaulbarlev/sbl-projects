@@ -38,7 +38,9 @@ const map = createMap({
   plane,
   minimap: $('minimap'),
   readout: $('readout'),
+  markers: $('markers'),
   world,
+  label: (id) => findProject(id)?.title ?? id,
   onHomeVisible: (visible) => (homeButton.hidden = visible),
 })
 
@@ -58,7 +60,7 @@ for (const project of PROJECTS) {
   const a = h(
     'a',
     { class: 'tile', href: `/${project.id}/` },
-    h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false' }),
+    h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
     h('span', {}, project.title),
   )
   a.addEventListener('click', (e) => {
@@ -66,7 +68,7 @@ for (const project of PROJECTS) {
     e.preventDefault()
     opener = a
     history.pushState({ fromMap: true }, '', a.href)
-    sync()
+    morph(sync)
   })
   // Tabbing to a tile that is off screen brings it into view.
   a.addEventListener('focus', () => {
@@ -81,25 +83,75 @@ place()
 homeButton.addEventListener('click', () => map.goHome())
 animateLogo($('logo'))
 
+// --- what has been opened before: red marks the unexplored, on tiles, minimap and edge markers
+const SEEN_KEY = 'seen'
+const seen = new Set<string>(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]'))
+function markSeen(id: string) {
+  seen.add(id)
+  localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
+  tiles.get(id)?.classList.add('seen')
+  map.markSeen(id)
+}
+seen.forEach(markSeen)
+
 // --- routing: "/" is the map, "/<project>/" shows a project over (or instead of) it
 const projectRoot = $('project')
+let current: string | null = null
+const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
 
 function sync() {
-  const slug = location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
-  const project = findProject(slug)
+  const project = findProject(slugNow())
   closeLightbox()
   projectRoot.replaceChildren()
   document.body.classList.toggle('has-project', project !== undefined)
   document.title = project ? `${project.title} — shaul bar-lev` : SITE_TITLE
   if (project) {
-    const view = renderProject(project, closeProject)
+    const i = PROJECTS.indexOf(project)
+    const around = {
+      prev: PROJECTS[(i - 1 + PROJECTS.length) % PROJECTS.length],
+      next: PROJECTS[(i + 1) % PROJECTS.length],
+    }
+    const view = renderProject(project, around, closeProject, (to) => {
+      // Moving between projects replaces the entry, so back still returns to the map.
+      history.replaceState(history.state, '', `/${to.id}/`)
+      opener = null
+      morph(sync)
+    })
     projectRoot.append(view)
     window.scrollTo(0, 0)
     view.querySelector<HTMLElement>('.pv-panel')?.focus()
+    markSeen(project.id)
+    // Unless its tile was just clicked, bring the map to this project, so that
+    // closing it lands where it lives. Behind a phone's project page that is a cut.
+    const tile = world.tiles.find((t) => t.id === project.id)
+    if (tile && opener !== tiles.get(project.id)) map.focus(tile, narrow.matches ? 0 : undefined)
   } else {
     opener?.focus({ preventScroll: true })
     opener = null
   }
+  current = project?.id ?? null
+}
+
+/**
+ * Runs `update` as a view transition where the browser can: the tile grows into
+ * the project and shrinks back into its place on the map.
+ */
+function morph(update: () => void) {
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return update()
+  const name = (id: string | null | undefined, on: boolean) => {
+    const tile = id ? tiles.get(id) : undefined
+    if (tile) tile.style.viewTransitionName = on ? 'project' : ''
+  }
+  const from = current
+  // Opening from the map: the tile about to open carries the name into the transition.
+  if (from === null) name(findProject(slugNow())?.id, true)
+  const transition = document.startViewTransition(() => {
+    tiles.forEach((t) => (t.style.viewTransitionName = ''))
+    update()
+    // Closing: the panel is gone now, and its tile takes over the name.
+    if (current === null) name(from, true)
+  })
+  transition.finished.finally(() => tiles.forEach((t) => (t.style.viewTransitionName = '')))
 }
 
 function closeProject() {
@@ -107,11 +159,12 @@ function closeProject() {
   else {
     // Arrived by direct link: there is no map entry to go back to.
     history.replaceState(null, '', '/')
-    sync()
+    morph(sync)
   }
 }
 
-window.addEventListener('popstate', sync)
+// A back swipe on iOS is animated by the browser already.
+window.addEventListener('popstate', (e) => (e.hasUAVisualTransition ? sync() : morph(sync)))
 
 window.addEventListener('keydown', (e) => {
   // The image viewer has its own keys, and Esc there must not close the project too.
@@ -146,5 +199,30 @@ function adoptLegacyHash() {
 }
 window.addEventListener('hashchange', adoptLegacyHash)
 
-map.goHome(0)
 adoptLegacyHash()
+
+// --- opening: the whole field at a glance while the tiles scatter out from
+// home, then the camera pushes in. Once a session, and never over a project.
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
+if (current === null && !calm && !sessionStorage.getItem('intro')) {
+  sessionStorage.setItem('intro', '1')
+  world.tiles.forEach((t, i) => {
+    const a = tiles.get(t.id)!
+    a.style.setProperty('--dx', `${world.home.x + world.home.w / 2 - (t.x + t.w / 2)}px`)
+    a.style.setProperty('--dy', `${world.home.y + world.home.h / 2 - (t.y + t.h / 2)}px`)
+    a.style.setProperty('--i', String(i))
+  })
+  plane.classList.add('intro')
+  map.overview()
+  void plane.offsetWidth // commit the gathered state before it is released with a transition
+  plane.classList.add('intro-run')
+  plane.classList.remove('intro')
+  const pushIn = setTimeout(() => map.goHome(1100), 700)
+  setTimeout(() => plane.classList.remove('intro-run'), 1800)
+  // The visitor's first move wins over the choreography.
+  for (const type of ['pointerdown', 'wheel', 'keydown'] as const) {
+    window.addEventListener(type, () => clearTimeout(pushIn), { once: true, capture: true })
+  }
+} else if (current === null) {
+  map.goHome(0)
+}
