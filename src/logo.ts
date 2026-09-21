@@ -33,8 +33,8 @@ export function animateLogo(el: HTMLElement) {
         c.animate([{ fontWeight: 100 }, { fontWeight: 800 }], {
           duration: 50,
           delay: i * 70,
-          // 2s of blinking more than the original 23, at the same speed; odd, so it ends bold
-          iterations: 63,
+          // 1s of blinking more than the original 23, at the same speed; odd, so it ends bold
+          iterations: 43,
           direction: 'alternate',
           fill: 'forwards',
         }),
@@ -47,10 +47,11 @@ export function animateLogo(el: HTMLElement) {
           ],
           {
             duration: 2500,
-            delay: 3900 + i * 600,
+            delay: 2900 + i * 600,
             iterations: 31,
             direction: 'alternate',
-            easing: 'steps(9, end)',
+            // smooth, so the variable weight swells rather than ticks (the original's gsap default, power1.out)
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             fill: 'forwards',
           },
         ),

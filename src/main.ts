@@ -7,7 +7,8 @@ import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
 import { renderProject } from './project'
-import { PROJECTS, displayPictures, findProject, thumbUrl, type Project } from './projects'
+import { ISLANDS, PROJECTS, displayPictures, findProject, thumbUrl, type Project } from './projects'
+import { createReel } from './reel'
 
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -17,7 +18,7 @@ const narrow = matchMedia('(max-width: 699px)')
 const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
-const tiles = new Map<string, HTMLAnchorElement>()
+const tiles = new Map<string, HTMLElement>()
 
 // The contact links are written in the page under the wordmark, and become the
 // small tiles nearest to it.
@@ -29,14 +30,35 @@ for (const a of links) {
 }
 document.querySelector('.links')?.remove()
 
+// One of them is more than a link: the film & art tile opens into the reel where it stands.
+const reel = createReel(tiles.get('film') as HTMLAnchorElement, (at) => map.focus(at))
+tiles.set('film', reel.el)
+plane.append(reel.el)
+
+// Passive islands, out past the projects: a tap only brings one into view.
+for (const island of ISLANDS) {
+  const b = h(
+    'button',
+    { class: 'tile island', type: 'button', 'aria-label': island.alt },
+    h('img', { src: island.src, alt: '', width: island.w, height: island.h, draggable: 'false', decoding: 'async', loading: 'lazy' }),
+  )
+  b.addEventListener('click', () => {
+    const at = world.islands.find((t) => t.id === island.id)
+    if (at) map.focus(at)
+  })
+  tiles.set(island.id, b)
+  plane.append(b)
+}
+
 const layout = () =>
   scatter(
     PROJECTS.map((p) => p.id),
     links.map((a) => a.dataset.id!),
+    ISLANDS,
     narrow.matches ? NARROW : WIDE,
   )
 let world = layout()
-const placed = () => [...world.links, ...world.tiles]
+const placed = () => [...world.links, ...world.tiles, ...world.islands]
 
 function place() {
   plane.style.width = `${world.w}px`
@@ -48,6 +70,7 @@ function place() {
     const a = tiles.get(t.id)
     if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px` })
   }
+  reel.place(world.links.find((t) => t.id === 'film')!)
 }
 
 const map = createMap({
@@ -119,7 +142,7 @@ setTimeout(() => tiles.forEach((a) => a.dataset.project && onScreen.observe(a)),
 
 // Tabbing to a tile that is off screen brings it into view.
 tiles.forEach((a, id) =>
-  a.addEventListener('focus', () => {
+  a.addEventListener('focusin', () => {
     const tile = placed().find((t) => t.id === id)
     if (tabbing && tile) map.focus(tile)
   }),
@@ -210,6 +233,7 @@ window.addEventListener('keydown', (e) => {
   }
   const step = 180
   const keys: Record<string, () => void> = {
+    Escape: () => reel.close(),
     ArrowLeft: () => map.panBy(-step, 0),
     ArrowRight: () => map.panBy(step, 0),
     ArrowUp: () => map.panBy(0, -step),

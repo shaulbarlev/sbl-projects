@@ -382,3 +382,12 @@ export function displayPictures(p: Project): string[] {
   const all = p.textFirst ? [p.asideImage?.src, ...shown] : [...shown, p.asideImage?.src]
   return all.filter((src): src is string => src !== undefined).map(displayUrl)
 }
+
+/**
+ * Passive islands: pictures out on the edge of the map, there to be found.
+ * Tapping one only brings it into view. `w`/`h` are its size on a wide screen.
+ */
+export const ISLANDS = [{ id: 'me', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 }]
+
+/** The film & art reel. Streamed from the film site: at 70 MB it is over this host's 25 MiB limit per file. */
+export const REEL = { src: 'https://shaulbarlev.com/assets/reel-BR1LPv9C.mp4', poster: '/reel/poster.jpg' }

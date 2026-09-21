@@ -5,8 +5,10 @@
 
 export type Rect = { x: number; y: number; w: number; h: number }
 export type Tile = Rect & { id: string }
-/** `links` are the small contact tiles that hug home; `tiles` are the projects. */
-export type World = { w: number; h: number; home: Rect; links: Tile[]; tiles: Tile[] }
+/** `links` are the small tiles that hug home, `tiles` the projects, `islands` the passive pictures out past them. */
+export type World = { w: number; h: number; home: Rect; links: Tile[]; tiles: Tile[]; islands: Tile[] }
+/** A passive picture and its size on a wide screen */
+export type Island = { id: string; w: number; h: number }
 
 /** How loosely to scatter: phones get small tiles packed close, so several fill the screen. */
 export type Profile = {
@@ -22,6 +24,8 @@ export type Profile = {
   spread: number
   /** Horizontal stretch of the rings */
   aspect: number
+  /** Islands: how far past the outermost project they start, their clearance, and their size relative to a wide screen's */
+  island: { beyond: number; gap: number; scale: number }
   /** The contact tiles: small, and let in closer to home and to each other than projects are */
   link: { size: number; label: number; gap: number; /** directions from home, in degrees, clockwise from east */ angles: number[] }
 }
@@ -35,6 +39,7 @@ export const WIDE: Profile = {
   ring: 250,
   spread: 190,
   aspect: 1.35,
+  island: { beyond: 240, gap: 160, scale: 1 },
   link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315, 0] },
 }
 
@@ -47,6 +52,7 @@ export const NARROW: Profile = {
   ring: 170,
   spread: 150,
   aspect: 0.8,
+  island: { beyond: 130, gap: 70, scale: 0.72 },
   // chosen so that all five fit across a phone with the wordmark: two above, and
   // below it two fanned out wide with the fifth between them, straight down
   link: { size: 72, label: 0, gap: 18, angles: [48, 132, 244, 296, 90] },
@@ -70,8 +76,8 @@ function overlaps(a: Rect, b: Rect, gap: number) {
   )
 }
 
-export function scatter(ids: string[], linkIds: string[], profile: Profile, seed = 11): World {
-  const { sizes, label, gap, margin, ring, spread, aspect, link } = profile
+export function scatter(ids: string[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
+  const { sizes, label, gap, margin, ring, spread, aspect, link, island } = profile
   const rand = mulberry32(seed)
   // Placed around home at the origin; the world is fitted to the result below.
   const home: Rect = { x: -profile.home.w / 2, y: -profile.home.h / 2, ...profile.home }
@@ -118,11 +124,25 @@ export function scatter(ids: string[], linkIds: string[], profile: Profile, seed
     }
   })
 
+  // The outskirts: each island starts beyond the outermost project, in a direction of its own, and is pushed out until clear.
+  const reach = Math.max(0, ...tiles.map((t) => Math.hypot(t.x + t.w / 2, t.y + t.h / 2) + t.w / 2))
+  const islands = islandList.map(({ id, w, h }): Tile => {
+    const angle = rand() * Math.PI * 2
+    const size = { w: Math.round(w * island.scale), h: Math.round(h * island.scale) }
+    for (let r = reach + island.beyond; ; r += 6) {
+      const rect: Rect = { x: Math.round(Math.cos(angle) * r * aspect - size.w / 2), y: Math.round(Math.sin(angle) * r - size.h / 2), ...size }
+      if (!taken.some((t) => overlaps(rect, t, island.gap))) {
+        taken.push(rect)
+        return { id, ...rect }
+      }
+    }
+  })
+
   const left = Math.min(...taken.map((t) => t.x)) - margin
   const top = Math.min(...taken.map((t) => t.y)) - margin
   const right = Math.max(...taken.map((t) => t.x + t.w)) + margin
   const bottom = Math.max(...taken.map((t) => t.y + t.h)) + margin
   const shift = <T extends Rect>(r: T): T => ({ ...r, x: r.x - left, y: r.y - top })
 
-  return { w: right - left, h: bottom - top, home: shift(home), links: links.map(shift), tiles: tiles.map(shift) }
+  return { w: right - left, h: bottom - top, home: shift(home), links: links.map(shift), tiles: tiles.map(shift), islands: islands.map(shift) }
 }

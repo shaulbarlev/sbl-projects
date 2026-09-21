@@ -4,12 +4,18 @@ Source of [shaulb.com](https://shaulb.com): projects as square tiles scattered
 over a 2D plane you explore like a map.
 
 - **Map**: drag, swipe or scroll to pan; pinch or ctrl+scroll to zoom; arrow
-  keys, `+`/`-` and `0` (home) on a keyboard. The minimap in the corner shows
+  keys, `+`/`-` and `0` (home) on a keyboard. The minimap in the bottom-left corner shows
   the whole space and the region in view; press or drag on it to move there.
 - **Contact links** (Instagram, LinkedIn, email, and "CV" in a pixel font) and the link to the film &
   art site (three stacked rows of text) are scattered elements too:
   bare icons, no frame or label, in the ring nearest the wordmark. They are plain links in
   `index.html`; `main.ts` lifts them onto the map.
+- **The reel**: the "film & art projects" tile opens where it stands into a 16:9
+  player, four times as wide, and the map centres on it (`src/reel.ts`). The
+  video streams from shaulbarlev.com: at 70 MB it is over this host's 25 MiB
+  per-file limit.
+- **Passive islands**: pictures out past the projects, there to be found. A tap
+  only brings one into view. They are listed in `ISLANDS` in `src/projects.ts`.
 - **Finding your way**: red marks what has not been opened yet, on the tiles, on
   the minimap and on the small markers at the edge of the screen that point at
   tiles out of view (tap one to fly there). Dragging past the edge of the world
