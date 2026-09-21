@@ -35,7 +35,7 @@ export const WIDE: Profile = {
   ring: 250,
   spread: 190,
   aspect: 1.35,
-  link: { size: 104, label: 32, gap: 44, angles: [45, 135, 225, 315] },
+  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315] },
 }
 
 export const NARROW: Profile = {
@@ -48,7 +48,7 @@ export const NARROW: Profile = {
   spread: 150,
   aspect: 0.8,
   // steeper than the corners, so that all four fit across a phone with the wordmark
-  link: { size: 78, label: 28, gap: 18, angles: [64, 116, 244, 296] },
+  link: { size: 72, label: 0, gap: 18, angles: [64, 116, 244, 296] },
 }
 
 function mulberry32(seed: number) {

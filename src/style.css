@@ -184,10 +184,12 @@ iframe {
   line-height: 1.35;
 }
 
-/* the contact links: small tiles with an icon where a project has its picture */
+/* the contact links: bare icons, no frame and no visible label */
 .tile.link {
   container-type: inline-size;
   color: rgb(var(--red) / 0.75);
+  border: 0;
+  background: none;
 }
 .tile.link:hover {
   color: rgb(248 113 113);
@@ -196,15 +198,17 @@ iframe {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  font-size: 42cqw;
+  font-size: 58cqw;
 }
+/* the name stays for screen readers */
 .tile.link span {
-  justify-content: center;
-  padding: 0.25rem;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--dim);
-  border-top: 1px solid var(--line);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .tile.link span::after {
   content: none;

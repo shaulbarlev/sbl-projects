@@ -7,7 +7,7 @@ over a 2D plane you explore like a map.
   keys, `+`/`-` and `0` (home) on a keyboard. The minimap in the corner shows
   the whole space and the region in view; press or drag on it to move there.
 - **Contact links** (Instagram, LinkedIn, email, CV) are scattered elements too:
-  small icon tiles in the ring nearest the wordmark. They are plain links in
+  bare icons, no frame or label, in the ring nearest the wordmark. They are plain links in
   `index.html`; `main.ts` lifts them onto the map.
 - **Finding your way**: red marks what has not been opened yet, on the tiles, on
   the minimap and on the small markers at the edge of the screen that point at
