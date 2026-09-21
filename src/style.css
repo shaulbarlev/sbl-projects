@@ -127,6 +127,11 @@ iframe {
   font-size: 12px;
   color: rgb(255 255 255 / 0.35);
 }
+/* once the map has been moved, the invitation has done its job */
+.explored .hint {
+  opacity: 0;
+  transition: opacity 0.6s;
+}
 
 .tile {
   position: absolute;
