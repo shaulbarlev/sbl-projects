@@ -56,9 +56,10 @@ export default {
     const path = url.pathname;
 
     try {
-      // The other domains arrive here too (the site's Worker forwards them, and
-      // shaulbarlev.com is a custom domain of this one), each with a setting of its own.
-      if (DOMAINS.has(url.hostname)) return await handleDomain(request, env, url);
+      // The other domains are custom domains of this Worker too, each with a
+      // setting of its own; www. is the same domain.
+      const domain = url.hostname.replace(/^www\./, '');
+      if (DOMAINS.has(domain)) return await handleDomain(request, env, url, domain);
       if (path === '/_' || path.startsWith('/_/')) return await handleAdmin(request, env, url);
       if (path.startsWith('/f/')) return await serveFile(request, env, path);
       if (path === '/traffic' || path.startsWith('/traffic/')) {
@@ -316,9 +317,9 @@ const HOME_URL = 'https://sbl.cx';
  * by redirect); otherwise its visitors are sent on to the same path at sbl.cx.
  * Always 302: what a domain does is a setting, not a fact to be cached.
  */
-async function handleDomain(request: Request, env: Env, url: URL): Promise<Response> {
+async function handleDomain(request: Request, env: Env, url: URL, domain: string): Promise<Response> {
   const state = (await callState(env, 'get')) as State;
-  const slot = state.domains[url.hostname];
+  const slot = state.domains[domain];
   const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
   const target = slot && isServable(state, slot.target) ? slot.target : null;
   if (target?.kind === 'text' || target?.kind === 'traffic') {

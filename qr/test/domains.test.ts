@@ -39,6 +39,7 @@ describe('the other domains', () => {
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('https://sbl.cx/doorlock/?x=1');
     expect((await visit('https://shaulbarlev.com/')).headers.get('location')).toBe('https://sbl.cx/');
+    expect((await visit('https://www.shaulbarlev.com/x')).headers.get('location')).toBe('https://sbl.cx/x');
   });
 
   it('can each be pointed at a link, on their own, and cleared again', async () => {
