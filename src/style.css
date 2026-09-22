@@ -794,6 +794,7 @@ body.has-project .markers {
   display: none;
 }
 .tile.card .pv-panel {
+  position: static; /* so that the way back, absolute, is placed against the card itself */
   height: var(--panel);
   max-width: none;
   margin: 0;
@@ -875,5 +876,16 @@ body.has-project .markers {
   }
   .tile.card .pv-body {
     overflow: visible;
+  }
+  /* the way back sits on the cover picture, not under it */
+  .tile.card .pv-back {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 1;
+    flex-basis: auto;
+    padding: 0.25rem 0.5rem;
+    background: rgb(0 0 0 / 0.7);
+    border: 1px solid rgb(var(--red) / 0.5);
   }
 }
