@@ -376,6 +376,11 @@ export function createMap(opts: {
     goHome: (ms?: number) => flyTo({ ...home, z: 1 }, ms),
     /** `ms` 0 cuts straight there, for when the map is not on screen */
     focus: (r: Rect, ms?: number) => flyTo({ ...centre(r), z: Math.max(cam.z, 0.8) }, ms),
+    /** Fly to `r` at whatever zoom shows all of it, with `margin` screen px to spare on each side */
+    fit(r: Rect, margin = 20) {
+      const z = Math.min((vw - 2 * margin) / r.w, (vh - 2 * margin) / r.h)
+      flyTo({ ...centre(r), z: clamp(z, MIN_ZOOM, MAX_ZOOM) })
+    },
     panBy(dx: number, dy: number) {
       exploring()
       const from = flight?.to ?? cam

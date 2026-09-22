@@ -31,7 +31,7 @@ for (const a of links) {
 document.querySelector('.links')?.remove()
 
 // One of them is more than a link: the film & art tile opens into the reel where it stands.
-const reel = createReel(tiles.get('film') as HTMLAnchorElement, (at) => map.focus(at))
+const reel = createReel(tiles.get('film') as HTMLAnchorElement, (at) => map.fit(at))
 tiles.set('film', reel.el)
 plane.append(reel.el)
 

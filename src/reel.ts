@@ -9,7 +9,7 @@ const ASPECT = 16 / 9
 /**
  * The film & art tile opens in place into the reel: it grows about its own
  * centre into a 16:9 player, poster up and controls ready, and the map is
- * brought to it. Its link to the film site stays as the closed face, for
+ * brought to it at a zoom that shows the whole player. Its link to the film site stays as the closed face, for
  * opening in a new tab and for when there is no script.
  */
 export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) {
