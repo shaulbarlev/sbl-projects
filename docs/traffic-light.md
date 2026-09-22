@@ -132,8 +132,8 @@ that move a hop cost 330 ms and a tap 750 ms.
 ## The master switch
 
 `trafficEnabled` in the app state, flipped from the Home card or
-`POST /_/api/traffic {on}`. Off: `/traffic` and its socket resolve like any
-stray path, a sent traffic target is skipped like an empty image set so a temp
+`POST /_/api/traffic {on}`. Off: `/traffic` and its socket are the site's like
+any other path (the bare embedded copy stays up, dark), a sent traffic target is skipped like an empty image set so a temp
 pointing at it falls through to main, and a traffic step in a sequence is
 passed over rather than burned. On: the page is public. That is the point of a
 traffic light.

@@ -41,11 +41,25 @@ beforeEach(async () => {
 });
 
 describe('public redirect', () => {
-  it('302s to the fallback before anything is configured', async () => {
+  it('serves the site before anything is configured', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
     const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toContain('fallback.example.com');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /');
+  });
+
+  it('serves the site for every path that is not its own', async () => {
+    expect(await (await SELF.fetch(`${ORIGIN}/doorlock/`)).text()).toBe('the site /doorlock/');
+    expect(await (await SELF.fetch(`${ORIGIN}/assets/main.js`)).text()).toBe('the site /assets/main.js');
+  });
+
+  it('serves the site when the destination is the site itself, rather than hop there', async () => {
+    for (const site of ['https://sbl.cx/', 'https://shaulb.com/', 'https://fallback.example.com/']) {
+      await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main', target: { kind: 'url', url: site } }));
+      const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('the site /');
+    }
   });
 
   // A 301 would be cached near-permanently by the browser of every device that
@@ -82,12 +96,12 @@ describe('public redirect', () => {
     expect(response.headers.get('location')).toBe('https://temp.example.com/');
   });
 
-  it('resolves unknown paths rather than 404ing them', async () => {
+  it('leaves unknown paths to the site, whatever the QR points at', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/send`,
       authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
     const response = await SELF.fetch(`${ORIGIN}/some/mistyped/path`, { redirect: 'manual' });
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://main.example.com/');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /some/mistyped/path');
   });
 
   it('counts scans', async () => {

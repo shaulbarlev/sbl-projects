@@ -69,6 +69,8 @@ export default {
       if (path === '/traffic' || path.startsWith('/traffic/')) {
         return await handleTraffic(request, env, ctx, url);
       }
+      // The root is the QR's; every other path is the site's.
+      if (path !== '/' && env.SITE) return await env.SITE.fetch(request);
       return await handleRedirect(request, env, ctx, url);
     } catch (err) {
       console.error('unhandled', err);
@@ -192,6 +194,16 @@ async function handleRedirect(
 
   const destination = targetToUrl(served, url.origin);
 
+  // Nothing set, or set to the site itself: the site is here, not a hop away.
+  // (Which also means a destination of the site's old address cannot loop.)
+  if (env.SITE && (resolution.source === 'fallback' || isSite(destination, env.FALLBACK_URL))) {
+    const page = await env.SITE.fetch(request);
+    if (!claimCookie) return page;
+    const withClaim = new Response(page.body, page);
+    withClaim.headers.append('set-cookie', claimCookie);
+    return withClaim;
+  }
+
   if (state.splash && !isRobot) {
     headers.set('content-type', 'text/html; charset=utf-8');
     return new Response(
@@ -207,6 +219,17 @@ async function handleRedirect(
   // that ever scanned it, and there is no way to un-ring that bell.
   headers.set('location', destination);
   return new Response(null, { status: 302, headers });
+}
+
+/** The site's own addresses: the domain the QR lives on, the old ones, and the configured fallback. */
+const SITE_HOSTS = new Set(['sbl.cx', 'shaulb.com', 'www.shaulb.com', 'shaulbarlev.com', 'www.shaulbarlev.com']);
+function isSite(destination: string, fallbackUrl: string): boolean {
+  try {
+    const host = new URL(destination).hostname;
+    return SITE_HOSTS.has(host) || host === new URL(fallbackUrl).hostname;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -353,7 +376,7 @@ async function handleTraffic(
   // The embedded copy has nowhere to redirect to: switched off, it shows its
   // lamps dark (the socket is refused and polling reports the switch off).
   const bare = url.searchParams.has('bare');
-  if (!home.enabled && !bare) return handleRedirect(request, env, ctx, url);
+  if (!home.enabled && !bare) return env.SITE ? env.SITE.fetch(request) : handleRedirect(request, env, ctx, url);
 
   if (path === '/traffic' || path === '/traffic/') return html(renderTraffic(bare));
   if (path === '/traffic/state' && request.method === 'GET') return json(home);

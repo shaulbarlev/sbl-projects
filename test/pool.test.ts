@@ -181,8 +181,8 @@ describe('an empty or broken set never dead-ends a scan', () => {
       authed(cookie, { slot: 'main', target: { kind: 'pool', poolId } }));
 
     const response = await scan();
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toContain('fallback.example.com');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /');
   });
 
   /**

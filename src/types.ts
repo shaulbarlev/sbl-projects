@@ -153,4 +153,11 @@ export interface Env {
   API_TOKEN?: string;
   /** Optional. Bearer token the home agent connects with; unset means no agent. */
   AGENT_TOKEN?: string;
+  /**
+   * Optional. The site that lives at this domain (the sbl-projects Worker):
+   * served for every path that is not the QR's own, and at the root when no
+   * destination is set or the destination is the site itself. Unset, the root
+   * falls back to FALLBACK_URL as it always did.
+   */
+  SITE?: Fetcher;
 }

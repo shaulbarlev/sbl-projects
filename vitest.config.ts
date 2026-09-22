@@ -14,6 +14,10 @@ export default defineConfig({
           API_TOKEN: 'test-token',
           AGENT_TOKEN: 'test-agent-token',
         },
+        // The site behind the QR, as a stub: it answers with the path it was asked for.
+        serviceBindings: {
+          SITE: async (request: Request) => new Response(`the site ${new URL(request.url).pathname}`),
+        },
       },
     }),
   ],

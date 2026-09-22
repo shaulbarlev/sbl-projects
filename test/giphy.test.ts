@@ -107,8 +107,8 @@ describe('a gif feed', () => {
   it('falls back rather than erroring when Giphy is down', async () => {
     await feed('broken');
     const response = await scan();
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://fallback.example.com/');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /');
   });
 
   it('works as a sequence step, and shows up in the panel view by name', async () => {

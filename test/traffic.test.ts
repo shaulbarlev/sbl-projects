@@ -57,10 +57,10 @@ beforeEach(async () => {
 });
 
 describe('the traffic light page', () => {
-  it('is just a stray path while the master switch is off', async () => {
+  it('is just a path of the site while the master switch is off', async () => {
     const response = await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' });
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://main.example.com/');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /traffic');
   });
 
   it('has a bare copy for embedding, which stays up with the switch off', async () => {
@@ -301,7 +301,7 @@ describe('state reported by home assistant itself', () => {
     expect((await (await set('on')).json() as any).on).toBe(true);
     expect((await SELF.fetch(`${ORIGIN}/traffic`)).status).toBe(200);
     expect((await (await set(false)).json() as any).on).toBe(false);
-    expect((await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' })).status).toBe(302);
+    expect(await (await SELF.fetch(`${ORIGIN}/traffic`)).text()).toBe('the site /traffic');
   });
 
   it('tells home when the master switch changes, and on connect', async () => {

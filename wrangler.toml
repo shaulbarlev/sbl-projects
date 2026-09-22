@@ -24,6 +24,12 @@ new_sqlite_classes = ["RedirectState"]
 binding = "FILES"
 bucket_name = "skin-files"
 
+# The site at sbl.cx: the map of projects (repo sbl-projects). Served for every
+# path the QR does not own, and at the root when nothing is set.
+[[services]]
+binding = "SITE"
+service = "sbl-projects"
+
 # Secrets, set with `wrangler secret put <NAME>` — never in this file:
 #   ADMIN_PASSWORD  the admin password
 #   SESSION_SECRET  random string used to sign session cookies
