@@ -723,7 +723,7 @@ iframe {
   }
   .pv-head {
     flex-wrap: wrap;
-    padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--bg);
   }
   .pv-back {
@@ -735,17 +735,58 @@ iframe {
     display: none;
   }
   .pv-body {
-    padding: 1rem 1rem max(1.5rem, env(safe-area-inset-bottom));
+    padding: 1rem;
   }
   .pv-body.text-first .pv-text {
     order: -1;
   }
 }
 
-@media (min-width: 700px) {
-  body.has-project {
-    overflow: hidden;
-  }
+/* ---------- a project's card: the tile grown into a page, in map space (card.ts) ---------- */
+
+.tile.card {
+  z-index: 5;
+  overflow: hidden;
+  background: var(--bg);
+  transition:
+    left 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    top 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    width 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+}
+.tile.card.cut {
+  transition: none;
+}
+.tile.card:active {
+  transform: none;
+}
+/* the picture becomes the card's header */
+.tile.card > img {
+  height: var(--hero);
+  aspect-ratio: auto;
+  filter: none;
+  transition: height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+}
+.tile.card > span {
+  display: none;
+}
+.tile.card .pv {
+  position: static;
+  padding: 0;
+  animation: reel-in 0.3s 0.15s both;
+}
+.tile.card.cut .pv {
+  animation: none;
+}
+.tile.card .pv-backdrop {
+  display: none;
+}
+.tile.card .pv-panel {
+  height: var(--panel);
+  max-width: none;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 /* ---------- image viewer ---------- */
@@ -814,4 +855,13 @@ iframe {
 }
 .pv.diving > * {
   pointer-events: none;
+}
+/* a phone reads the card by panning the map: no inner scrolling, the card as tall as its page */
+@media (max-width: 699px) {
+  .tile.card .pv-panel {
+    height: auto;
+  }
+  .tile.card .pv-body {
+    overflow: visible;
+  }
 }

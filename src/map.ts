@@ -33,6 +33,8 @@ export function createMap(opts: {
   label: (id: string) => string
   /** Called when home scrolls in or out of view */
   onHomeVisible: (visible: boolean) => void
+  /** Called with the world rect in view after every move */
+  onView?: (view: Rect) => void
   /** Called once, the first time the visitor moves the map themselves */
   onExplore: () => void
 }) {
@@ -43,6 +45,10 @@ export function createMap(opts: {
   let vw = 0
   let vh = 0
   const seen = new Set<string>()
+  // A rect the world is stretched to hold while something (an open card) sticks out of it.
+  let reach: Rect | null = null
+  const worldW = () => Math.max(world.w, reach ? reach.x + reach.w + 40 : 0)
+  const worldH = () => Math.max(world.h, reach ? reach.y + reach.h + 40 : 0)
 
   // --- animation state: either coasting on velocity, or flying to a target
   let vx = 0
@@ -56,9 +62,11 @@ export function createMap(opts: {
     const z = clamp(c.z, MIN_ZOOM, MAX_ZOOM)
     const halfW = vw / z / 2
     const halfH = vh / z / 2
+    const W = worldW()
+    const H = worldH()
     return {
-      x: world.w > halfW * 2 ? clamp(c.x, halfW, world.w - halfW) : world.w / 2,
-      y: world.h > halfH * 2 ? clamp(c.y, halfH, world.h - halfH) : world.h / 2,
+      x: W > halfW * 2 ? clamp(c.x, halfW, W - halfW) : W / 2,
+      y: H > halfH * 2 ? clamp(c.y, halfH, H - halfH) : H / 2,
       z,
     }
   }
@@ -125,6 +133,7 @@ export function createMap(opts: {
 
     const inView = (r: Rect) => r.x + r.w > left && r.x < left + w && r.y + r.h > top && r.y < top + h
     opts.onHomeVisible(inView(world.home))
+    opts.onView?.({ x: left, y: top, w, h })
 
     // A marker sits where the line from the middle of the screen to its tile leaves the screen.
     for (const t of world.tiles) {
@@ -307,6 +316,8 @@ export function createMap(opts: {
   viewport.addEventListener(
     'wheel',
     (e) => {
+      // A card's own scrolling body takes the wheel itself.
+      if ((e.target as Element).closest('.scrolls')) return
       e.preventDefault()
       halt()
       exploring()
@@ -367,6 +378,12 @@ export function createMap(opts: {
       render()
     },
     markSeen,
+    viewport: () => ({ w: vw, h: vh }),
+    /** Stretch the world to hold `r` (null to let go); the plane is the caller's to resize */
+    reach(r: Rect | null) {
+      reach = r
+    },
+    go: flyTo,
     /** Cut to a view of the whole world, as far as the zoom range allows */
     overview() {
       halt()

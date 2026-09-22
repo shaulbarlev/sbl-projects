@@ -1,6 +1,6 @@
 import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import './style.css'
-import { diveIn, diveOut } from './dive'
+import { openCard, type Card } from './card'
 import { h } from './dom'
 import { NARROW, WIDE, scatter } from './layout'
 import { closeLightbox, lightboxOpen } from './lightbox'
@@ -19,6 +19,8 @@ const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
 const tiles = new Map<string, HTMLElement>()
+/** The project card open on the map, if any */
+let card: Card | null = null
 
 // The contact links are written in the page under the wordmark, and become the
 // small tiles nearest to it.
@@ -84,6 +86,7 @@ const map = createMap({
   onHomeVisible: (visible) => (homeButton.hidden = visible),
   // The minimap stays out of the way until there is somewhere to have been.
   onExplore: () => document.body.classList.add('explored'),
+  onView: (view) => card?.check(view),
 })
 
 narrow.addEventListener('change', () => {
@@ -106,11 +109,18 @@ for (const project of PROJECTS) {
     h('span', {}, h('b', {}, project.title)),
   )
   a.addEventListener('click', (e) => {
+    // Once open, the card's own links (previous / next, a call to action) are theirs.
+    if ((e.target as Element).closest('a') !== a) return
     if (e.metaKey || e.ctrlKey || e.shiftKey) return
     e.preventDefault()
+    if (card?.id === project.id) return
     opener = a
     history.pushState({ fromMap: true }, '', a.href)
-    diveIn(picture(project.id), () => sync(false), playFirst)
+    sync()
+  })
+  // The map must not pan under a finger that is scrubbing a video or scrolling the card.
+  a.addEventListener('pointerdown', (e) => {
+    if (a.classList.contains('card') && (e.target as Element).closest('video, .scrolls')) e.stopPropagation()
   })
   tiles.set(project.id, a)
   plane.append(a)
@@ -165,64 +175,69 @@ function markSeen(id: string) {
 }
 seen.forEach(markSeen)
 
-// --- routing: "/" is the map, "/<project>/" shows a project over (or instead of) it
-const projectRoot = $('project')
+// --- routing: "/" is the map, "/<project>/" opens that project's card on it
 let current: string | null = null
 const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
 
-// In place of autoplay, so that a dive can hold it back: a decoder starting up under the zoom costs it frames.
-const playFirst = () => void projectRoot.querySelector('video')?.play().catch(() => {})
-
-function sync(play = true) {
+function sync() {
   const project = findProject(slugNow())
   closeLightbox()
-  projectRoot.replaceChildren()
   document.body.classList.toggle('has-project', project !== undefined)
   document.title = project ? `${project.title} — shaul bar-lev` : SITE_TITLE
-  if (project) {
+  if (card && card.id !== project?.id) {
+    card.close()
+    card = null
+  }
+  const at = project && world.tiles.find((t) => t.id === project.id)
+  if (project && at && !card) {
     const i = PROJECTS.indexOf(project)
     const around = {
       prev: PROJECTS[(i - 1 + PROJECTS.length) % PROJECTS.length],
       next: PROJECTS[(i + 1) % PROJECTS.length],
     }
-    const view = renderProject(project, around, closeProject, (to) => {
-      // Moving between projects replaces the entry, so back still returns to the map.
-      history.replaceState(history.state, '', `/${to.id}/`)
-      opener = null
-      sync()
+    const opened = openCard({
+      id: project.id,
+      tile: tiles.get(project.id)!,
+      at,
+      map,
+      narrow: narrow.matches,
+      plane,
+      world,
+      // Arrived by link: no growing from a tile the visitor has not seen.
+      cut: current === null && opener === null,
+      content: () =>
+        renderProject(project, around, closeProject, (to) => {
+          // Moving between projects replaces the entry, so back still returns to the map.
+          history.replaceState(history.state, '', `/${to.id}/`)
+          opener = tiles.get(to.id) ?? null
+          sync()
+        }),
+      onClosed: () => {
+        if (card === opened) card = null
+        // Folded by panning away: the address follows.
+        if (slugNow() === project.id) closeProject()
+      },
     })
-    projectRoot.append(view)
-    view.querySelector<HTMLElement>('.pv-panel')?.focus()
+    card = opened
     markSeen(project.id)
-    if (play) playFirst()
-    // A tapped tile leaves the map exactly as it was, so closing returns to the
-    // same view. Only when the project was reached some other way (a direct link,
-    // previous / next) is the map brought to it, so that closing lands where it
-    // lives; behind a phone's project page that is a cut.
-    const tile = world.tiles.find((t) => t.id === project.id)
-    if (tile && opener !== tiles.get(project.id)) map.focus(tile, narrow.matches ? 0 : undefined)
-  } else {
+  }
+  if (!project) {
     opener?.focus({ preventScroll: true })
     opener = null
   }
   current = project?.id ?? null
 }
 
-const picture = (id: string | null) => (id ? tiles.get(id)?.querySelector('img') ?? undefined : undefined)
-
 function closeProject() {
   if (history.state?.fromMap) history.back()
   else {
     // Arrived by direct link: there is no map entry to go back to.
     history.replaceState(null, '', '/')
-    diveOut(picture(current), sync)
+    sync()
   }
 }
 
-window.addEventListener('popstate', (e) => {
-  // A back swipe on iOS is animated by the browser already; and only leaving a project has a picture to follow.
-  diveOut(e.hasUAVisualTransition ? undefined : picture(current), sync)
-})
+window.addEventListener('popstate', () => sync())
 
 window.addEventListener('keydown', (e) => {
   // The image viewer has its own keys, and Esc there must not close the project too.
