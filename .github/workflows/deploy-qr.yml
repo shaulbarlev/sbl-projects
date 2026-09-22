@@ -42,8 +42,15 @@ jobs:
 
       # wrangler is already a pinned devDependency, so this deploys with the
       # same version used locally rather than whatever an action bundles.
-      # Named explicitly: wrangler would otherwise find the site's wrangler.jsonc at the repo root.
-      - run: npx wrangler deploy --config wrangler.toml
+      # Without the token this job cannot deploy; it says so once rather than
+      # failing (and mailing) on every push. Named config: wrangler would
+      # otherwise find the site's wrangler.jsonc at the repo root.
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::warning::CLOUDFLARE_API_TOKEN is not set on this repo; the QR Worker was tested but not deployed."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx wrangler deploy --config wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
