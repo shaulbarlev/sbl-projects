@@ -794,6 +794,14 @@ body.has-project .home-button {
 .tile.card > img.edges {
   opacity: 1;
 }
+.tile.card.folding > img.edges {
+  opacity: 0;
+}
+.tile.card.folding .pv {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
 /* the picture becomes the card's header */
 .tile.card > img {
   height: var(--hero);

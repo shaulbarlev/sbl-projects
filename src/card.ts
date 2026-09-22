@@ -41,7 +41,9 @@ export function openCard(opts: {
   world: { w: number; h: number }
   /** Builds the project's content once the card has grown */
   content: () => HTMLElement
-  /** Called after the fold, however it was triggered */
+  /** Called as the fold starts, however it was triggered */
+  onFolding?: () => void
+  /** Called after the fold */
   onClosed: () => void
   cut?: boolean
 }): Card {
@@ -102,10 +104,11 @@ export function openCard(opts: {
     if (done) return
     done = true
     timers.forEach(clearTimeout)
-    view?.remove()
-    view = null
     tile.classList.remove('cut')
+    // Everything the fold undoes, it undoes together: the box, the header picture,
+    // the content (fading, not vanishing) and the map's chrome coming back.
     tile.classList.toggle('folding', !instant)
+    opts.onFolding?.()
     // Back to the closed shape exactly: square picture, label underneath.
     tile.style.setProperty('--hero', `${at.w}px`)
     put({ ...at, h: closedH })
@@ -116,6 +119,8 @@ export function openCard(opts: {
     plane.style.height = `${world.h}px`
     map.settle(at, instant ? 0 : MS)
     const finish = () => {
+      view?.remove()
+      view = null
       tile.classList.remove('card', 'folding')
       tile.classList.add('unfolded')
       tile.style.removeProperty('height')

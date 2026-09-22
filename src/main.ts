@@ -229,6 +229,7 @@ function sync() {
           opener = tiles.get(to.id) ?? null
           sync()
         }),
+      onFolding: () => document.body.classList.remove('has-project'),
       onClosed: () => {
         if (card !== opened) return
         card = null
