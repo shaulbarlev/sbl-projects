@@ -19,7 +19,7 @@ export type MapFor = {
   viewport(): { w: number; h: number }
   reach(r: Rect | null): void
   go(to: { x?: number; y?: number; z?: number }, ms?: number): void
-  settle(fallback: Rect): void
+  settle(fallback: Rect, ms?: number): void
 }
 
 export type Card = {
@@ -109,16 +109,16 @@ export function openCard(opts: {
     // Back to the closed shape exactly: square picture, label underneath.
     tile.style.setProperty('--hero', `${at.w}px`)
     put({ ...at, h: closedH })
+    // The world shrinks back as the card does. A camera left outside it (deep in a long
+    // card) flies to the tile the card came from, alongside the fold, not after it.
+    map.reach(null)
+    plane.style.width = `${world.w}px`
+    plane.style.height = `${world.h}px`
+    map.settle(at, instant ? 0 : MS)
     const finish = () => {
       tile.classList.remove('card', 'folding')
       tile.classList.add('unfolded')
       tile.style.removeProperty('height')
-      // The world shrinks back once the card has. A camera left outside it (deep in a
-      // long card) flies to the tile the card came from, rather than to empty ground.
-      map.reach(null)
-      plane.style.width = `${world.w}px`
-      plane.style.height = `${world.h}px`
-      map.settle(at)
       opts.onClosed()
     }
     if (instant) finish()

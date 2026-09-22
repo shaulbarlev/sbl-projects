@@ -407,9 +407,9 @@ export function createMap(opts: {
     },
     go: flyTo,
     /** Fly to `fallback` if the camera is outside the world, else stay */
-    settle(fallback: Rect) {
+    settle(fallback: Rect, ms = 500) {
       const b = bounded(cam)
-      if (b.x !== cam.x || b.y !== cam.y) flyTo(centre(fallback), 500)
+      if (b.x !== cam.x || b.y !== cam.y) flyTo(centre(fallback), ms)
     },
     /** While on, drags move only up and down (see BREAK) */
     lock(on: boolean) {
