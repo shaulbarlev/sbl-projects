@@ -776,8 +776,14 @@ body.has-project .markers {
 .tile.card > span {
   display: none;
 }
+/* the label fades back in as the fold ends */
+.tile.unfolded > span {
+  animation: reel-in 0.25s both;
+}
 .tile.card .pv {
   position: static;
+  /* laid out at its final width from the start, so the growing box only clips it, never reflows it */
+  width: var(--card-w);
   padding: 0;
   animation: reel-in 0.3s 0.15s both;
 }

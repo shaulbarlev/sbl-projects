@@ -70,8 +70,12 @@ export function openCard(opts: {
   const timers: number[] = []
   const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms))
 
+  // The closed tile is its square picture plus its label: what the fold must end at.
+  const closedH = tile.offsetHeight
   if (opts.cut) tile.classList.add('cut')
+  tile.classList.remove('unfolded')
   tile.classList.add('card')
+  tile.style.setProperty('--card-w', `${w}px`)
   tile.style.setProperty('--hero', `${hero}px`)
   tile.style.setProperty('--panel', `${rect.h - hero}px`)
   stretch(rect)
@@ -102,9 +106,12 @@ export function openCard(opts: {
     view = null
     tile.classList.remove('cut')
     tile.classList.toggle('folding', !instant)
-    put(at)
+    // Back to the closed shape exactly: square picture, label underneath.
+    tile.style.setProperty('--hero', `${at.w}px`)
+    put({ ...at, h: closedH })
     const finish = () => {
       tile.classList.remove('card', 'folding')
+      tile.classList.add('unfolded')
       tile.style.removeProperty('height')
       // The world shrinks back once the card has. A camera left outside it (deep in a
       // long card) flies to the tile the card came from, rather than to empty ground.
