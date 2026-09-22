@@ -1,4 +1,7 @@
-# skin
+# sbl.cx — the QR Worker
+
+Lives in `qr/` of the `sbl-projects` repo since 2026-09-22 (it was the `skin` repo; history came along). Run everything from this directory: `npm ci`, `npm test`, `npm run typecheck`. A push to `main` touching `qr/` deploys it (`.github/workflows/deploy-qr.yml`).
+
 
 A dynamic redirect for one QR code. `sbl.cx` is a printed, permanent
 address; where it *points* is changed in a couple of taps from an iPhone Action

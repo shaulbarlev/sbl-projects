@@ -1,20 +1,26 @@
-# Push to main deploys to sbl.cx.
+# A push to main that touches qr/ deploys the QR Worker to sbl.cx. (The site
+# itself is deployed by Cloudflare Workers Builds from the repo root.)
 #
 # The suite runs first and a failure stops the deploy. This code is reached by
 # a QR that is already printed and handed out: a bad deploy is not a page you
 # can roll back before anyone notices, it is a piece of card in someone's
 # pocket pointing at the wrong place.
-name: Deploy
+name: Deploy QR
 
 on:
   push:
     branches: [main]
+    paths: ['qr/**', '.github/workflows/deploy-qr.yml']
   workflow_dispatch:
 
 # Never let two deploys race; the later push wins.
 concurrency:
-  group: deploy-main
+  group: deploy-qr
   cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: qr
 
 jobs:
   deploy:
@@ -26,6 +32,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: qr/package-lock.json
 
       - run: npm ci
 

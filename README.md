@@ -34,6 +34,13 @@ over a 2D plane you explore like a map.
   tile. Every project has its own URL, `/<id>/`, which opens its card; `/pikud`
   is an extra entry for Pikud HaoLED.
 
+## The QR Worker, in `qr/`
+
+`sbl.cx` is also a printed QR code whose destination changes from a panel. That
+Worker lives in `qr/` (it was its own repo, `skin`, until 2026-09-22) and is
+what serves this site at sbl.cx, through a service binding. It has its own
+`package.json`, tests and deploy: see `qr/README.md` and `qr/docs/`.
+
 ## Adding a project
 
 1. Put the media in `public/<folder>/`. `./scripts/mp4-thumbnails.sh` makes poster frames for videos.

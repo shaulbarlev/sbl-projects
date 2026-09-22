@@ -1,7 +1,7 @@
 # The sbl.cx traffic light — how it is built and how a tap flows
 
 Written 14 September 2026. Everything here is deployed. Code in
-`~/playground/skin`, branch `send-gifs-sticky`.
+`~/playground/sbl-projects/qr` (the former `skin` repo).
 
 ## What it is
 
