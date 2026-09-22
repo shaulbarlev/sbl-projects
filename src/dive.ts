@@ -13,16 +13,36 @@ import { h } from './dom'
 
 const MS = 320
 const EASE = 'cubic-bezier(0.3, 0, 0.1, 1)'
+/** The most the zoom waits for the page's pictures */
+const READY_MS = 300
 
 const still = matchMedia('(prefers-reduced-motion: reduce)')
+const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /** Ends the dive in progress, so that a second one never stacks on it. */
 let settle = () => {}
 
-function dive(picture: HTMLImageElement | undefined, opening: boolean, done: () => void) {
-  const page = document.querySelector<HTMLElement>('.pv')
-  if (!picture || !page || still.matches) return done()
+/**
+ * A fresh page's first frame is heavy: the video controls' layout, the pictures'
+ * first paint. An animation started on that frame takes its timestamp, so by the
+ * next frame the browser can show it is most of the way through: the zoom looks
+ * skipped. So the page is committed, and the pictures in view decoded, before
+ * anything moves.
+ */
+async function ready(page: HTMLElement) {
+  await frame()
+  await frame()
+  const pictures = [...page.querySelectorAll('img')].filter((img) => img.getBoundingClientRect().top < innerHeight)
+  await Promise.race([Promise.all(pictures.map((img) => img.decode().catch(() => {}))), wait(READY_MS)])
+}
 
+const pageOf = (picture: HTMLImageElement | undefined) => {
+  const page = document.querySelector<HTMLElement>('.pv')
+  return picture && page && !still.matches ? page : null
+}
+
+function dive(picture: HTMLImageElement, page: HTMLElement, opening: boolean, done: () => void) {
   const from = picture.getBoundingClientRect()
   const to = page.querySelector('.pv-panel')!.getBoundingClientRect()
   // A phone's page is covered edge to edge. A modal has the map showing around it, so there the picture stays inside.
@@ -33,7 +53,6 @@ function dive(picture: HTMLImageElement | undefined, opening: boolean, done: () 
   const zoom = h('img', { class: 'dive', src: picture.src, alt: '', decoding: 'sync' })
   Object.assign(zoom.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` })
   page.before(zoom)
-  page.classList.add('diving')
 
   // One clock for both layers. The curve sits on the picture's moving keyframe alone: as the timing's easing it
   // would bend the fade too, and have it over before the picture arrives. And every list ends at offset 1: left
@@ -63,14 +82,27 @@ function dive(picture: HTMLImageElement | undefined, opening: boolean, done: () 
 }
 
 /** Tile → project. `build` puts the project on the page; `arrived` is called once it is in full view. */
-export function diveIn(picture: HTMLImageElement | undefined, build: () => void, arrived: () => void) {
+export async function diveIn(picture: HTMLImageElement | undefined, build: () => void, arrived: () => void) {
   settle()
   build()
-  dive(picture, true, arrived)
+  const page = pageOf(picture)
+  if (!page) return arrived()
+  // Hidden and inert while it gets ready; a dive that cuts in meanwhile just shows it.
+  page.classList.add('diving')
+  let waiting = true
+  settle = () => {
+    waiting = false
+    page.classList.remove('diving')
+  }
+  await ready(page)
+  if (waiting) dive(picture!, page, true, arrived)
 }
 
 /** Project → tile, or with no picture just the switch. `clear` takes the project off the page. */
 export function diveOut(picture: HTMLImageElement | undefined, clear: () => void) {
   settle()
-  dive(picture, false, clear)
+  const page = pageOf(picture)
+  if (!page) return clear()
+  page.classList.add('diving')
+  dive(picture!, page, false, clear)
 }

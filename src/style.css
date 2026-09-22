@@ -797,7 +797,12 @@ iframe {
   object-fit: cover;
   pointer-events: none;
 }
-/* The project swallows taps itself meanwhile: the second of a double tap reaches neither its buttons nor the map. */
+/* Getting ready under the zoom: painted (will-change) but unseen, and the project swallows taps itself,
+   so the second of a double tap reaches neither its buttons nor the map. */
+.pv.diving {
+  opacity: 0;
+  will-change: opacity;
+}
 .pv.diving > * {
   pointer-events: none;
 }
