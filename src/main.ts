@@ -120,9 +120,13 @@ for (const project of PROJECTS) {
     history.replaceState(null, '', a.href)
     sync()
   })
-  // The map must not pan under a finger that is scrubbing a video or scrolling the card.
+  // The map must not pan under a finger on a video's control bar (the bottom strip, where
+  // the scrubber lives) or in the card's own scroller; a finger on the picture itself may.
   a.addEventListener('pointerdown', (e) => {
-    if (a.classList.contains('card') && (e.target as Element).closest('video, .scrolls')) e.stopPropagation()
+    if (!a.classList.contains('card')) return
+    const target = e.target as Element
+    const video = target.closest('video')
+    if (target.closest('.scrolls') || (video && e.clientY > video.getBoundingClientRect().bottom - 56)) e.stopPropagation()
   })
   tiles.set(project.id, a)
   plane.append(a)
