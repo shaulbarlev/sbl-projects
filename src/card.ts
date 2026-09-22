@@ -19,6 +19,7 @@ export type MapFor = {
   viewport(): { w: number; h: number }
   reach(r: Rect | null): void
   go(to: { x?: number; y?: number; z?: number }, ms?: number): void
+  settle(fallback: Rect): void
 }
 
 export type Card = {
@@ -102,12 +103,15 @@ export function openCard(opts: {
     tile.classList.remove('cut')
     tile.classList.toggle('folding', !instant)
     put(at)
-    map.reach(null)
-    plane.style.width = `${world.w}px`
-    plane.style.height = `${world.h}px`
     const finish = () => {
       tile.classList.remove('card', 'folding')
       tile.style.removeProperty('height')
+      // The world shrinks back once the card has. A camera left outside it (deep in a
+      // long card) flies to the tile the card came from, rather than to empty ground.
+      map.reach(null)
+      plane.style.width = `${world.w}px`
+      plane.style.height = `${world.h}px`
+      map.settle(at)
       opts.onClosed()
     }
     if (instant) finish()

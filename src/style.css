@@ -742,6 +742,12 @@ iframe {
   }
 }
 
+/* while a card is open the map's own chrome steps aside */
+body.has-project .locator,
+body.has-project .markers {
+  display: none;
+}
+
 /* ---------- a project's card: the tile grown into a page, in map space (card.ts) ---------- */
 
 .tile.card {

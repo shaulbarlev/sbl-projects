@@ -87,6 +87,7 @@ const map = createMap({
   // The minimap stays out of the way until there is somewhere to have been.
   onExplore: () => document.body.classList.add('explored'),
   onView: (view) => card?.check(view),
+  onBreak: () => card?.close(),
 })
 
 narrow.addEventListener('change', () => {
@@ -115,7 +116,8 @@ for (const project of PROJECTS) {
     e.preventDefault()
     if (card?.id === project.id) return
     opener = a
-    history.pushState({ fromMap: true }, '', a.href)
+    // Cards come and go by panning, so they leave no history entries behind.
+    history.replaceState(null, '', a.href)
     sync()
   })
   // The map must not pan under a finger that is scrubbing a video or scrolling the card.
@@ -213,12 +215,15 @@ function sync() {
           sync()
         }),
       onClosed: () => {
-        if (card === opened) card = null
+        if (card !== opened) return
+        card = null
+        map.lock(false)
         // Folded by panning away: the address follows.
         if (slugNow() === project.id) closeProject()
       },
     })
     card = opened
+    map.lock(true)
     markSeen(project.id)
   }
   if (!project) {
@@ -229,12 +234,8 @@ function sync() {
 }
 
 function closeProject() {
-  if (history.state?.fromMap) history.back()
-  else {
-    // Arrived by direct link: there is no map entry to go back to.
-    history.replaceState(null, '', '/')
-    sync()
-  }
+  history.replaceState(null, '', '/')
+  sync()
 }
 
 window.addEventListener('popstate', () => sync())

@@ -11,6 +11,8 @@ const GRID = 120
 const GRID_DEPTH = 0.85
 /** Distance of the edge markers from the edge of the screen */
 const MARKER_INSET = 14
+/** Sideways pull (px) that breaks the reading lock */
+const BREAK = 80
 
 type Camera = { x: number; y: number; z: number }
 
@@ -35,6 +37,8 @@ export function createMap(opts: {
   onHomeVisible: (visible: boolean) => void
   /** Called with the world rect in view after every move */
   onView?: (view: Rect) => void
+  /** Called when a strong sideways pull breaks the reading lock */
+  onBreak?: () => void
   /** Called once, the first time the visitor moves the map themselves */
   onExplore: () => void
 }) {
@@ -223,6 +227,11 @@ export function createMap(opts: {
   let dragged = false
   let lastMove = 0
   let touch = false
+  // Reading lock: a drag moves only up and down, until pulled sideways hard enough.
+  let locked = false
+  let sideways = 0
+  let startY = 0
+  let broke = false
 
   const local = (e: PointerEvent | WheelEvent) => {
     const b = viewport.getBoundingClientRect()
@@ -236,6 +245,9 @@ export function createMap(opts: {
     if (pointers.size === 0) {
       travelled = 0
       dragged = false
+      sideways = 0
+      startY = e.clientY
+      broke = false
     }
     pointers.set(e.pointerId, local(e))
   })
@@ -258,12 +270,22 @@ export function createMap(opts: {
         viewport.classList.add('dragging')
       }
       if (!dragged) return
+      let px = dx
+      if (locked && !broke) {
+        // The pull builds up unseen; past the threshold it is let go all at once, like snapping free.
+        sideways += dx
+        if (Math.abs(sideways) > BREAK && Math.abs(sideways) > Math.abs(e.clientY - startY)) {
+          broke = true
+          px = sideways
+          opts.onBreak?.()
+        } else px = 0
+      }
       // Past the edge the world resists, and springs back on release.
       const b = bounded(cam)
-      cam.x -= (dx / cam.z) * (b.x === cam.x ? 1 : RUBBER)
+      cam.x -= (px / cam.z) * (b.x === cam.x ? 1 : RUBBER)
       cam.y -= (dy / cam.z) * (b.y === cam.y ? 1 : RUBBER)
       const dt = Math.max(1, e.timeStamp - lastMove)
-      vx = vx * 0.6 + (dx / dt) * 0.4
+      vx = locked && !broke ? 0 : vx * 0.6 + (dx / dt) * 0.4
       vy = vy * 0.6 + (dy / dt) * 0.4
       lastMove = e.timeStamp
     } else if (pointers.size === 2) {
@@ -384,6 +406,15 @@ export function createMap(opts: {
       reach = r
     },
     go: flyTo,
+    /** Fly to `fallback` if the camera is outside the world, else stay */
+    settle(fallback: Rect) {
+      const b = bounded(cam)
+      if (b.x !== cam.x || b.y !== cam.y) flyTo(centre(fallback), 500)
+    },
+    /** While on, drags move only up and down (see BREAK) */
+    lock(on: boolean) {
+      locked = on
+    },
     /** Cut to a view of the whole world, as far as the zoom range allows */
     overview() {
       halt()
