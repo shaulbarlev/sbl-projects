@@ -217,19 +217,19 @@ function sync() {
       onClosed: () => {
         if (card !== opened) return
         card = null
-        map.lock(false)
         // Folded by panning away: the address follows.
         if (slugNow() === project.id) closeProject()
       },
     })
     card = opened
-    map.lock(true)
     markSeen(project.id)
   }
   if (!project) {
     opener?.focus({ preventScroll: true })
     opener = null
   }
+  // Reading lock only while a card is open
+  map.lock(card !== null)
   current = project?.id ?? null
 }
 
