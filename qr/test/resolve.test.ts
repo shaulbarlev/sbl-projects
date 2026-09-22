@@ -22,6 +22,7 @@ function state(partial: Partial<State> = {}): State {
     trafficEnabled: false,
     partyEnabled: false,
     hits: 0,
+    domains: {},
     ...partial,
   };
 }

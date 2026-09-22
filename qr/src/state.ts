@@ -17,6 +17,7 @@ const EMPTY: State = {
   trafficEnabled: false,
   partyEnabled: false,
   hits: 0,
+  domains: {},
 };
 
 /** What the home agent last reported for the lamps. */
@@ -108,6 +109,22 @@ export class RedirectState implements DurableObject {
         // temp falls back to when it expires; it does not cancel it.
         s.main = { target: body.target as Target, setAt: body.now };
         s.mru = pushMru(s.mru, body.target, body.now);
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'set-domain': {
+        const s = await this.load();
+        s.domains = { ...s.domains, [body.host]: { target: body.target as Target, setAt: body.now } };
+        s.mru = pushMru(s.mru, body.target, body.now);
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'clear-domain': {
+        const s = await this.load();
+        const { [body.host as string]: _gone, ...rest } = s.domains;
+        s.domains = rest;
         await this.save(s);
         return json(s);
       }

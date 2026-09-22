@@ -13,8 +13,8 @@ over a 2D plane you explore like a map.
 - **The reel**: the "film & art projects" tile opens where it stands into a 16:9
   player, four times as wide, and the map fits it on screen; panning away folds
   it (`src/reel.ts`). The
-  video streams from shaulbarlev.com: at 70 MB it is over this host's 25 MiB
-  per-file limit.
+  video is a file of the QR Worker's (R2, `/f/…`, served with range
+  requests): at 70 MB it is over this host's 25 MiB per-file limit.
 - **Islands**: things out past the projects, there to be found, listed in
   `ISLANDS` in `src/projects.ts`. A picture (a tap only brings it into view), or
   a live page from elsewhere in a frame: the traffic light at home is the very

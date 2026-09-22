@@ -166,6 +166,14 @@ export function adminPage(host: string): string {
     </section>
 
     <section>
+      <h2>Domains</h2>
+      <p class="sub">The other addresses, each pointed on its own. Left alone, one sends its
+        visitors on to <b>sbl.cx</b>. <b>Send</b> on anything offers them too.</p>
+      <div class="list" id="domains"></div>
+      <p class="hint" id="domains-hint"></p>
+    </section>
+
+    <section>
       <h2>Files</h2>
       <p class="sub">Uploaded and served from this domain. Nothing is deleted automatically.</p>
       <label class="btn" for="upload-input" style="display:block">Upload a file</label>
@@ -293,6 +301,8 @@ export function adminPage(host: string): string {
     <button id="sheet-main">Set as main</button>
     <button id="sheet-seq" class="seq">Add to sequence</button>
   </div>
+  <!-- One button per other domain, filled in from the state. -->
+  <div class="row" id="sheet-domains" style="margin-top:8px"></div>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>

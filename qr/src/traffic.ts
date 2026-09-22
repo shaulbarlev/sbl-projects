@@ -30,8 +30,8 @@ export const HOME_ENTITIES: ReadonlySet<string> = new Set([...LIGHT_ENTITIES, PA
  * further when home cannot be reached. State arrives over a socket as it
  * changes, with HTTP polling as the fallback.
  *
- * `bare` is the same page for embedding elsewhere (shaulb.com sets it in an
- * iframe): no background, so it sits on whatever is behind it. One page, one
+ * `bare` is the same page for embedding elsewhere (the map at sbl.cx sets it
+ * in an iframe): no background, so it sits on whatever is behind it. One page, one
  * script, wherever the light is shown.
  */
 export function renderTraffic(bare = false): string {

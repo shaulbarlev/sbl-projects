@@ -40,6 +40,26 @@ beforeEach(async () => {
   await SELF.fetch(`${ORIGIN}/_/api/splash`, authed(cookie, { on: false }));
 });
 
+describe('a served file', () => {
+  it('answers a range request with that piece, as a video player needs', async () => {
+    const upload = await SELF.fetch(`${ORIGIN}/_/api/upload?name=clip.bin`, {
+      method: 'POST',
+      headers: { cookie, 'x-skin-request': '1', 'content-type': 'application/octet-stream' },
+      body: new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    });
+    const { file } = (await upload.json()) as any;
+    const whole = await SELF.fetch(`${ORIGIN}/f/${file.key}/clip.bin`);
+    expect(whole.status).toBe(200);
+    expect(whole.headers.get('accept-ranges')).toBe('bytes');
+    const piece = await SELF.fetch(`${ORIGIN}/f/${file.key}/clip.bin`, { headers: { range: 'bytes=2-4' } });
+    expect(piece.status).toBe(206);
+    expect(piece.headers.get('content-range')).toBe('bytes 2-4/10');
+    expect([...new Uint8Array(await piece.arrayBuffer())]).toEqual([2, 3, 4]);
+    const tail = await SELF.fetch(`${ORIGIN}/f/${file.key}/clip.bin`, { headers: { range: 'bytes=7-' } });
+    expect(tail.headers.get('content-range')).toBe('bytes 7-9/10');
+  });
+});
+
 describe('public redirect', () => {
   it('serves the site before anything is configured', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));

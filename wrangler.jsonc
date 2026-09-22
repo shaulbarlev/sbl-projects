@@ -1,13 +1,11 @@
-// Workers Builds deploys this repo. The name must match the Worker in the Cloudflare dashboard.
+// Workers Builds deploys this repo: static assets only, no Worker script. The name must
+// match the Worker in the Cloudflare dashboard. sbl.cx reaches these assets through a
+// service binding from the QR Worker (qr/), which owns the domains.
 {
   "name": "sbl-projects",
-  "main": "src/worker.ts",
   "compatibility_date": "2026-01-01",
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS",
-    // every request passes through the script, so the old domains can be sent on
-    "run_worker_first": true,
     // unknown paths get the map rather than a 404
     "not_found_handling": "single-page-application"
   }

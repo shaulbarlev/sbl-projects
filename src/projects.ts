@@ -401,5 +401,5 @@ export const ISLANDS: Island[] = [
   { id: 'traffic', kind: 'frame', src: 'https://sbl.cx/traffic?bare', title: 'The traffic light at home. Tap a lamp.', w: 400, h: 700 },
 ]
 
-/** The film & art reel. Streamed from the film site: at 70 MB it is over this host's 25 MiB limit per file. */
-export const REEL = { src: 'https://shaulbarlev.com/assets/reel-BR1LPv9C.mp4', poster: '/reel/poster.jpg' }
+/** The film & art reel. At 70 MB it is over this host's 25 MiB limit per file, so it is a file of the QR Worker's (R2, served with ranges). */
+export const REEL = { src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4', poster: '/reel/poster.jpg' }

@@ -275,6 +275,41 @@ export const ADMIN_JS = String.raw`
     });
   }
 
+  /** The other domains: what each points at, and a way back to sbl.cx. */
+  function renderDomains() {
+    var hosts = state.domainHosts || [];
+    var host = $('domains');
+    host.innerHTML = '';
+    hosts.forEach(function (name) {
+      var slot = state.domains && state.domains[name];
+      var row = document.createElement('div');
+      row.className = 'item';
+      var label = document.createElement('div');
+      label.className = 'name';
+      label.innerHTML = esc(name) + '<span class="sub">' +
+        (slot ? '→ ' + esc(describe(slot.target)) : '→ sbl.cx') + '</span>';
+      row.appendChild(label);
+      if (slot) {
+        row.appendChild(button('Back to sbl.cx', '', function () {
+          act(api('domain/' + encodeURIComponent(name), null, 'DELETE'), name + ' → sbl.cx');
+        }));
+      }
+      host.appendChild(row);
+    });
+    $('domains-hint').textContent = hosts.length ? '' : 'No other domains are configured.';
+
+    // The sheet's buttons, one per domain.
+    var sheet = $('sheet-domains');
+    sheet.innerHTML = '';
+    hosts.forEach(function (name) {
+      sheet.appendChild(button('Point ' + name + ' here', '', function () {
+        sheetAction(function (target) {
+          return act(api('send', { slot: name, target: target }), name + ' set');
+        });
+      }));
+    });
+  }
+
   /**
    * A thumbnail for a target that is an image, or a set of them. A filename
    * says nothing about which picture a step will show; a set shows its first.
@@ -460,6 +495,7 @@ export const ADMIN_JS = String.raw`
     $('traffic-send').disabled = !state.trafficEnabled;
     $('party-toggle').checked = !!state.partyEnabled;
     $('home-status').textContent = homeStatus();
+    renderDomains();
 
     renderList('bookmarks', state.bookmarks.map(function (b) {
       // An unlabelled bookmark shows the destination as its name rather than a

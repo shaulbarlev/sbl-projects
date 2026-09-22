@@ -11,15 +11,7 @@ import { adminPage, loginPage, MANIFEST } from './admin/page';
 import { searchGifs } from './giphy';
 import { renderMessage } from './message';
 import { qrSvg } from './qr';
-import {
-  describeTarget,
-  resolve,
-  sequenceLive,
-  sequenceRunOpen,
-  stepsRemaining,
-  stepTarget,
-  targetToUrl,
-} from './resolve';
+import { describeTarget, isServable, resolve, sequenceLive, sequenceRunOpen, stepTarget, stepsRemaining, targetToUrl } from './resolve';
 import { DEFAULT_TEMPLATE_ID, renderSplash } from './splash';
 import { HOME_ENTITIES, LIGHTS, PARTY, renderTraffic } from './traffic';
 import type { Env, Resolution, SequenceStep, State, StoredFile, Target } from './types';
@@ -64,6 +56,9 @@ export default {
     const path = url.pathname;
 
     try {
+      // The other domains arrive here too (the site's Worker forwards them, and
+      // shaulbarlev.com is a custom domain of this one), each with a setting of its own.
+      if (DOMAINS.has(url.hostname)) return await handleDomain(request, env, url);
       if (path === '/_' || path.startsWith('/_/')) return await handleAdmin(request, env, url);
       if (path.startsWith('/f/')) return await serveFile(request, env, path);
       if (path === '/traffic' || path.startsWith('/traffic/')) {
@@ -311,6 +306,34 @@ function readRequestCookie(request: Request, name: string): string | null {
   return null;
 }
 
+/** The domains that can be pointed on their own from the panel (sbl.cx is the QR, with its slots). */
+export const DOMAINS: ReadonlySet<string> = new Set(['shaulb.com', 'shaulbarlev.com']);
+const HOME_URL = 'https://sbl.cx';
+
+/**
+ * One of the other domains. Pointed at something from the panel, that is where
+ * it goes (a message or the traffic light rendered in place, a file or a link
+ * by redirect); otherwise its visitors are sent on to the same path at sbl.cx.
+ * Always 302: what a domain does is a setting, not a fact to be cached.
+ */
+async function handleDomain(request: Request, env: Env, url: URL): Promise<Response> {
+  const state = (await callState(env, 'get')) as State;
+  const slot = state.domains[url.hostname];
+  const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+  const target = slot && isServable(state, slot.target) ? slot.target : null;
+  if (target?.kind === 'text' || target?.kind === 'traffic') {
+    headers.set('content-type', 'text/html; charset=utf-8');
+    return new Response(target.kind === 'text' ? renderMessage(target.text) : renderTraffic(), { headers });
+  }
+  // Sets and feeds draw per scan and belong to the QR; a domain pointed at one goes home.
+  const destination =
+    target && target.kind !== 'pool' && target.kind !== 'giphy'
+      ? targetToUrl(target, HOME_URL)
+      : HOME_URL + url.pathname + url.search;
+  headers.set('location', destination);
+  return new Response(null, { status: 302, headers });
+}
+
 /**
  * The traffic light page and its two calls, public while the master switch
  * is on. Off, the path does not exist: it resolves like any stray path.
@@ -388,11 +411,16 @@ async function serveFile(request: Request, env: Env, path: string): Promise<Resp
   const key = path.split('/')[2];
   if (!key) return new Response('Not found', { status: 404 });
 
-  const object = await env.FILES.get(key);
+  // A video asks for pieces: Safari will not play one at all from a server that
+  // cannot answer a range request. Only `bytes=a-b` and `bytes=a-` are honoured.
+  const wanted = /^bytes=(\d+)-(\d*)$/.exec(request.headers.get('range') ?? '');
+  const range = wanted ? { offset: Number(wanted[1]), ...(wanted[2] ? { length: Number(wanted[2]) - Number(wanted[1]) + 1 } : {}) } : undefined;
+  const object = await env.FILES.get(key, range ? { range } : undefined);
   if (!object) return new Response('Not found', { status: 404 });
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);
+  headers.set('accept-ranges', 'bytes');
   headers.set('cache-control', 'public, max-age=3600');
   // Uploads are unrestricted by design, and they are served from the same
   // origin as the admin panel. `sandbox` is what stops an uploaded .html or
@@ -402,6 +430,13 @@ async function serveFile(request: Request, env: Env, path: string): Promise<Resp
   headers.set('x-content-type-options', 'nosniff');
   if (!headers.has('content-disposition')) {
     headers.set('content-disposition', 'inline');
+  }
+  if (range && object.range && 'offset' in object.range && object.range.offset !== undefined) {
+    const offset = object.range.offset;
+    const length = object.range.length ?? object.size - offset;
+    headers.set('content-range', `bytes ${offset}-${offset + length - 1}/${object.size}`);
+    headers.set('content-length', String(length));
+    return new Response(object.body, { status: 206, headers });
   }
   return new Response(object.body, { headers });
 }
@@ -538,6 +573,14 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     if ('error' in target) return json({ error: target.error }, 400);
     const error = await applySend(env, body.slot ?? 'temp', target.value, durationOf(body, 60), now);
     if (error) return json({ error }, 400);
+    return json(await view(env));
+  }
+
+  // A domain with no setting sends its visitors on to sbl.cx.
+  if (route.startsWith('domain/') && request.method === 'DELETE') {
+    const host = route.slice('domain/'.length);
+    if (!DOMAINS.has(host)) return json({ error: 'Unknown domain' }, 400);
+    await callState(env, 'clear-domain', { host });
     return json(await view(env));
   }
 
@@ -781,6 +824,8 @@ async function view(env: Env) {
     bookmarkLabels: state.bookmarks.map((b) => bookmarkLabel(b, state)),
     // The lamps and what the agent last said about them.
     home: { lights: [...LIGHTS, PARTY], ...(await callState(env, 'home-state')) },
+    // The other domains, in order, for the panel's card and the sheet's buttons.
+    domainHosts: [...DOMAINS],
   };
 }
 
@@ -852,6 +897,8 @@ async function applySend(
     ];
     if (steps.length > MAX_STEPS) return `Too many steps (max ${MAX_STEPS})`;
     await callState(env, 'set-steps', { steps });
+  } else if (DOMAINS.has(slot)) {
+    await callState(env, 'set-domain', { host: slot, target, now });
   } else {
     return 'Unknown slot';
   }

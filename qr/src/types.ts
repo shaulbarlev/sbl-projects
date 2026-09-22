@@ -132,6 +132,11 @@ export interface State {
   /** The party button under the light. Off, it is not on the page at all. */
   partyEnabled: boolean;
   hits: number;
+  /**
+   * The other domains, each pointed on its own: shaulb.com and shaulbarlev.com
+   * come to this Worker too. Absent, a domain sends its visitors on to sbl.cx.
+   */
+  domains: Record<string, Slot>;
 }
 
 /** What the resolver decided to serve, and why. */
