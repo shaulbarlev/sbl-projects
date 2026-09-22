@@ -73,6 +73,19 @@ describe('public redirect', () => {
     expect(await (await SELF.fetch(`${ORIGIN}/assets/main.js`)).text()).toBe('the site /assets/main.js');
   });
 
+  it('still serves a file, and an image from a set, though they live on this host too', async () => {
+    const upload = await SELF.fetch(`${ORIGIN}/_/api/upload?name=pic.png&slot=main`, {
+      method: 'POST',
+      headers: { cookie, 'x-skin-request': '1', 'content-type': 'image/png' },
+      body: new Uint8Array([1, 2, 3]),
+    });
+    const { file } = (await upload.json()) as any;
+    // At the real address: a file's URL is on the site's own host, which must not make it "the site".
+    const scan = await SELF.fetch('https://sbl.cx/', { redirect: 'manual' });
+    expect(scan.status).toBe(302);
+    expect(scan.headers.get('location')).toBe(`https://sbl.cx/f/${file.key}/pic.png`);
+  });
+
   it('serves the site when the destination is the site itself, rather than hop there', async () => {
     for (const site of ['https://sbl.cx/', 'https://shaulb.com/', 'https://fallback.example.com/']) {
       await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main', target: { kind: 'url', url: site } }));

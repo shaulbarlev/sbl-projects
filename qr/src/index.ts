@@ -190,9 +190,10 @@ async function handleRedirect(
 
   const destination = targetToUrl(served, url.origin);
 
-  // Nothing set, or set to the site itself: the site is here, not a hop away.
-  // (Which also means a destination of the site's old address cannot loop.)
-  if (env.SITE && (resolution.source === 'fallback' || isSite(destination, env.FALLBACK_URL))) {
+  // Nothing set, or a link to the site itself: the site is here, not a hop away.
+  // (Which also means a destination of the site's old address cannot loop.) A
+  // file lives on this host too, at /f/, and is not the site.
+  if (env.SITE && (resolution.source === 'fallback' || (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)))) {
     const page = await env.SITE.fetch(request);
     if (!claimCookie) return page;
     const withClaim = new Response(page.body, page);
