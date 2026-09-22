@@ -28,16 +28,46 @@ export type Project = {
   subtitle?: string
   year?: string
   tags?: string[]
-  /** Thumbnail image shown in the grid */
+  /**
+   * Source image for the map tile. `npm run thumbs` crops it to a square at
+   * public/thumbs/<id>.jpg, which is what the map actually loads.
+   */
   thumbnail: { src: string; alt: string }
   /** Detail view: videos and images in display order */
   media?: ProjectMediaItem[]
-  /** Long-form description (supports simple line breaks) */
+  /** Long-form description. `## ` starts a heading; Hebrew lines are split out and set RTL. */
   description?: string
-  links?: Array<{ label: string; href: string }>
+  /** Image shown at the top of the text column */
+  asideImage?: { src: string; alt: string }
+  /** Call-to-action box at the top of the text column */
+  cta?: { lead: string; label: string; href: string; rtl?: boolean }
+  /** On narrow screens, put the text column above the media */
+  textFirst?: boolean
+  /** Mute every video, not only the autoplaying first one */
+  muteAll?: boolean
 }
 
-export const PROJECTS: Project[] = [
+/** Extra URL paths that open a project, e.g. sbl.cx/pikud */
+export const ALIASES: Record<string, string> = {
+  pikud: 'pikud-haoled',
+}
+
+/**
+ * Map order: earlier projects land closer to the centre of the map.
+ * Projects not listed here follow in their order below.
+ */
+const ORDER = [
+  'doorlock',
+  'pikud-haoled',
+  'pacman-controller',
+  'levitating-bulb',
+  'comfy-keyboard',
+  'zigbee-bell',
+  'wifi-shades',
+  'midi-controller',
+]
+
+const ALL: Project[] = [
   {
     id: 'doorlock',
     title: 'The Smartest Lock',
@@ -113,10 +143,6 @@ Designed a simple casing for it and printed it on my 3D printer.
 ## Future Thoughts
 
 I'm thinking about making the capacitive touch button usable again by routing its signal through the ESP, so it'll still work manually but also update the home assistant status.`,
-    links: [
-      { label: 'GitHub', href: 'https://github.com/' },
-      { label: 'Live', href: 'https://example.com' },
-    ],
   },
   {
     id: 'pacman-controller',
@@ -317,11 +343,61 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
 ניתן להגדיר שהאור יפעל בעת הודעה מקדימה, בעת אזעקה ובעת זמן יציאה מהמרחב המוגן.
 
 אשמח לשתף עוד ככל שהפרויקט מתקדם. אם זה נשמע מעניין מוזמנים להצטרף לקבוצת הניוזלטר שלנו בווצאפ!`,
-    links: [
-      {
-        label: 'Click here for Whatsapp Newsletter Group',
-        href: 'https://chat.whatsapp.com/BhLWAVLMEVcLHHAkfKGeqp?mode=hq1tcli',
-      },
-    ],
+    asideImage: { src: '/pikudhaoled/pikudhaoled-0.jpg', alt: 'Pikud HaoLED sign' },
+    cta: {
+      lead: 'אנחנו מפתחים ערכת תאורה פשוטה שמגיבה ונדלקת בהתאם להתראות פיקוד העורף.',
+      label: 'הצטרפו לקבוצת העדכונים',
+      href: 'https://chat.whatsapp.com/BhLWAVLMEVcLHHAkfKGeqp?mode=hq1tcli',
+      rtl: true,
+    },
+    textFirst: true,
+    muteAll: true,
   },
 ]
+
+const rank = (p: Project) => {
+  const i = ORDER.indexOf(p.id)
+  return i === -1 ? ORDER.length : i
+}
+
+export const PROJECTS: Project[] = [...ALL].sort((a, b) => rank(a) - rank(b))
+
+export function findProject(slug: string): Project | undefined {
+  const id = ALIASES[slug] ?? slug
+  return PROJECTS.find((p) => p.id === id)
+}
+
+export const thumbUrl = (p: Project) => `/thumbs/${p.id}.jpg`
+
+/**
+ * The display-size copy of a picture under /public (`npm run thumbs` makes them,
+ * 1200px at most). The originals are camera files of up to 24 megapixels: fine
+ * for the full-screen viewer, far too heavy for a grid cell on a phone.
+ */
+export const displayUrl = (src: string) => `/m${src}.jpg`
+
+/** The pictures a project page shows, in page order: what is worth fetching before it opens. */
+export function displayPictures(p: Project): string[] {
+  const shown = (p.media ?? []).map((m) => (m.type === 'image' ? m.src : m.thumbnail))
+  const all = p.textFirst ? [p.asideImage?.src, ...shown] : [...shown, p.asideImage?.src]
+  return all.filter((src): src is string => src !== undefined).map(displayUrl)
+}
+
+/**
+ * Passive islands: pictures out on the edge of the map, there to be found.
+ * Tapping one only brings it into view. `w`/`h` are its size on a wide screen.
+ */
+export type Island =
+  | { id: string; kind: 'picture'; src: string; alt: string; w: number; h: number }
+  /** A live page from elsewhere, shown as it is */
+  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number }
+
+export const ISLANDS: Island[] = [
+  { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
+  // The traffic light at home, the very page sbl.cx/traffic serves (its bare copy, no
+  // background): lamps, socket, name field, party button and master switch are all its own.
+  { id: 'traffic', kind: 'frame', src: 'https://sbl.cx/traffic?bare', title: 'The traffic light at home. Tap a lamp.', w: 400, h: 700 },
+]
+
+/** The film & art reel. Streamed from the film site: at 70 MB it is over this host's 25 MiB limit per file. */
+export const REEL = { src: 'https://shaulbarlev.com/assets/reel-BR1LPv9C.mp4', poster: '/reel/poster.jpg' }

@@ -2,16 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070707" />
     <title>Shaul Bar Lev — electronics &amp; IoT projects</title>
     <meta name="description" content="Personal portfolio of electronics and IoT projects by Shaul Bar Lev: smart door lock, levitating bulb, Pac-Man controller, Comfy keyboard, ZigBee bell, WiFi shades, MIDI controller. DIY, ESP32, ESPHome, Home Assistant." />
     <!-- Open Graph / WhatsApp / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Shaul builds things" />
     <meta property="og:description" content="I take things and add wifi to them" />
-    <meta property="og:image" content="https://shaulb.com/og-image.jpg" />
-    <meta property="og:url" content="https://shaulb.com/" />
+    <meta property="og:image" content="https://sbl.cx/og-image.jpg" />
+    <meta property="og:url" content="https://sbl.cx/" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:locale" content="en_US" />
@@ -19,10 +19,38 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Shaul builds things" />
     <meta name="twitter:description" content="I take things and add wifi to them" />
-    <meta name="twitter:image" content="https://shaulb.com/og-image.jpg" />
+    <meta name="twitter:image" content="https://sbl.cx/og-image.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght,ROND@100..900,100&display=swap" />
+    <!-- just the two letters of the CV link -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@700&text=CV&display=swap" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main id="map" class="viewport" aria-label="Map of projects. Drag to explore.">
+      <div id="plane" class="plane">
+        <section id="home" class="home">
+          <h1 id="logo" class="logo">shaul<br />bar-lev</h1>
+          <!-- main.ts lifts these out and scatters them around the wordmark as small tiles -->
+          <nav class="links" aria-label="Contact">
+            <a data-id="instagram" href="https://www.instagram.com/barlevshaul" target="_blank" rel="noreferrer"><i class="hn hn-instagram" aria-hidden="true"></i><span>instagram</span></a>
+            <a data-id="linkedin" href="https://www.linkedin.com/in/shaul-bar-lev/" target="_blank" rel="noreferrer"><i class="hn hn-linkedin" aria-hidden="true"></i><span>linkedin</span></a>
+            <a data-id="email" href="mailto:shaulbarlev1@gmail.com"><i class="hn hn-envelope" aria-hidden="true"></i><span>email</span></a>
+            <a data-id="cv" href="/shaul-bar-lev-cv.pdf" target="_blank" rel="noreferrer"><i class="px" aria-hidden="true">CV</i><span>my cv</span></a>
+            <a data-id="film" class="words" href="https://shaulbarlev.com" target="_blank" rel="noreferrer"><b>film<br />&amp; art<br />projects</b></a>
+          </nav>
+          <p class="hint">drag in any direction to explore</p>
+        </section>
+      </div>
+      <div id="markers" class="markers" aria-hidden="true"></div>
+    </main>
+
+    <button id="home-button" class="hud home-button" type="button" hidden>shaul bar-lev</button>
+    <div class="hud locator">
+      <div id="minimap" class="minimap" aria-hidden="true"></div>
+      <div id="readout" class="readout" aria-hidden="true"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

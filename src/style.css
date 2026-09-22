@@ -1,0 +1,909 @@
+:root {
+  color-scheme: dark;
+  --bg: #070707;
+  --fg: rgb(255 255 255 / 0.92);
+  --dim: rgb(255 255 255 / 0.65);
+  --red: 239 68 68;
+  --line: rgb(var(--red) / 0.3);
+  --line-strong: rgb(var(--red) / 0.6);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: rgb(248 113 113 / 0.95);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+img,
+video,
+iframe {
+  display: block;
+  max-width: 100%;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--red) / 0.7);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(var(--red) / 0.35);
+}
+
+/* ---------- map ---------- */
+
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* a faint grid, so empty space still reads as moving; map.ts slides it slower than the tiles */
+  background-image:
+    linear-gradient(rgb(var(--red) / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--red) / 0.07) 1px, transparent 1px);
+}
+.viewport.dragging {
+  cursor: grabbing;
+}
+.viewport.dragging .plane * {
+  pointer-events: none;
+}
+
+.plane {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  outline: 1px solid rgb(var(--red) / 0.25);
+}
+
+.home {
+  position: absolute;
+}
+.logo {
+  margin: 0;
+  font-family: 'Doto', ui-sans-serif, system-ui;
+  font-size: 4em;
+  font-weight: 100;
+  line-height: 1.25;
+  color: #fff;
+  cursor: pointer;
+  width: max-content;
+}
+.hint {
+  margin: 1.5rem 0 0;
+  white-space: nowrap;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.35);
+}
+/* once the map has been moved, the invitation has done its job */
+.explored .hint {
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+
+.tile {
+  position: absolute;
+  display: block;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.3);
+}
+.tile:hover {
+  border-color: rgb(248 113 113 / 0.6);
+  text-decoration: none;
+}
+.tile {
+  transition: transform 0.15s;
+}
+.tile:active {
+  transform: scale(0.97);
+  border-color: rgb(248 113 113 / 0.6);
+}
+.dragging .tile:active {
+  transform: none;
+}
+
+/* opening: tiles start gathered at home and scatter out to their places */
+.plane.intro .tile {
+  opacity: 0;
+  transform: translate(var(--dx), var(--dy)) scale(0.4);
+}
+.plane.intro-run .tile {
+  transition:
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.5s;
+  transition-delay: calc(var(--i) * 55ms);
+}
+.tile img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  filter: grayscale(0.2) contrast(1.25);
+}
+.tile:hover img,
+.tile:focus-visible img {
+  filter: contrast(1.25);
+}
+.tile span {
+  display: block;
+  position: relative;
+  padding: 0.5rem 1.5rem 0.5rem 0.75rem;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.35;
+  /* a bar of red dithered with black pixels (2px a cell); the title sits on it in a black box that hugs the glyphs */
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'><rect width='4' height='4' fill='%23ef4444'/><path d='M0 0h1v1H0zM2 0h1v1H2zM1 1h1v1H1zM0 2h1v1H0zM2 2h1v1H2zM3 3h1v1H3z'/></svg>") 0 0 / 8px 8px;
+  image-rendering: pixelated;
+}
+
+/* the contact links: bare icons, no frame and no visible label */
+.tile.link {
+  container-type: inline-size;
+  color: rgb(var(--red) / 0.75);
+  border: 0;
+  background: none;
+}
+.tile.link:hover {
+  color: rgb(248 113 113);
+}
+.tile.link i {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  font-size: 58cqw;
+}
+/* passive islands: pictures to come across, not to press. No frame, nothing on hover. */
+.tile.island {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: inherit;
+}
+.tile.island img {
+  filter: grayscale(0.35) contrast(1.1);
+}
+
+/* the film & art tile, which opens where it stands into the reel (reel.ts) */
+.tile.reel {
+  overflow: hidden;
+  transition:
+    left 0.4s cubic-bezier(0.3, 0, 0.1, 1),
+    top 0.4s cubic-bezier(0.3, 0, 0.1, 1),
+    width 0.4s cubic-bezier(0.3, 0, 0.1, 1),
+    height 0.4s cubic-bezier(0.3, 0, 0.1, 1);
+}
+.reel-face {
+  display: block;
+  height: 100%;
+  color: inherit;
+  transition: opacity 0.2s;
+}
+.reel-face:hover {
+  text-decoration: none;
+}
+.tile.link.reel.open {
+  z-index: 5;
+  background: #000;
+  transform: none;
+}
+.open .reel-face {
+  opacity: 0;
+  pointer-events: none;
+}
+.tile.reel video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: reel-in 0.3s 0.2s both;
+}
+@keyframes reel-in {
+  from {
+    opacity: 0;
+  }
+}
+/* a live page as an island: the light itself takes the taps, the map takes the rest */
+.tile.island.frame {
+  cursor: inherit;
+}
+.tile.island.frame iframe {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/* letters standing in for an icon, in a pixel font to sit with the pixel icons */
+.tile.link i.px {
+  font-family: 'Silkscreen', var(--mono);
+  font-size: 46cqw;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.1em;
+}
+/* a link that is words rather than an icon: stacked rows filling the same square,
+   framed like a project tile, since bare text does not read as something to press */
+.tile.link.words {
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.3);
+}
+.tile.link.words:hover,
+.tile.link.words:active {
+  border-color: rgb(248 113 113 / 0.6);
+}
+.tile.link b {
+  display: grid;
+  place-content: center;
+  aspect-ratio: 1;
+  font-size: 17cqw;
+  font-weight: 400;
+  line-height: 1.3;
+}
+/* the name stays for screen readers */
+.tile.link span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tile.link span::after {
+  content: none;
+}
+
+.tile span b {
+  font-weight: inherit;
+  background: #000;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* a filled mark is a project not opened yet, a hollow one is seen; the minimap and edge markers say the same in red */
+.tile span::after {
+  content: '';
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 6px;
+  height: 6px;
+  background: #000;
+}
+.tile.seen span::after {
+  background: none;
+  outline: 1px solid #000;
+  outline-offset: -1px;
+}
+
+/* markers on the edge of the screen, pointing at tiles that are off it */
+.markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.marker {
+  position: absolute;
+  left: -18px;
+  top: -18px;
+  width: 36px;
+  height: 36px;
+  pointer-events: auto;
+  will-change: transform;
+}
+.marker::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  background: rgb(var(--red));
+  /* a dark ring, so it still reads as a marker when it lands on a photo or a title */
+  box-shadow: 0 0 0 3px var(--bg);
+}
+.marker.seen::after {
+  background: var(--bg);
+  outline: 1px solid rgb(var(--red) / 0.7);
+  outline-offset: -1px;
+}
+.marker[hidden] {
+  display: none;
+}
+
+/* ---------- fixed chrome over the map ---------- */
+
+.hud {
+  position: fixed;
+  z-index: 10;
+}
+.home-button {
+  touch-action: manipulation;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
+  padding: 0.25rem 0.5rem;
+  font-family: 'Doto', ui-sans-serif, system-ui;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.home-button:hover {
+  border-color: var(--line-strong);
+}
+.home-button[hidden] {
+  display: none;
+}
+
+.locator {
+  /* hidden until the first swipe, then it snaps in */
+  visibility: hidden;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: 168px;
+}
+.explored .locator {
+  visibility: visible;
+  animation: snap-in 0.18s steps(3, end);
+}
+@keyframes snap-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+    transform-origin: bottom left;
+  }
+}
+.minimap {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: rgb(7 7 7 / 0.85);
+  border: 1px solid var(--line-strong);
+  cursor: crosshair;
+  touch-action: none;
+}
+.minimap > * {
+  position: absolute;
+  pointer-events: none;
+}
+.mm-tile {
+  background: rgb(var(--red) / 0.75);
+}
+.mm-tile.seen {
+  background: rgb(var(--red) / 0.25);
+}
+.mm-link {
+  background: rgb(255 255 255 / 0.35);
+}
+.mm-island {
+  background: rgb(255 255 255 / 0.18);
+}
+.mm-home {
+  border: 1px solid rgb(255 255 255 / 0.7);
+}
+.mm-view {
+  border: 1px solid #fff;
+  background: rgb(255 255 255 / 0.08);
+}
+.readout {
+  margin-top: 0.25rem;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: pre;
+  color: rgb(var(--red) / 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- project: a modal on wide screens ---------- */
+
+.pv {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 1.5rem;
+}
+.pv-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.7);
+}
+.pv-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    0 0 0 1px rgb(var(--red) / 0.15),
+    0 20px 60px rgb(0 0 0 / 0.7);
+  outline: none;
+}
+.pv-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: rgb(0 0 0 / 0.4);
+  border-bottom: 1px solid rgb(var(--red) / 0.4);
+}
+.pv-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pv-title h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  color: #fff;
+}
+.pv-title p {
+  margin: 0.25rem 0 0;
+  color: rgb(255 255 255 / 0.7);
+}
+.pv-back {
+  display: none;
+}
+.pv-close {
+  flex: none;
+  padding: 0.375rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: rgb(var(--red));
+  background: rgb(0 0 0 / 0.6);
+  border: 1px solid rgb(var(--red) / 0.5);
+}
+.pv-close:hover {
+  background: #000;
+}
+.pv-close i {
+  display: block;
+}
+.pv-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--red) / 0.4) transparent;
+  padding: 1.25rem;
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+@media (min-width: 1024px) {
+  .pv-body {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+.media {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+}
+.cell {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.3);
+}
+.cell.video {
+  border-color: rgb(var(--red) / 0.4);
+}
+.cell.lone {
+  grid-column: span 2;
+}
+.cell.image:not(.lone) {
+  aspect-ratio: 3 / 4;
+}
+.cell.image button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: zoom-in;
+}
+.cell.image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cell.image.lone img {
+  max-height: 24rem;
+}
+.cell.image.contain {
+  background: #000;
+}
+.cell.image.contain img {
+  object-fit: contain;
+}
+.cell video,
+.cell iframe {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 16;
+}
+.cell.horizontal video,
+.cell.horizontal iframe {
+  aspect-ratio: 16 / 9;
+}
+
+.pv-more {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.pv-more a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.5rem;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.3);
+}
+.pv-more a:hover {
+  border-color: var(--line-strong);
+  text-decoration: none;
+}
+.pv-more img {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  filter: grayscale(0.2) contrast(1.25);
+}
+.pv-step {
+  min-width: 0;
+}
+.pv-more small {
+  display: block;
+  font-size: 12px;
+  color: rgb(var(--red) / 0.7);
+}
+.pv-more b {
+  font-weight: 600;
+}
+.pv-next {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+.pv-back-foot {
+  grid-column: 1 / -1;
+  justify-content: center;
+  font-weight: 600;
+  color: rgb(248 113 113 / 0.95);
+}
+
+.pv-text {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+.box {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  background: rgb(0 0 0 / 0.3);
+}
+.box > img {
+  width: 100%;
+  border: 1px solid rgb(34 197 94 / 0.6);
+}
+.sans {
+  font-family: Arial, system-ui, sans-serif;
+}
+.prose {
+  color: rgb(255 255 255 / 0.75);
+  line-height: 1.625;
+}
+.prose p {
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+}
+.prose h3 {
+  margin: 1.75rem 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #fff;
+}
+.prose > :first-child {
+  margin-top: 0.25rem;
+}
+.prose[dir='rtl'] {
+  font-weight: 600;
+  color: var(--fg);
+}
+.prose[dir='rtl'] p:first-child {
+  font-size: 16px;
+}
+.cta-lead {
+  margin: 0 0 0.75rem;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  background: rgb(22 163 74 / 0.9);
+  border: 1px solid rgb(34 197 94 / 0.7);
+}
+.cta:hover {
+  background: rgb(34 197 94 / 0.9);
+  text-decoration: none;
+}
+
+/* ---------- project: a page of its own on narrow screens ---------- */
+
+@media (max-width: 699px) {
+  .logo {
+    font-size: 2.9em;
+  }
+  .hint {
+    margin-top: 1rem;
+  }
+  .tile span {
+    padding: 0.375rem 0.5rem;
+    font-size: 12px;
+  }
+  /* within reach of a thumb, in the corner the minimap leaves free */
+  .home-button {
+    top: auto;
+    left: auto;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    font-size: 1rem;
+  }
+  .locator {
+    width: 92px;
+  }
+  .readout {
+    font-size: 9px;
+  }
+
+  .pv {
+    padding: 0;
+  }
+  .pv-backdrop {
+    display: none;
+  }
+  .pv-panel {
+    border: 0;
+    box-shadow: none;
+  }
+  .pv-head {
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background: var(--bg);
+  }
+  .pv-back {
+    display: block;
+    flex-basis: 100%;
+    font-weight: 600;
+  }
+  .pv-close {
+    display: none;
+  }
+  .pv-body {
+    padding: 1rem;
+  }
+  .pv-body.text-first .pv-text {
+    order: -1;
+  }
+}
+
+/* while a card is open the map's own chrome steps aside */
+body.has-project .locator,
+body.has-project .markers,
+body.has-project .home-button {
+  display: none;
+}
+
+/* ---------- a project's card: the tile grown into a page, in map space (card.ts) ---------- */
+
+.tile.card {
+  z-index: 5;
+  overflow: hidden;
+  background: var(--bg);
+  transition:
+    left 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    top 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    width 0.42s cubic-bezier(0.3, 0, 0.1, 1),
+    height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+}
+.tile.card.cut {
+  transition: none;
+}
+.tile.card:active {
+  transform: none;
+}
+/* a tap anywhere on the open card focuses the tile (a link); no ring around a whole page for that */
+.tile.card,
+.tile.card:focus-visible {
+  outline: none;
+}
+/* the picture becomes the card's header */
+.tile.card > img {
+  height: var(--hero);
+  aspect-ratio: auto;
+  filter: none;
+  transition: height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+}
+.tile.card > span {
+  display: none;
+}
+/* the label fades back in as the fold ends */
+.tile.unfolded > span {
+  animation: reel-in 0.25s both;
+}
+.tile.card .pv {
+  position: static;
+  /* laid out at its final width from the start, so the growing box only clips it, never reflows it */
+  width: var(--card-w);
+  padding: 0;
+  /* in view as the box grows, not after it */
+  animation: reel-in 0.3s both;
+}
+.tile.card.cut .pv {
+  animation: none;
+}
+.tile.card .pv-backdrop {
+  display: none;
+}
+.tile.card .pv-panel {
+  position: static; /* so that the way back, absolute, is placed against the card itself */
+  height: var(--panel);
+  max-width: none;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+/* ---------- image viewer ---------- */
+
+.lb {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.94);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lb img {
+  max-width: 100%;
+  max-height: calc(100dvh - 2rem);
+  object-fit: contain;
+  pointer-events: none;
+}
+.lb button {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: rgb(var(--red));
+  background: rgb(0 0 0 / 0.6);
+  border: 1px solid rgb(var(--red) / 0.5);
+}
+.lb-close {
+  top: max(1rem, env(safe-area-inset-top));
+  right: 1rem;
+}
+.lb-prev {
+  left: 1rem;
+  top: 50%;
+}
+.lb-next {
+  right: 1rem;
+  top: 50%;
+}
+.lb-count {
+  position: absolute;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* ---------- the dive between a tile and its project (dive.ts) ---------- */
+
+.dive {
+  position: fixed;
+  z-index: 49; /* over the map, under the project */
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+}
+/* Getting ready under the zoom: painted (will-change) but unseen, and the project swallows taps itself,
+   so the second of a double tap reaches neither its buttons nor the map. */
+.pv.diving {
+  opacity: 0;
+  will-change: opacity;
+}
+.pv.diving > * {
+  pointer-events: none;
+}
+/* a phone reads the card by panning the map: no inner scrolling, the card as tall as its page */
+@media (max-width: 699px) {
+  .tile.card .pv-panel {
+    height: auto;
+  }
+  .tile.card .pv-body {
+    overflow: visible;
+  }
+  /* the way back sits on the cover picture, not under it */
+  .tile.card .pv-back {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 1;
+    flex-basis: auto;
+    padding: 0.25rem 0.5rem;
+    background: rgb(0 0 0 / 0.7);
+    border: 1px solid rgb(var(--red) / 0.5);
+  }
+}
