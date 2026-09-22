@@ -7,7 +7,7 @@ import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
 import { renderProject } from './project'
-import { ISLANDS, PROJECTS, displayPictures, findProject, thumbUrl, type Project } from './projects'
+import { ISLANDS, PROJECTS, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
 
 const SITE_TITLE = document.title
@@ -116,6 +116,8 @@ for (const project of PROJECTS) {
     'a',
     { class: 'tile', href: `/${project.id}/` },
     h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
+    // The edge drawing lies over the photo and shows through while the card is open.
+    h('img', { class: 'edges', src: edgesUrl(project), alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async', loading: 'lazy' }),
     h('span', {}, h('b', {}, project.title)),
   )
   a.addEventListener('click', (e) => {

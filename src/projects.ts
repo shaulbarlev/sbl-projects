@@ -368,6 +368,8 @@ export function findProject(slug: string): Project | undefined {
 }
 
 export const thumbUrl = (p: Project) => `/thumbs/${p.id}.jpg`
+/** The same picture as red edges on black: what the open card wears */
+export const edgesUrl = (p: Project) => `/thumbs/${p.id}-edges.jpg`
 
 /**
  * The display-size copy of a picture under /public (`npm run thumbs` makes them,
