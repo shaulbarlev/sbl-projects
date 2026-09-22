@@ -766,6 +766,11 @@ body.has-project .markers {
 .tile.card:active {
   transform: none;
 }
+/* a tap anywhere on the open card focuses the tile (a link); no ring around a whole page for that */
+.tile.card,
+.tile.card:focus-visible {
+  outline: none;
+}
 /* the picture becomes the card's header */
 .tile.card > img {
   height: var(--hero);
