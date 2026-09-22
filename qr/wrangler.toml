@@ -1,0 +1,38 @@
+name = "q-redirect"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# The QR points here. One DNS record on the existing sbl.cx zone.
+routes = [
+  { pattern = "sbl.cx", custom_domain = true }
+]
+
+[vars]
+# Served when no main target has ever been set. Never a 404 — a QR that
+# resolves to an error is worse than one that resolves somewhere boring.
+FALLBACK_URL = "https://shaulb.com"
+
+[[durable_objects.bindings]]
+name = "STATE"
+class_name = "RedirectState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RedirectState"]
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "skin-files"
+
+# The site at sbl.cx: the map of projects (repo sbl-projects). Served for every
+# path the QR does not own, and at the root when nothing is set.
+[[services]]
+binding = "SITE"
+service = "sbl-projects"
+
+# Secrets, set with `wrangler secret put <NAME>` — never in this file:
+#   ADMIN_PASSWORD  the admin password
+#   SESSION_SECRET  random string used to sign session cookies
+#   GIPHY_API_KEY   optional; enables the GIF search in the panel
+#   API_TOKEN       optional; bearer token for scripts and the iOS Shortcut
+#   AGENT_TOKEN     optional; bearer token the home agent connects with

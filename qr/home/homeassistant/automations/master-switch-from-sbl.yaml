@@ -1,0 +1,44 @@
+# automation.sbl_cx_traffic_light_master_switch_sbl_cx_2 — created through
+# the config API on 2026-09-15, party branches the same day. The agent posts
+# here whenever a switch changes on sbl.cx, and once per switch on every
+# reconnect; the matching helper follows.
+alias: "sbl.cx traffic light: switches ← sbl.cx"
+description: >-
+  Mirror of the sbl.cx switches: the home agent posts here (webhook, local
+  only, POST) whenever the master switch or the party button's switch
+  changes on sbl.cx, and on reconnect. Payload {"switch": "traffic"|"party",
+  "on": true|false}; a missing switch means traffic. The matching helper
+  follows.
+mode: queued
+max: 10
+triggers:
+  - trigger: webhook
+    webhook_id: <WEBHOOK_SWITCH>
+    allowed_methods: [POST]
+    local_only: true
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.switch == 'party' and trigger.json.on == true }}"
+        sequence:
+          - action: input_boolean.turn_on
+            target: { entity_id: input_boolean.sbl_cx_party_button }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.switch == 'party' and trigger.json.on == false }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target: { entity_id: input_boolean.sbl_cx_party_button }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.switch != 'party' and trigger.json.on == true }}"
+        sequence:
+          - action: input_boolean.turn_on
+            target: { entity_id: input_boolean.sbl_cx_traffic_light }
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.switch != 'party' and trigger.json.on == false }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target: { entity_id: input_boolean.sbl_cx_traffic_light }

@@ -1,0 +1,12 @@
+# Copy to .dev.vars for local development. Never commit the real file.
+ADMIN_PASSWORD=choose-something-for-local-dev
+SESSION_SECRET=any-long-random-string
+
+# Optional. Enables the GIF search in Destinations.
+GIPHY_API_KEY=
+
+# Optional. Bearer token for scripts and the iOS Shortcut.
+API_TOKEN=
+
+# Optional. Bearer token the home agent (scripts/agent) connects with.
+AGENT_TOKEN=
