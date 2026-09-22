@@ -60,6 +60,56 @@ describe('a served file', () => {
   });
 });
 
+describe('after review', () => {
+  it("a link to a page of the site shows that page, not the site's root", async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://sbl.cx/doorlock/' } }));
+    expect(await (await SELF.fetch(ORIGIN, { redirect: 'manual' })).text()).toBe('the site /doorlock/');
+  });
+
+  it('a file deleted from the Library stops being served, the slot falling through', async () => {
+    const upload = await SELF.fetch(`${ORIGIN}/_/api/upload?name=gone.png&slot=main`, {
+      method: 'POST',
+      headers: { cookie, 'x-skin-request': '1', 'content-type': 'image/png' },
+      body: new Uint8Array([1]),
+    });
+    const { file } = (await upload.json()) as any;
+    expect((await SELF.fetch(ORIGIN, { redirect: 'manual' })).headers.get('location')).toContain(`/f/${file.key}/`);
+    await SELF.fetch(`${ORIGIN}/_/api/files/${file.key}`, authed(cookie, undefined, 'DELETE'));
+    const scan = await SELF.fetch(ORIGIN, { redirect: 'manual' });
+    expect(scan.status).toBe(200);
+    expect(await scan.text()).toBe('the site /');
+  });
+
+  it('answers a malformed API request with a 400, not a page', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`, { ...authed(cookie, { x: 1 }), body: '{not json' });
+    expect(response.status).toBe(400);
+    expect((await response.json() as any).error).toBeTruthy();
+  });
+
+  it('refuses to point a domain at a set or a feed', async () => {
+    const response = await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'shaulb.com', target: { kind: 'giphy', query: 'cats' } }));
+    expect(response.status).toBe(400);
+  });
+
+  it('takes a bare word as a message and a bare host as a link', async () => {
+    const asToken = (body: unknown) => SELF.fetch(`${ORIGIN}/_/api/send`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-token', 'x-skin-request': '1', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let state = (await (await asToken({ value: 'Hi!' })).json()) as any;
+    expect(state.resolution.target).toMatchObject({ kind: 'text', text: 'Hi!' });
+    state = (await (await asToken({ value: 'example.com/menu' })).json()) as any;
+    expect(state.resolution.target).toMatchObject({ kind: 'url', url: 'https://example.com/menu' });
+  });
+
+  it('takes a duration sent as a string', async () => {
+    const state = (await (await SELF.fetch(`${ORIGIN}/_/api/send`,
+      authed(cookie, { slot: 'temp', target: { kind: 'url', url: 'https://x.example.com/' }, durationMs: '3600000' }))).json()) as any;
+    expect(state.temp.expiresAt - state.temp.setAt).toBe(3600000);
+  });
+});
+
 describe('public redirect', () => {
   it('serves the site before anything is configured', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));

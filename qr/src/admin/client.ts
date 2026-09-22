@@ -63,7 +63,8 @@ export const ADMIN_JS = String.raw`
   }
 
   function describe(target) {
-    if (!target) return '—';
+    // Nothing set: scans show the site, which lives at this address.
+    if (!target) return 'the site';
     if (target.kind === 'url') return target.url;
     if (target.kind === 'file') return target.name;
     if (target.kind === 'pool') {
@@ -201,8 +202,8 @@ export const ADMIN_JS = String.raw`
           act(api('temp/extend', { byMs: 900000 }), 'Extended 15 minutes');
         }));
       } else if (res.source === 'fallback') {
-        kicker = 'Fallback';
-        meta = 'No main destination set — scans go to the configured fallback.';
+        kicker = 'The site';
+        meta = 'No main destination set — scans show the site.';
         actions.hidden = true;
       } else {
         kicker = 'Main';

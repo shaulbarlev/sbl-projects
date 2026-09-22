@@ -7,16 +7,17 @@ export function findPool(state: State, poolId: string): Pool | null {
 /**
  * Whether a target can actually produce something to serve.
  *
- * Only image sets can fail this: a set that is empty, or whose every image has
- * since been deleted, has nothing to hand a scanner. Such a target is skipped
- * so resolution falls through to the next layer, rather than dead-ending on a
- * slot that looks configured but cannot deliver.
+ * A set that is empty, or whose every image has since been deleted, has
+ * nothing to hand a scanner; nor has a file deleted from the Library. Such a
+ * target is skipped so resolution falls through to the next layer, rather than
+ * dead-ending on a slot that looks configured but cannot deliver.
  */
 export function isServable(state: State, target: Target): boolean {
   if (target.kind === 'pool') {
     const pool = findPool(state, target.poolId);
     return !!pool && pool.items.length > 0;
   }
+  if (target.kind === 'file') return state.files.some((f) => f.key === target.key);
   // The traffic light has a master switch. Off, it is skipped the same way.
   if (target.kind === 'traffic') return !!state.trafficEnabled;
   return true;

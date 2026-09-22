@@ -5,6 +5,7 @@ import {
   hasCsrfHeader,
   isAuthed,
   issueSession,
+  readCookie,
   sessionCookie,
 } from './auth';
 import { adminPage, loginPage, MANIFEST } from './admin/page';
@@ -55,12 +56,22 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // The panel and its API answer their own failures: a malformed request is
+    // a 400 to whoever sent it, not a page.
+    if (path === '/_' || path.startsWith('/_/')) {
+      try {
+        return await handleAdmin(request, env, url);
+      } catch (err) {
+        console.error('admin', err);
+        return json({ error: 'Bad request' }, 400);
+      }
+    }
+
     try {
       // The other domains are custom domains of this Worker too, each with a
       // setting of its own; www. is the same domain.
       const domain = url.hostname.replace(/^www\./, '');
       if (DOMAINS.has(domain)) return await handleDomain(request, env, url, domain);
-      if (path === '/_' || path.startsWith('/_/')) return await handleAdmin(request, env, url);
       if (path.startsWith('/f/')) return await serveFile(request, env, path);
       if (path === '/traffic' || path.startsWith('/traffic/')) {
         return await handleTraffic(request, env, ctx, url);
@@ -194,7 +205,8 @@ async function handleRedirect(
   // (Which also means a destination of the site's old address cannot loop.) A
   // file lives on this host too, at /f/, and is not the site.
   if (env.SITE && (resolution.source === 'fallback' || (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)))) {
-    const page = await env.SITE.fetch(request);
+    // The site's own path, when the link names one: a main of sbl.cx/doorlock/ shows that project.
+    const page = await env.SITE.fetch(resolution.source === 'fallback' ? request : new Request(destination, request));
     if (!claimCookie) return page;
     const withClaim = new Response(page.body, page);
     withClaim.headers.append('set-cookie', claimCookie);
@@ -247,7 +259,7 @@ async function claimStep(
   const sequence = state.sequence!;
   const sticky = state.stickySteps;
 
-  const existing = sticky ? readRequestCookie(request, STEP_COOKIE) : null;
+  const existing = sticky ? readCookie(request, STEP_COOKIE) : null;
   if (existing) {
     const separator = existing.lastIndexOf('.');
     const runId = existing.slice(0, separator);
@@ -296,16 +308,6 @@ async function claimStep(
       `Max-Age=${STEP_COOKIE_MAX_AGE}`,
     ].join('; '),
   };
-}
-
-function readRequestCookie(request: Request, name: string): string | null {
-  const header = request.headers.get('cookie');
-  if (!header) return null;
-  for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (key === name) return rest.join('=');
-  }
-  return null;
 }
 
 /** The domains that can be pointed on their own from the panel (sbl.cx is the QR, with its slots). */
@@ -575,29 +577,26 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     // chore: `{"text": "hi"}` alone is a one-hour temporary message.
     const target = normaliseTarget(body.target ?? (await flatTarget(env, body)));
     if ('error' in target) return json({ error: target.error }, 400);
-    const error = await applySend(env, body.slot ?? 'temp', target.value, durationOf(body, 60), now);
-    if (error) return json({ error }, 400);
-    return json(await view(env));
+    const sent = await applySend(env, body.slot ?? 'temp', target.value, durationOf(body, 60), now);
+    if ('error' in sent) return json({ error: sent.error }, 400);
+    return json(await view(env, sent.state));
   }
 
   // A domain with no setting is the site.
   if (route.startsWith('domain/') && request.method === 'DELETE') {
     const host = route.slice('domain/'.length);
     if (!DOMAINS.has(host)) return json({ error: 'Unknown domain' }, 400);
-    await callState(env, 'clear-domain', { host });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'clear-domain', { host })) as State));
   }
 
   if (route === 'temp' && request.method === 'DELETE') {
-    await callState(env, 'clear-temp', {});
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'clear-temp', {})) as State));
   }
 
   if (route === 'temp/extend' && request.method === 'POST') {
     const body = (await request.json()) as { byMs?: number; minutes?: number };
     const byMs = body.byMs ?? Number(body.minutes ?? 15) * 60_000;
-    await callState(env, 'extend-temp', { byMs: clampDuration(byMs) });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'extend-temp', { byMs: clampDuration(byMs) })) as State));
   }
 
   if (route === 'sequence/steps' && request.method === 'POST') {
@@ -611,44 +610,37 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
       if ('error' in target) return json({ error: `Step ${position + 1}: ${target.error}` }, 400);
       steps.push({ id: crypto.randomUUID(), target: target.value });
     }
-    await callState(env, 'set-steps', { steps });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'set-steps', { steps })) as State));
   }
 
   if (route === 'sequence/arm' && request.method === 'POST') {
     const body = (await request.json()) as { durationMs?: number; minutes?: number };
     const expiresAt = now + clampDuration(durationOf(body, DEFAULT_SEQUENCE_MS / 60_000));
-    await callState(env, 'arm-sequence', { now, expiresAt, runId: crypto.randomUUID() });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'arm-sequence', { now, expiresAt, runId: crypto.randomUUID() })) as State));
   }
 
   if (route === 'sequence/arm' && request.method === 'DELETE') {
-    await callState(env, 'disarm-sequence', {});
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'disarm-sequence', {})) as State));
   }
 
   if (route === 'sequence/sticky' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
-    await callState(env, 'set-sticky', { on: body.on });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'set-sticky', { on: body.on })) as State));
   }
 
   if (route === 'traffic' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
-    await callState(env, 'set-traffic', { on: body.on });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'set-traffic', { on: body.on })) as State));
   }
 
   if (route === 'party' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
-    await callState(env, 'set-party', { on: body.on });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'set-party', { on: body.on })) as State));
   }
 
   if (route === 'splash' && request.method === 'POST') {
     const body = (await request.json()) as { on: boolean };
-    await callState(env, 'set-splash', { on: body.on });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'set-splash', { on: body.on })) as State));
   }
 
   if (route === 'bookmarks' && request.method === 'POST') {
@@ -658,18 +650,16 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     // The label is optional. Most bookmarks are a URL you recognise on sight,
     // and forcing a name on one is a second field to fill on a phone for no
     // gain — the panel falls back to describing the target itself.
-    await callState(env, 'add-bookmark', {
+    return json(await view(env, (await callState(env, 'add-bookmark', {
       id: crypto.randomUUID(),
       label: String(body.label ?? '').trim(),
       target: target.value,
       now,
-    });
-    return json(await view(env));
+    })) as State));
   }
 
   if (route.startsWith('bookmarks/') && request.method === 'DELETE') {
-    await callState(env, 'remove-bookmark', { id: decodeURIComponent(route.slice(10)) });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'remove-bookmark', { id: decodeURIComponent(route.slice(10)) })) as State));
   }
 
   if (route === 'upload' && request.method === 'POST') {
@@ -687,14 +677,16 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     // And uploading straight *at* the code is what a Shortcut wants: one
     // request from camera to live, rather than upload, parse, send.
     const slot = url.searchParams.get('slot');
+    let known: State | undefined;
     if (slot) {
       const minutes = Number(url.searchParams.get('minutes') ?? 60);
       const target: Target = { kind: 'file', key: file.key, name: file.name };
-      const error = await applySend(env, slot, target, minutes * 60_000, now);
-      if (error) return json({ error }, 400);
+      const sent = await applySend(env, slot, target, minutes * 60_000, now);
+      if ('error' in sent) return json({ error: sent.error }, 400);
+      known = sent.state;
     }
 
-    return json({ state: await view(env), file });
+    return json({ state: await view(env, known), file });
   }
 
   if (route === 'gifs' && request.method === 'GET') {
@@ -736,8 +728,7 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     const body = (await request.json()) as { name?: string };
     const name = String(body.name ?? '').trim();
     if (!name) return json({ error: 'Name is required' }, 400);
-    await callState(env, 'add-pool', { id: crypto.randomUUID(), name, now });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'add-pool', { id: crypto.randomUUID(), name, now })) as State));
   }
 
   if (route.startsWith('pools/') && request.method === 'DELETE') {
@@ -746,26 +737,22 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
 
     if (section === 'items' && key) {
       // Removing an image from a set leaves the file itself in the Library.
-      await callState(env, 'pool-remove-item', { poolId, key });
-      return json(await view(env));
+      return json(await view(env, (await callState(env, 'pool-remove-item', { poolId, key })) as State));
     }
-    await callState(env, 'remove-pool', { id: poolId });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'remove-pool', { id: poolId })) as State));
   }
 
   if (route.startsWith('pools/') && route.endsWith('/items') && request.method === 'POST') {
     const poolId = decodeURIComponent(route.slice('pools/'.length, -'/items'.length));
     const body = (await request.json()) as { key?: string };
     if (!body.key) return json({ error: 'Missing file key' }, 400);
-    await callState(env, 'pool-add-item', { poolId, key: body.key });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'pool-add-item', { poolId, key: body.key })) as State));
   }
 
   if (route.startsWith('files/') && request.method === 'DELETE') {
     const key = decodeURIComponent(route.slice(6));
     await env.FILES.delete(key);
-    await callState(env, 'remove-file', { key });
-    return json(await view(env));
+    return json(await view(env, (await callState(env, 'remove-file', { key })) as State));
   }
 
   return json({ error: 'Not found' }, 404);
@@ -808,9 +795,14 @@ async function storeFile(
  * panel needs to show both "the next scan gets step 3 of 4" and "when this is
  * done, scans go back to main".
  */
-async function view(env: Env) {
+/**
+ * The panel's picture of everything. Every mutating op in the object answers
+ * with the state it left behind, so a caller that just wrote passes that in
+ * and saves a round trip to the object.
+ */
+async function view(env: Env, known?: State) {
   const now = Date.now();
-  const state = (await callState(env, 'get')) as State;
+  const state = known ?? ((await callState(env, 'get')) as State);
   const resolution = resolve(state, now, env.FALLBACK_URL);
   return {
     ...state,
@@ -838,7 +830,7 @@ function bookmarkLabel(bookmark: { label: string; target: Target }, state: State
 }
 
 function summarise(state: State, resolution: Resolution, now: number): string {
-  const main = state.main ? describeTarget(state.main.target, state) : 'the fallback';
+  const main = state.main ? describeTarget(state.main.target, state) : 'the site';
   if (sequenceLive(state, now)) {
     const seq = state.sequence!;
     return `Sequence armed · ${seq.cursor} of ${seq.steps.length} claimed · ${left(seq.expiresAt - now)} left`;
@@ -847,7 +839,7 @@ function summarise(state: State, resolution: Resolution, now: number): string {
     return `Temporary for ${left(resolution.expiresAt - now)}: ${describeTarget(resolution.target, state)} · then ${main}`;
   }
   if (resolution.source === 'main') return `Main: ${main}`;
-  return `Fallback: ${resolution.target.kind === 'url' ? resolution.target.url : main}`;
+  return `The site: ${main}`;
 }
 
 function left(ms: number): string {
@@ -873,8 +865,9 @@ interface SendBody {
 }
 
 /** A duration in ms from either form, with the default in minutes. */
-function durationOf(body: { durationMs?: number; minutes?: number }, defaultMinutes: number): number {
-  return body.durationMs ?? Number(body.minutes ?? defaultMinutes) * 60_000;
+function durationOf(body: { durationMs?: number | string; minutes?: number | string }, defaultMinutes: number): number {
+  // A shell one-liner or a Shortcut sends numbers as strings as often as not.
+  return body.durationMs !== undefined ? Number(body.durationMs) : Number(body.minutes ?? defaultMinutes) * 60_000;
 }
 
 /**
@@ -887,26 +880,29 @@ async function applySend(
   target: Target,
   durationMs: number,
   now: number,
-): Promise<string | null> {
+): Promise<{ state: State } | { error: string }> {
   if (slot === 'main') {
-    await callState(env, 'set-main', { target, now });
-  } else if (slot === 'temp') {
+    return { state: (await callState(env, 'set-main', { target, now })) as State };
+  }
+  if (slot === 'temp') {
     const expiresAt = now + clampDuration(durationMs);
-    await callState(env, 'set-temp', { target, now, expiresAt });
-  } else if (slot === 'sequence') {
+    return { state: (await callState(env, 'set-temp', { target, now, expiresAt })) as State };
+  }
+  if (slot === 'sequence') {
     const state = (await callState(env, 'get')) as State;
     const steps: SequenceStep[] = [
       ...(state.sequence?.steps ?? []),
       { id: crypto.randomUUID(), target },
     ];
-    if (steps.length > MAX_STEPS) return `Too many steps (max ${MAX_STEPS})`;
-    await callState(env, 'set-steps', { steps });
-  } else if (DOMAINS.has(slot)) {
-    await callState(env, 'set-domain', { host: slot, target, now });
-  } else {
-    return 'Unknown slot';
+    if (steps.length > MAX_STEPS) return { error: `Too many steps (max ${MAX_STEPS})` };
+    return { state: (await callState(env, 'set-steps', { steps })) as State };
   }
-  return null;
+  if (DOMAINS.has(slot)) {
+    // A set or a feed draws per scan and belongs to the QR.
+    if (target.kind === 'pool' || target.kind === 'giphy') return { error: 'A domain cannot point at a set or a feed' };
+    return { state: (await callState(env, 'set-domain', { host: slot, target, now })) as State };
+  }
+  return { error: 'Unknown slot' };
 }
 
 /** A name for an upload that arrived without one, from its type and the clock. */
@@ -925,7 +921,9 @@ async function flatTarget(env: Env, body: SendBody): Promise<Target | undefined>
   if (body.traffic) return { kind: 'traffic' };
   if (body.value !== undefined) {
     const value = String(body.value);
-    return validateUrl(value).ok ? { kind: 'url', url: value } : { kind: 'text', text: value };
+    // "Hi!" would parse as https://hi!/; a link has to look like one.
+    const looksLikeLink = /^[a-z][a-z0-9+.-]*:/i.test(value.trim()) || /^[^\s/]+\.[^\s/]+/.test(value.trim());
+    return looksLikeLink && validateUrl(value).ok ? { kind: 'url', url: value } : { kind: 'text', text: value };
   }
   if (body.bookmark !== undefined) {
     const state = (await callState(env, 'get')) as State;

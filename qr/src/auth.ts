@@ -71,12 +71,12 @@ export async function verifySession(token: string, env: Env, now: number): Promi
   return Number.isFinite(expiry) && expiry > now;
 }
 
-export function readCookie(request: Request): string | null {
+export function readCookie(request: Request, name = COOKIE_NAME): string | null {
   const header = request.headers.get('cookie');
   if (!header) return null;
   for (const part of header.split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === COOKIE_NAME) return rest.join('=');
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) return rest.join('=');
   }
   return null;
 }

@@ -741,7 +741,9 @@ export class RedirectState implements DurableObject {
     } catch {
       // Already closed; nothing to finish.
     }
-    if (this.state.getTags(ws).includes('agent')) await this.broadcast({ online: false });
+    // Derived, not declared: a stale socket closing after a reconnect must not
+    // dim the lamps while the new one is open.
+    if (this.state.getTags(ws).includes('agent')) await this.broadcast();
   }
 
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
