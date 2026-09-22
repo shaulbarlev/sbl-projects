@@ -53,7 +53,7 @@ tiles are packed close enough that several fill the screen.
 | `src/layout.ts` | scatters the tiles, sizes the world |
 | `src/map.ts` | camera, drag / pinch / wheel input, inertia, rubber-band edges, minimap, edge markers |
 | `src/project.ts` | project view (modal or page), `src/lightbox.ts` image viewer |
-| `src/dive.ts` | the zoom between a tile and its project: a transform on the tile's picture, an opacity on the project |
+| `src/card.ts` | a tile growing into its page-shaped card in map space, and folding back |
 | `src/main.ts` | wiring, routing, the opening sequence, seen state |
 | `src/reel.ts` | the film & art tile opening into the reel |
 | `vite.config.ts` | also writes `dist/<id>/index.html` per project, so project URLs work on any static host and share with their own title and image |
