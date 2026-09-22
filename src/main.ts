@@ -103,7 +103,7 @@ for (const project of PROJECTS) {
     'a',
     { class: 'tile', href: `/${project.id}/` },
     h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
-    h('span', {}, project.title),
+    h('span', {}, h('b', {}, project.title)),
   )
   a.addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return

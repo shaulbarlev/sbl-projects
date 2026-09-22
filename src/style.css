@@ -167,15 +167,16 @@ iframe {
   filter: contrast(1.25);
 }
 .tile span {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  display: block;
+  position: relative;
+  padding: 0.5rem 1.5rem 0.5rem 0.75rem;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.025em;
   line-height: 1.35;
+  /* a bar of red dithered with black pixels (2px a cell); the title sits on it in a tight black box */
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'><rect width='4' height='4' fill='%23ef4444'/><path d='M0 0h1v1H0zM2 0h1v1H2zM1 1h1v1H1zM0 2h1v1H0zM2 2h1v1H2zM3 3h1v1H3z'/></svg>") 0 0 / 8px 8px;
+  image-rendering: pixelated;
 }
 
 /* the contact links: bare icons, no frame and no visible label */
@@ -305,17 +306,26 @@ iframe {
   content: none;
 }
 
-/* red marks what has not been opened yet: here, on the minimap and on the edge markers */
+.tile span b {
+  font-weight: inherit;
+  padding: 0.1em 0.3em;
+  background: #000;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* a filled mark is a project not opened yet, a hollow one is seen; the minimap and edge markers say the same in red */
 .tile span::after {
   content: '';
-  flex: none;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
   width: 6px;
   height: 6px;
-  background: rgb(var(--red));
+  background: #000;
 }
 .tile.seen span::after {
   background: none;
-  outline: 1px solid rgb(var(--red) / 0.5);
+  outline: 1px solid #000;
   outline-offset: -1px;
 }
 
