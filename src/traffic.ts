@@ -50,6 +50,8 @@ export function renderTraffic(bare = false): string {
 <title>Traffic light</title>
 <style>
   html, body { height: 100%; margin: 0; }
+  /* Dark like the pages that embed it: a scheme mismatch makes a browser paint the frame opaque. */
+  html { color-scheme: dark; }
   body {
     display: grid; place-items: center; gap: 0;
     background: ${bare ? 'transparent' : '#0a0a0a'}; color: #a3a3a3;
