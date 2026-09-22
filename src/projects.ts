@@ -47,7 +47,7 @@ export type Project = {
   muteAll?: boolean
 }
 
-/** Extra URL paths that open a project, e.g. shaulb.com/pikud */
+/** Extra URL paths that open a project, e.g. sbl.cx/pikud */
 export const ALIASES: Record<string, string> = {
   pikud: 'pikud-haoled',
 }

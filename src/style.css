@@ -585,9 +585,11 @@ iframe {
   gap: 0.75rem;
 }
 .pv-more a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   min-width: 0;
-  padding: 0.75rem;
+  padding: 0.5rem;
   color: var(--fg);
   border: 1px solid var(--line);
   background: rgb(0 0 0 / 0.3);
@@ -596,16 +598,33 @@ iframe {
   border-color: var(--line-strong);
   text-decoration: none;
 }
+.pv-more img {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  filter: grayscale(0.2) contrast(1.25);
+}
+.pv-step {
+  min-width: 0;
+}
 .pv-more small {
   display: block;
   font-size: 12px;
   color: rgb(var(--red) / 0.7);
 }
-.pv-more span {
+.pv-more b {
   font-weight: 600;
 }
 .pv-next {
+  flex-direction: row-reverse;
   text-align: right;
+}
+.pv-back-foot {
+  grid-column: 1 / -1;
+  justify-content: center;
+  font-weight: 600;
+  color: rgb(248 113 113 / 0.95);
 }
 
 .pv-text {
@@ -783,7 +802,8 @@ body.has-project .home-button {
   /* laid out at its final width from the start, so the growing box only clips it, never reflows it */
   width: var(--card-w);
   padding: 0;
-  animation: reel-in 0.3s 0.15s both;
+  /* in view as the box grows, not after it */
+  animation: reel-in 0.3s both;
 }
 .tile.card.cut .pv {
   animation: none;

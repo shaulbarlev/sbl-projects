@@ -1,6 +1,6 @@
 # sbl-projects
 
-Source of [shaulb.com](https://shaulb.com): projects as square tiles scattered
+Source of [sbl.cx](https://sbl.cx): projects as square tiles scattered
 over a 2D plane you explore like a map.
 
 - **Map**: drag, swipe or scroll to pan; pinch or ctrl+scroll to zoom; arrow

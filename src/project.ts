@@ -1,6 +1,6 @@
 import { h } from './dom'
 import { openLightbox } from './lightbox'
-import { displayUrl, type Project, type ProjectMediaItem } from './projects'
+import { displayUrl, thumbUrl, type Project, type ProjectMediaItem } from './projects'
 // simple-icons (CC0)
 import whatsappIcon from './icons/whatsapp.svg?raw'
 
@@ -126,7 +126,12 @@ export function renderProject(
   )
 
   const step = (to: Project, cls: string, text: string) => {
-    const a = h('a', { class: cls, href: `/${to.id}/` }, h('small', {}, text), h('span', {}, to.title))
+    const a = h(
+      'a',
+      { class: cls, href: `/${to.id}/` },
+      h('img', { src: thumbUrl(to), alt: '', width: 640, height: 640, loading: 'lazy', decoding: 'async' }),
+      h('span', { class: 'pv-step' }, h('small', {}, text), h('b', {}, to.title)),
+    )
     a.addEventListener('click', (e) => {
       if (e.metaKey || e.ctrlKey || e.shiftKey) return
       e.preventDefault()
@@ -134,11 +139,18 @@ export function renderProject(
     })
     return a
   }
+  // The foot of the page: the next projects either way, and the way back to the map.
+  const backAgain = h('a', { class: 'pv-back-foot', href: '/' }, '← map')
+  backAgain.addEventListener('click', (e) => {
+    e.preventDefault()
+    onClose()
+  })
   const more = h(
     'nav',
     { class: 'pv-more', 'aria-label': 'More projects' },
     step(around.prev, 'pv-prev', '← previous'),
     step(around.next, 'pv-next', 'next →'),
+    backAgain,
   )
 
   return h(

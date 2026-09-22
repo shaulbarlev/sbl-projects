@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import { PROJECTS } from './src/projects'
 
-const SITE = 'https://shaulb.com'
+const SITE = 'https://sbl.cx'
 
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
@@ -49,7 +49,7 @@ function projectPages(): Plugin {
   }
 }
 
-// Deployed to https://shaulb.com by Cloudflare Workers Builds (see wrangler.jsonc)
+// Deployed by Cloudflare Workers Builds (see wrangler.jsonc); served at https://sbl.cx
 export default defineConfig({
   base: '/',
   plugins: [projectPages()],
@@ -57,7 +57,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        // shaulb.com/pikud: the Pikud HaoLED project with its own Hebrew share card
+        // sbl.cx/pikud: the Pikud HaoLED project with its own Hebrew share card
         pikud: resolve(__dirname, 'pikud.html'),
       },
     },
