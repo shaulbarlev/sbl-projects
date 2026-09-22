@@ -86,9 +86,22 @@ describe('after review', () => {
     expect((await response.json() as any).error).toBeTruthy();
   });
 
-  it('refuses to point a domain at a set or a feed', async () => {
-    const response = await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'shaulb.com', target: { kind: 'giphy', query: 'cats' } }));
-    expect(response.status).toBe(400);
+  it('a domain pointed at a set draws from it like the QR does, and the QR is untouched', async () => {
+    const upload = await SELF.fetch(`${ORIGIN}/_/api/upload?name=one.png`, {
+      method: 'POST',
+      headers: { cookie, 'x-skin-request': '1', 'content-type': 'image/png' },
+      body: new Uint8Array([1]),
+    });
+    const { file } = (await upload.json()) as any;
+    const pool = (await (await SELF.fetch(`${ORIGIN}/_/api/pools`, authed(cookie, { name: 'Wall' }))).json()) as any;
+    const poolId = pool.pools[pool.pools.length - 1].id;
+    await SELF.fetch(`${ORIGIN}/_/api/pools/${poolId}/items`, authed(cookie, { key: file.key }));
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'shaulbarlev.com', target: { kind: 'pool', poolId } }));
+    const scan = await SELF.fetch('https://shaulbarlev.com/', { redirect: 'manual' });
+    expect(scan.status).toBe(302);
+    expect(scan.headers.get('location')).toBe(`https://sbl.cx/f/${file.key}/one.png`);
+    expect(await (await SELF.fetch('https://shaulb.com/', { redirect: 'manual' })).text()).toBe('the site /');
+    await SELF.fetch(`${ORIGIN}/_/api/domain/shaulbarlev.com`, authed(cookie, undefined, 'DELETE'));
   });
 
   it('takes a bare word as a message and a bare host as a link', async () => {

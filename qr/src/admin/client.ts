@@ -276,11 +276,25 @@ export const ADMIN_JS = String.raw`
     });
   }
 
-  /** The other domains: what each points at, and a way back to sbl.cx. */
+  /**
+   * The three addresses side by side: the QR with whatever it resolves to
+   * right now, and each other domain with its own setting, or the site.
+   */
   function renderDomains() {
     var hosts = state.domainHosts || [];
     var host = $('domains');
     host.innerHTML = '';
+
+    var qr = document.createElement('div');
+    qr.className = 'item';
+    var res = state.resolution;
+    var live = state.sequenceStatus && state.sequenceStatus.live ? 'the sequence'
+      : res.source === 'temp' ? 'temporary · ' + describe(res.target)
+      : res.source === 'main' ? 'main · ' + describe(res.target)
+      : 'the site';
+    qr.innerHTML = '<div class="name">sbl.cx <span class="sub">the QR · ' + esc(live) + '</span></div>';
+    host.appendChild(qr);
+
     hosts.forEach(function (name) {
       var slot = state.domains && state.domains[name];
       var row = document.createElement('div');
@@ -288,7 +302,7 @@ export const ADMIN_JS = String.raw`
       var label = document.createElement('div');
       label.className = 'name';
       label.innerHTML = esc(name) + '<span class="sub">' +
-        (slot ? '→ ' + esc(describe(slot.target)) : 'the site') + '</span>';
+        (slot ? esc(describe(slot.target)) : 'the site') + '</span>';
       row.appendChild(label);
       if (slot) {
         row.appendChild(button('Back to the site', '', function () {

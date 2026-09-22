@@ -141,6 +141,56 @@ async function handleRedirect(
     }
   }
 
+  // Counted after the response is on its way — telemetry never delays a scan.
+  ctx.waitUntil(callState(env, 'hit', {}));
+
+  const headers = new Headers({
+    'cache-control': 'no-store',
+    'referrer-policy': 'no-referrer',
+  });
+  if (claimCookie) headers.append('set-cookie', claimCookie);
+
+  // Nothing set: the site is here.
+  if (resolution.source === 'fallback' && env.SITE) {
+    const page = await env.SITE.fetch(request);
+    if (!claimCookie) return page;
+    const withClaim = new Response(page.body, page);
+    withClaim.headers.append('set-cookie', claimCookie);
+    return withClaim;
+  }
+
+  return serve(request, env, state, resolution.target, headers, claimCookie, url.origin);
+}
+
+/**
+ * Serve a target: draw from a set or a feed, render a message or the light in
+ * place, show the splash, or redirect. Shared by the QR's root and the other
+ * domains, so every kind of destination works the same on each.
+ * `fileOrigin` is where a file's URL points: the QR's own origin at the root,
+ * sbl.cx from another domain (whose paths are all the site's).
+ */
+async function serve(
+  request: Request,
+  env: Env,
+  state: State,
+  target: Target,
+  headers: Headers,
+  claimCookie: string | null,
+  fileOrigin: string,
+): Promise<Response> {
+  const isRobot = UNFURLER.test(request.headers.get('user-agent') ?? '');
+  const site = async () => {
+    if (!env.SITE) {
+      headers.set('location', env.FALLBACK_URL);
+      return new Response(null, { status: 302, headers });
+    }
+    const page = await env.SITE.fetch(request);
+    if (!claimCookie) return page;
+    const withClaim = new Response(page.body, page);
+    withClaim.headers.append('set-cookie', claimCookie);
+    return withClaim;
+  };
+
   // An image set resolves to a different file on every scan. The draw happens
   // in the Durable Object so that concurrent scanners advance the same bag
   // instead of racing over it.
@@ -151,44 +201,26 @@ async function handleRedirect(
   // get without taking it. Without this, pasting the code into a group chat
   // burns an image per preview — and the person who then scans sees a repeat,
   // which is precisely what the shuffled bag exists to prevent.
-  let served: Target = resolution.target;
+  let served: Target = target;
   if (served.kind === 'pool') {
     const peek = isRobot || isSpeculative(request);
-    const drawn = (await callState(env, 'pool-draw', { poolId: served.poolId, peek })) as {
-      key: string | null;
-    };
+    const drawn = (await callState(env, 'pool-draw', { poolId: served.poolId, peek })) as { key: string | null };
     const file = drawn.key ? state.files.find((f) => f.key === drawn.key) : null;
-    if (file) {
-      served = { kind: 'file', key: file.key, name: file.name };
-    } else {
-      // The set emptied out from under us between read and draw.
-      served = { kind: 'url', url: env.FALLBACK_URL };
-    }
+    // The set emptied out from under us between read and draw: nothing to serve.
+    if (!file) return site();
+    served = { kind: 'file', key: file.key, name: file.name };
   }
 
   // A GIF feed is a live search: every real scan takes the next result, under
-  // the same peek rule as a draw. Without a key there is no feed, so the scan
-  // falls back rather than dead-ending.
+  // the same peek rule as a draw. Without a key there is no feed.
   if (served.kind === 'giphy') {
     const peek = isRobot || isSpeculative(request);
     const next = env.GIPHY_API_KEY
-      ? ((await callState(env, 'giphy-next', {
-          query: served.query,
-          key: env.GIPHY_API_KEY,
-          peek,
-        })) as { url: string | null })
+      ? ((await callState(env, 'giphy-next', { query: served.query, key: env.GIPHY_API_KEY, peek })) as { url: string | null })
       : { url: null };
-    served = { kind: 'url', url: next.url ?? env.FALLBACK_URL };
+    if (!next.url) return site();
+    served = { kind: 'url', url: next.url };
   }
-
-  // Counted after the response is on its way — telemetry never delays a scan.
-  ctx.waitUntil(callState(env, 'hit', {}));
-
-  const headers = new Headers({
-    'cache-control': 'no-store',
-    'referrer-policy': 'no-referrer',
-  });
-  if (claimCookie) headers.append('set-cookie', claimCookie);
 
   // A text target is the destination, so there is nothing to redirect to and
   // nothing for a splash to precede. The traffic light takes over the root
@@ -199,27 +231,20 @@ async function handleRedirect(
     return new Response(page, { headers });
   }
 
-  const destination = targetToUrl(served, url.origin);
+  const destination = targetToUrl(served, fileOrigin);
 
-  // Nothing set, or a link to the site itself: the site is here, not a hop away.
-  // (Which also means a destination of the site's old address cannot loop.) A
-  // file lives on this host too, at /f/, and is not the site.
-  if (env.SITE && (resolution.source === 'fallback' || (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)))) {
+  // A link to the site itself: the site is here, not a hop away (so a
+  // destination of the site's old address cannot loop). A file lives on this
+  // host too, at /f/, and is not the site.
+  if (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)) {
     // The site's own path, when the link names one: a main of sbl.cx/doorlock/ shows that project.
-    const page = await env.SITE.fetch(resolution.source === 'fallback' ? request : new Request(destination, request));
-    if (!claimCookie) return page;
-    const withClaim = new Response(page.body, page);
-    withClaim.headers.append('set-cookie', claimCookie);
-    return withClaim;
+    return env.SITE ? env.SITE.fetch(new Request(destination, request)) : site();
   }
 
   if (state.splash && !isRobot) {
     headers.set('content-type', 'text/html; charset=utf-8');
     return new Response(
-      renderSplash(DEFAULT_TEMPLATE_ID, {
-        targetUrl: destination,
-        label: describeTarget(served, state),
-      }),
+      renderSplash(DEFAULT_TEMPLATE_ID, { targetUrl: destination, label: describeTarget(served, state) }),
       { headers },
     );
   }
@@ -315,29 +340,21 @@ export const DOMAINS: ReadonlySet<string> = new Set(['shaulb.com', 'shaulbarlev.
 const HOME_URL = 'https://sbl.cx';
 
 /**
- * One of the other domains. Pointed at something from the panel, that is where
- * it goes (a message or the traffic light rendered in place, a file or a link
- * by redirect); otherwise it is the site, at its own address. Only sbl.cx
- * follows the QR's temp and main. A redirect is always 302: what a domain does
- * is a setting, not a fact to be cached.
+ * One of the other domains. Pointed at something from the panel, it serves it
+ * exactly as the QR would (a set draws per scan, a message renders in place,
+ * the splash applies); otherwise it is the site, at its own address. Only
+ * sbl.cx follows the QR's temp and main.
  */
 async function handleDomain(request: Request, env: Env, url: URL, domain: string): Promise<Response> {
   const state = (await callState(env, 'get')) as State;
   const slot = state.domains[domain];
-  const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
   const target = slot && isServable(state, slot.target) ? slot.target : null;
-  if (target?.kind === 'text' || target?.kind === 'traffic') {
-    headers.set('content-type', 'text/html; charset=utf-8');
-    return new Response(target.kind === 'text' ? renderMessage(target.text) : renderTraffic(), { headers });
-  }
-  // Sets and feeds draw per scan and belong to the QR; a domain pointed at one shows the site.
-  if (!target || target.kind === 'pool' || target.kind === 'giphy') {
+  if (!target) {
     if (env.SITE) return env.SITE.fetch(request);
-    headers.set('location', HOME_URL + url.pathname + url.search);
-    return new Response(null, { status: 302, headers });
+    return Response.redirect(HOME_URL + url.pathname + url.search, 302);
   }
-  headers.set('location', targetToUrl(target, HOME_URL));
-  return new Response(null, { status: 302, headers });
+  const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+  return serve(request, env, state, target, headers, null, HOME_URL);
 }
 
 /**
@@ -898,8 +915,6 @@ async function applySend(
     return { state: (await callState(env, 'set-steps', { steps })) as State };
   }
   if (DOMAINS.has(slot)) {
-    // A set or a feed draws per scan and belongs to the QR.
-    if (target.kind === 'pool' || target.kind === 'giphy') return { error: 'A domain cannot point at a set or a feed' };
     return { state: (await callState(env, 'set-domain', { host: slot, target, now })) as State };
   }
   return { error: 'Unknown slot' };
