@@ -744,7 +744,8 @@ iframe {
 
 /* while a card is open the map's own chrome steps aside */
 body.has-project .locator,
-body.has-project .markers {
+body.has-project .markers,
+body.has-project .home-button {
   display: none;
 }
 
