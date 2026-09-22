@@ -387,7 +387,17 @@ export function displayPictures(p: Project): string[] {
  * Passive islands: pictures out on the edge of the map, there to be found.
  * Tapping one only brings it into view. `w`/`h` are its size on a wide screen.
  */
-export const ISLANDS = [{ id: 'me', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 }]
+export type Island =
+  | { id: string; kind: 'picture'; src: string; alt: string; w: number; h: number }
+  /** A live page from elsewhere, shown as it is */
+  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number }
+
+export const ISLANDS: Island[] = [
+  { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
+  // The traffic light at home, the very page sbl.cx/traffic serves (its bare copy, no
+  // background): lamps, socket, name field, party button and master switch are all its own.
+  { id: 'traffic', kind: 'frame', src: 'https://sbl.cx/traffic?bare', title: 'The traffic light at home. Tap a lamp.', w: 400, h: 700 },
+]
 
 /** The film & art reel. Streamed from the film site: at 70 MB it is over this host's 25 MiB limit per file. */
 export const REEL = { src: 'https://shaulbarlev.com/assets/reel-BR1LPv9C.mp4', poster: '/reel/poster.jpg' }

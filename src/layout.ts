@@ -6,14 +6,16 @@
 export type Rect = { x: number; y: number; w: number; h: number }
 export type Tile = Rect & { id: string }
 /** `links` are the small tiles that hug home, `tiles` the projects, `islands` the passive pictures out past them. */
-export type World = { w: number; h: number; home: Rect; links: Tile[]; tiles: Tile[]; islands: Tile[] }
+/** `origin` is the wordmark's centre: what the camera calls home and the readout counts from. */
+export type World = { w: number; h: number; home: Rect; origin: { x: number; y: number }; links: Tile[]; tiles: Tile[]; islands: Tile[] }
 /** A passive picture and its size on a wide screen */
 export type Island = { id: string; w: number; h: number }
 
 /** How loosely to scatter: phones get small tiles packed close, so several fill the screen. */
 export type Profile = {
   sizes: number[]
-  home: { w: number; h: number }
+  /** The wordmark block: its size, and how far its box sits below the logo's centre (half the hint line under it) */
+  home: { w: number; h: number; drop: number }
   /** Room under each tile for its title */
   label: number
   gap: number
@@ -32,7 +34,7 @@ export type Profile = {
 
 export const WIDE: Profile = {
   sizes: [300, 220, 260, 200, 280, 240],
-  home: { w: 400, h: 192 },
+  home: { w: 240, h: 184, drop: 21 },
   label: 56,
   gap: 100,
   margin: 300,
@@ -45,7 +47,7 @@ export const WIDE: Profile = {
 
 export const NARROW: Profile = {
   sizes: [240, 180, 210, 170, 230, 190],
-  home: { w: 250, h: 146 },
+  home: { w: 176, h: 137, drop: 17 },
   label: 44,
   gap: 24,
   margin: 120,
@@ -80,7 +82,8 @@ export function scatter(ids: string[], linkIds: string[], islandList: Island[], 
   const { sizes, label, gap, margin, ring, spread, aspect, link, island } = profile
   const rand = mulberry32(seed)
   // Placed around home at the origin; the world is fitted to the result below.
-  const home: Rect = { x: -profile.home.w / 2, y: -profile.home.h / 2, ...profile.home }
+  const { w: hw, h: hh, drop } = profile.home
+  const home: Rect = { x: -hw / 2, y: -hh / 2 + drop, w: hw, h: hh }
   const taken: Rect[] = [home]
 
   // The contact tiles go first and nearest: each is pushed out from home along
@@ -144,5 +147,5 @@ export function scatter(ids: string[], linkIds: string[], islandList: Island[], 
   const bottom = Math.max(...taken.map((t) => t.y + t.h)) + margin
   const shift = <T extends Rect>(r: T): T => ({ ...r, x: r.x - left, y: r.y - top })
 
-  return { w: right - left, h: bottom - top, home: shift(home), links: links.map(shift), tiles: tiles.map(shift), islands: islands.map(shift) }
+  return { w: right - left, h: bottom - top, home: shift(home), origin: { x: -left, y: -top }, links: links.map(shift), tiles: tiles.map(shift), islands: islands.map(shift) }
 }

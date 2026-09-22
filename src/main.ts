@@ -39,17 +39,23 @@ plane.append(reel.el)
 
 // Passive islands, out past the projects: a tap only brings one into view.
 for (const island of ISLANDS) {
-  const b = h(
-    'button',
-    { class: 'tile island', type: 'button', 'aria-label': island.alt },
-    h('img', { src: island.src, alt: '', width: island.w, height: island.h, draggable: 'false', decoding: 'async', loading: 'lazy' }),
-  )
-  b.addEventListener('click', () => {
-    const at = world.islands.find((t) => t.id === island.id)
-    if (at) map.focus(at)
-  })
-  tiles.set(island.id, b)
-  plane.append(b)
+  let el: HTMLElement
+  if (island.kind === 'frame') {
+    // Loaded only once scrolled near: each open copy is a live socket to the light.
+    el = h('div', { class: 'tile island frame' }, h('iframe', { src: island.src, title: island.title, loading: 'lazy' }))
+  } else {
+    el = h(
+      'button',
+      { class: 'tile island', type: 'button', 'aria-label': island.alt },
+      h('img', { src: island.src, alt: '', width: island.w, height: island.h, draggable: 'false', decoding: 'async', loading: 'lazy' }),
+    )
+    el.addEventListener('click', () => {
+      const at = world.islands.find((t) => t.id === island.id)
+      if (at) map.focus(at)
+    })
+  }
+  tiles.set(island.id, el)
+  plane.append(el)
 }
 
 const layout = () =>
@@ -70,7 +76,7 @@ function place() {
   homeEl.style.width = `${world.home.w}px`
   for (const t of placed()) {
     const a = tiles.get(t.id)
-    if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px` })
+    if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
   }
   reel.place(world.links.find((t) => t.id === 'film')!)
 }
@@ -86,7 +92,10 @@ const map = createMap({
   onHomeVisible: (visible) => (homeButton.hidden = visible),
   // The minimap stays out of the way until there is somewhere to have been.
   onExplore: () => document.body.classList.add('explored'),
-  onView: (view) => card?.check(view),
+  onView: (view) => {
+    card?.check(view)
+    reel.check(view)
+  },
   onBreak: () => card?.close(),
 })
 

@@ -44,7 +44,7 @@ export function createMap(opts: {
 }) {
   const { viewport, plane, minimap, readout, markers } = opts
   let world = opts.world
-  let home = centre(world.home)
+  let home = world.origin
   const cam: Camera = { ...home, z: 1 }
   let vw = 0
   let vh = 0
@@ -393,7 +393,7 @@ export function createMap(opts: {
     /** Swap in a new layout and start again from home */
     setWorld(next: World) {
       world = next
-      home = centre(world.home)
+      home = world.origin
       drawOverlays()
       halt()
       Object.assign(cam, home, { z: 1 })
