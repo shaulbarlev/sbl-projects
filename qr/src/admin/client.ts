@@ -287,11 +287,11 @@ export const ADMIN_JS = String.raw`
       var label = document.createElement('div');
       label.className = 'name';
       label.innerHTML = esc(name) + '<span class="sub">' +
-        (slot ? '→ ' + esc(describe(slot.target)) : '→ sbl.cx') + '</span>';
+        (slot ? '→ ' + esc(describe(slot.target)) : 'the site') + '</span>';
       row.appendChild(label);
       if (slot) {
-        row.appendChild(button('Back to sbl.cx', '', function () {
-          act(api('domain/' + encodeURIComponent(name), null, 'DELETE'), name + ' → sbl.cx');
+        row.appendChild(button('Back to the site', '', function () {
+          act(api('domain/' + encodeURIComponent(name), null, 'DELETE'), name + ' is the site again');
         }));
       }
       host.appendChild(row);

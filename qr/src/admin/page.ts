@@ -167,8 +167,8 @@ export function adminPage(host: string): string {
 
     <section>
       <h2>Domains</h2>
-      <p class="sub">The other addresses, each pointed on its own. Left alone, one sends its
-        visitors on to <b>sbl.cx</b>. <b>Send</b> on anything offers them too.</p>
+      <p class="sub">The other addresses, each pointed on its own. Left alone, one is the site
+        itself; only <b>sbl.cx</b> follows the temp and main. <b>Send</b> on anything offers them too.</p>
       <div class="list" id="domains"></div>
       <p class="hint" id="domains-hint"></p>
     </section>

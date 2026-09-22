@@ -134,7 +134,7 @@ export interface State {
   hits: number;
   /**
    * The other domains, each pointed on its own: shaulb.com and shaulbarlev.com
-   * come to this Worker too. Absent, a domain sends its visitors on to sbl.cx.
+   * come to this Worker too. Absent, a domain is the site at its own address.
    */
   domains: Record<string, Slot>;
 }

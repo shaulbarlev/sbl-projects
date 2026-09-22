@@ -314,8 +314,9 @@ const HOME_URL = 'https://sbl.cx';
 /**
  * One of the other domains. Pointed at something from the panel, that is where
  * it goes (a message or the traffic light rendered in place, a file or a link
- * by redirect); otherwise its visitors are sent on to the same path at sbl.cx.
- * Always 302: what a domain does is a setting, not a fact to be cached.
+ * by redirect); otherwise it is the site, at its own address. Only sbl.cx
+ * follows the QR's temp and main. A redirect is always 302: what a domain does
+ * is a setting, not a fact to be cached.
  */
 async function handleDomain(request: Request, env: Env, url: URL, domain: string): Promise<Response> {
   const state = (await callState(env, 'get')) as State;
@@ -326,12 +327,13 @@ async function handleDomain(request: Request, env: Env, url: URL, domain: string
     headers.set('content-type', 'text/html; charset=utf-8');
     return new Response(target.kind === 'text' ? renderMessage(target.text) : renderTraffic(), { headers });
   }
-  // Sets and feeds draw per scan and belong to the QR; a domain pointed at one goes home.
-  const destination =
-    target && target.kind !== 'pool' && target.kind !== 'giphy'
-      ? targetToUrl(target, HOME_URL)
-      : HOME_URL + url.pathname + url.search;
-  headers.set('location', destination);
+  // Sets and feeds draw per scan and belong to the QR; a domain pointed at one shows the site.
+  if (!target || target.kind === 'pool' || target.kind === 'giphy') {
+    if (env.SITE) return env.SITE.fetch(request);
+    headers.set('location', HOME_URL + url.pathname + url.search);
+    return new Response(null, { status: 302, headers });
+  }
+  headers.set('location', targetToUrl(target, HOME_URL));
   return new Response(null, { status: 302, headers });
 }
 
@@ -577,7 +579,7 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     return json(await view(env));
   }
 
-  // A domain with no setting sends its visitors on to sbl.cx.
+  // A domain with no setting is the site.
   if (route.startsWith('domain/') && request.method === 'DELETE') {
     const host = route.slice('domain/'.length);
     if (!DOMAINS.has(host)) return json({ error: 'Unknown domain' }, 400);

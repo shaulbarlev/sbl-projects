@@ -34,25 +34,28 @@ beforeEach(async () => {
 });
 
 describe('the other domains', () => {
-  it('send their visitors on to the same path at sbl.cx, with nothing set', async () => {
+  it('are the site at their own address with nothing set, whatever the QR is doing', async () => {
+    await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'temp', target: { kind: 'url', url: 'https://party.example.com/' }, durationMs: 60_000 }));
+    expect((await visit(ORIGIN)).headers.get('location')).toBe('https://party.example.com/');
     const response = await visit('https://shaulb.com/doorlock/?x=1');
-    expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://sbl.cx/doorlock/?x=1');
-    expect((await visit('https://shaulbarlev.com/')).headers.get('location')).toBe('https://sbl.cx/');
-    expect((await visit('https://www.shaulbarlev.com/x')).headers.get('location')).toBe('https://sbl.cx/x');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('the site /doorlock/');
+    expect(await (await visit('https://shaulbarlev.com/')).text()).toBe('the site /');
+    expect(await (await visit('https://www.shaulbarlev.com/x')).text()).toBe('the site /x');
+    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
   });
 
   it('can each be pointed at a link, on their own, and cleared again', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'shaulb.com', target: { kind: 'url', url: 'https://elsewhere.example.com/' } }));
     expect((await visit('https://shaulb.com/')).headers.get('location')).toBe('https://elsewhere.example.com/');
-    expect((await visit('https://shaulbarlev.com/')).headers.get('location')).toBe('https://sbl.cx/');
+    expect(await (await visit('https://shaulbarlev.com/')).text()).toBe('the site /');
     // the QR itself is untouched
     const root = await SELF.fetch(ORIGIN, { redirect: 'manual' });
     expect(root.status).toBe(200);
 
     const state = (await (await SELF.fetch(`${ORIGIN}/_/api/domain/shaulb.com`, authed(cookie, undefined, 'DELETE'))).json()) as any;
     expect(state.domains['shaulb.com']).toBeUndefined();
-    expect((await visit('https://shaulb.com/')).headers.get('location')).toBe('https://sbl.cx/');
+    expect(await (await visit('https://shaulb.com/')).text()).toBe('the site /');
   });
 
   it('render a message in place, and refuse a domain that is not theirs', async () => {
