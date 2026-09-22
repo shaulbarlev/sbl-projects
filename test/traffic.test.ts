@@ -63,6 +63,16 @@ describe('the traffic light page', () => {
     expect(response.headers.get('location')).toBe('https://main.example.com/');
   });
 
+  it('has a bare copy for embedding, which stays up with the switch off', async () => {
+    const off = await SELF.fetch(`${ORIGIN}/traffic?bare`, { redirect: 'manual' });
+    expect(off.status).toBe(200);
+    expect(await off.text()).toContain('background: transparent');
+    await traffic(true);
+    const on = await SELF.fetch(`${ORIGIN}/traffic?bare`);
+    expect(await on.text()).toContain('background: transparent');
+    expect(await (await SELF.fetch(`${ORIGIN}/traffic`)).text()).toContain('background: #0a0a0a');
+  });
+
   it('renders while on', async () => {
     await traffic(true);
     const response = await SELF.fetch(`${ORIGIN}/traffic`);

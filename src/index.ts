@@ -350,9 +350,12 @@ async function handleTraffic(
   }
 
   const home = await callState(env, 'home-state');
-  if (!home.enabled) return handleRedirect(request, env, ctx, url);
+  // The embedded copy has nowhere to redirect to: switched off, it shows its
+  // lamps dark (the socket is refused and polling reports the switch off).
+  const bare = url.searchParams.has('bare');
+  if (!home.enabled && !bare) return handleRedirect(request, env, ctx, url);
 
-  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic());
+  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic(bare));
   if (path === '/traffic/state' && request.method === 'GET') return json(home);
 
   return json({ error: 'Not found' }, 404);

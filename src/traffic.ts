@@ -29,8 +29,12 @@ export const HOME_ENTITIES: ReadonlySet<string> = new Set([...LIGHT_ENTITIES, PA
  * just scanned a code. No words on it: two lamps, lit or dim, and dimmed
  * further when home cannot be reached. State arrives over a socket as it
  * changes, with HTTP polling as the fallback.
+ *
+ * `bare` is the same page for embedding elsewhere (shaulb.com sets it in an
+ * iframe): no background, so it sits on whatever is behind it. One page, one
+ * script, wherever the light is shown.
  */
-export function renderTraffic(): string {
+export function renderTraffic(bare = false): string {
   const lamps = LIGHTS.map(
     (l) => `<button class="lamp" data-entity="${escapeHtml(l.entity)}" style="--c:${l.color}"
       aria-label="${l.label} light" aria-pressed="false" disabled onclick="return false"></button>`,
@@ -48,7 +52,7 @@ export function renderTraffic(): string {
   html, body { height: 100%; margin: 0; }
   body {
     display: grid; place-items: center; gap: 0;
-    background: #0a0a0a; color: #a3a3a3;
+    background: ${bare ? 'transparent' : '#0a0a0a'}; color: #a3a3a3;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
   }
