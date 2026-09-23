@@ -20,8 +20,9 @@ const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
 const tiles = new Map<string, HTMLElement>()
-/** Notes that sit beside an island, keyed by the island */
+/** Notes that sit beside an island, keyed by the island; and where the island's content sits inside it */
 const notes = new Map<string, HTMLElement>()
+const boxes = new Map<string, { x: number; y: number; w: number; h: number }>()
 /** The project card open on the map, if any */
 let card: Card | null = null
 
@@ -74,17 +75,19 @@ for (const island of ISLANDS) {
     embedHost(
       frame,
       cover,
-      ({ height, lamps }) => {
+      ({ height, box, lamps }) => {
         if (lamps) {
           map.setLamps(island.id, lamps)
           showState(lamps)
         }
+        if (box) boxes.set(island.id, box)
         const at = world.islands.find((t) => t.id === island.id)
-        if (!at || Math.abs(at.h - height) <= 2) return
-        at.h = height
-        el.style.height = `${height}px`
+        if (at && Math.abs(at.h - height) > 2) {
+          at.h = height
+          el.style.height = `${height}px`
+          map.redraw()
+        }
         place()
-        map.redraw()
       },
       () => {
         if (tapped) return
@@ -126,9 +129,10 @@ function place() {
   for (const t of placed()) {
     const a = tiles.get(t.id)
     if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
-    // A note sits just right of its island, its middle on the island's middle.
+    // A note sits just right of what is drawn in its island, its middle on that content's middle.
     const note = notes.get(t.id)
-    if (note) Object.assign(note.style, { left: `${t.x + t.w + 12}px`, top: `${t.y + Math.round(t.h / 2)}px` })
+    const box = boxes.get(t.id) ?? { x: 0, y: 0, w: t.w, h: t.h }
+    if (note) Object.assign(note.style, { left: `${t.x + box.x + box.w + 10}px`, top: `${t.y + box.y + Math.round(box.h / 2)}px` })
   }
   reel.place(world.links.find((t) => t.id === 'film')!)
 }

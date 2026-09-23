@@ -1,3 +1,4 @@
 export type Lamp = { color: string; on: boolean }
-export function host(frame: HTMLIFrameElement, cover: HTMLElement, onLayout: (layout: { height: number; lamps?: Lamp[] }) => void, onTap?: () => void): void
+export type Box = { x: number; y: number; w: number; h: number }
+export function host(frame: HTMLIFrameElement, cover: HTMLElement, onLayout: (layout: { height: number; box?: Box; lamps?: Lamp[] }) => void, onTap?: () => void): void
 export function guest(): void
