@@ -394,9 +394,11 @@ export type Island =
   /**
    * A live page from elsewhere, shown as it is; `lamps` are its lights' colours,
    * for the minimap before it has loaded. `note` appears beside it once the
-   * visitor has played with it for a few seconds, with `photos` (as shot, two by two) under.
+   * visitor has played with it for a few seconds, with one photo under it: the
+   * one for the light's state right now, keyed by which lamps are lit ("off",
+   * "green", "orange", "both" for two lamps in page order).
    */
-  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number; lamps?: string[]; note?: { text: string; photos: { src: string; alt: string }[] } }
+  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number; lamps?: string[]; note?: { text: string; photos: Record<string, { src: string; alt: string }> } }
 
 export const ISLANDS: Island[] = [
   { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
@@ -413,13 +415,13 @@ export const ISLANDS: Island[] = [
     lamps: ['#22c55e', '#f59e0b'],
     note: {
       text: 'Having fun? This is driving the real traffic light in my apartment.',
-      // Four photos of the light, one per state, uncropped.
-      photos: [
-        { src: '/islands/traffic-off.jpg', alt: 'The traffic light at home, both lamps off' },
-        { src: '/islands/traffic-green.jpg', alt: 'The traffic light at home, green lit' },
-        { src: '/islands/traffic-orange.jpg', alt: 'The traffic light at home, orange lit' },
-        { src: '/islands/traffic-both.jpg', alt: 'The traffic light at home, both lamps lit' },
-      ],
+      // One photo per state of the light, uncropped; the note shows the current one.
+      photos: {
+        off: { src: '/islands/traffic-off.jpg', alt: 'The traffic light at home, both lamps off' },
+        green: { src: '/islands/traffic-green.jpg', alt: 'The traffic light at home, green lit' },
+        orange: { src: '/islands/traffic-orange.jpg', alt: 'The traffic light at home, orange lit' },
+        both: { src: '/islands/traffic-both.jpg', alt: 'The traffic light at home, both lamps lit' },
+      },
     },
   },
 ]

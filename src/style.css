@@ -285,22 +285,19 @@ iframe {
 .note p {
   margin: 0;
 }
-.note .photos {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-.note .photos span {
+.note .photo {
   display: block;
   aspect-ratio: 3 / 4;
-  border: 1px dashed var(--line);
+  margin-top: 0.75rem;
+  border: 1px solid var(--line);
   overflow: hidden;
 }
-.note .photos img {
+.note .photo img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transition: opacity 0.3s;
 }
 @media (max-width: 699px) {
   .note {

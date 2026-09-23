@@ -51,26 +51,33 @@ for (const island of ISLANDS) {
     const cover = h('div', { class: 'cover' })
     el = h('div', { class: 'tile island frame' }, frame, cover)
     // Beside it, once the visitor has played for a few seconds: a word about what they are driving.
-    const note =
-      island.note &&
-      h(
-        'aside',
-        { class: 'note' },
-        h('p', {}, island.note.text),
-        h('div', { class: 'photos' }, ...island.note.photos.map((p) => h('span', {}, h('img', { src: p.src, alt: p.alt, loading: 'lazy' })))),
-      )
+    const photo = island.note && h('img', { alt: '', loading: 'lazy' })
+    const note = island.note && photo && h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
+    // The photo of the light as it is right now: named by the lamps that are lit, in page order.
+    const showState = (lamps: { on: boolean }[]) => {
+      if (!island.note || !photo) return
+      const lit = lamps.map((l) => l.on)
+      const state = lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off'
+      const p = island.note.photos[state]
+      if (p && photo.getAttribute('src') !== p.src) {
+        photo.src = p.src
+        photo.alt = p.alt
+      }
+    }
     if (note) {
-      // A photo not there yet leaves its square empty rather than a broken picture.
-      note.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()))
       notes.set(island.id, note)
       plane.append(note)
+      showState([])
     }
     let firstTap = 0
     embedHost(
       frame,
       cover,
       ({ height, lamps }) => {
-        if (lamps) map.setLamps(island.id, lamps)
+        if (lamps) {
+          map.setLamps(island.id, lamps)
+          showState(lamps)
+        }
         const at = world.islands.find((t) => t.id === island.id)
         if (!at || Math.abs(at.h - height) <= 2) return
         at.h = height
