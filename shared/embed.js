@@ -31,8 +31,9 @@ const TAP_MS = 500
  * @param {HTMLIFrameElement} frame
  * @param {HTMLElement} cover  positioned over the frame, taking the pointer
  * @param {(layout: { height: number, lamps?: { color: string, on: boolean }[] }) => void} onLayout  whenever the guest's layout or lamps change
+ * @param {() => void} [onTap]  each tap relayed to the guest
  */
-export function host(frame, cover, onLayout) {
+export function host(frame, cover, onLayout, onTap) {
   const origin = new URL(frame.src).origin
   /** @type {{ x: number, y: number, t: number } | null} */
   let down = null
@@ -47,6 +48,7 @@ export function host(frame, cover, onLayout) {
     const r = frame.getBoundingClientRect()
     const scale = r.width / frame.offsetWidth
     frame.contentWindow?.postMessage({ type: 'skin:tap', x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }, origin)
+    onTap?.()
   })
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow || e.origin !== origin || !e.data || e.data.type !== 'skin:layout') return

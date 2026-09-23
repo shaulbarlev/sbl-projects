@@ -20,6 +20,8 @@ const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
 const tiles = new Map<string, HTMLElement>()
+/** Notes that sit beside an island, keyed by the island */
+const notes = new Map<string, HTMLElement>()
 /** The project card open on the map, if any */
 let card: Card | null = null
 
@@ -48,14 +50,39 @@ for (const island of ISLANDS) {
     // reaches the page, and the page's reported height sizes the island.
     const cover = h('div', { class: 'cover' })
     el = h('div', { class: 'tile island frame' }, frame, cover)
-    embedHost(frame, cover, ({ height, lamps }) => {
-      if (lamps) map.setLamps(island.id, lamps)
-      const at = world.islands.find((t) => t.id === island.id)
-      if (!at || Math.abs(at.h - height) <= 2) return
-      at.h = height
-      el.style.height = `${height}px`
-      map.redraw()
-    })
+    // Beside it, once the visitor has played for a few seconds: a word about what they are driving.
+    const note =
+      island.note &&
+      h(
+        'aside',
+        { class: 'note' },
+        h('p', {}, island.note.text),
+        h('div', { class: 'photos' }, ...island.note.photos.map((p) => h('span', {}, h('img', { src: p.src, alt: p.alt, loading: 'lazy' })))),
+      )
+    if (note) {
+      // A photo not there yet leaves its square empty rather than a broken picture.
+      note.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()))
+      notes.set(island.id, note)
+      plane.append(note)
+    }
+    let firstTap = 0
+    embedHost(
+      frame,
+      cover,
+      ({ height, lamps }) => {
+        if (lamps) map.setLamps(island.id, lamps)
+        const at = world.islands.find((t) => t.id === island.id)
+        if (!at || Math.abs(at.h - height) <= 2) return
+        at.h = height
+        el.style.height = `${height}px`
+        place()
+        map.redraw()
+      },
+      () => {
+        firstTap ||= performance.now()
+        if (performance.now() - firstTap > 4000) note?.classList.add('shown')
+      },
+    )
   } else {
     el = h(
       'button',
@@ -90,6 +117,8 @@ function place() {
   for (const t of placed()) {
     const a = tiles.get(t.id)
     if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
+    const note = notes.get(t.id)
+    if (note) Object.assign(note.style, { left: `${t.x + t.w + 24}px`, top: `${t.y + Math.round(t.h * 0.3)}px` })
   }
   reel.place(world.links.find((t) => t.id === 'film')!)
 }
