@@ -304,6 +304,15 @@ export const ADMIN_JS = String.raw`
       label.innerHTML = esc(name) + '<span class="sub">' +
         (slot ? esc(describe(slot.target)) : 'the site') + '</span>';
       row.appendChild(label);
+      // A fresh URL each time: a browser that once cached a redirect for the
+      // bare address would otherwise show that, not what the domain does now.
+      var check = document.createElement('a');
+      check.className = 'btn';
+      check.textContent = 'Open';
+      check.href = 'https://' + name + '/?check=' + Date.now();
+      check.target = '_blank';
+      check.rel = 'noreferrer';
+      row.appendChild(check);
       if (slot) {
         row.appendChild(button('Back to the site', '', function () {
           act(api('domain/' + encodeURIComponent(name), null, 'DELETE'), name + ' is the site again');

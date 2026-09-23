@@ -172,6 +172,8 @@ export function adminPage(host: string): string {
         <b>Send</b> on anything offers them, with every kind of destination.</p>
       <div class="list" id="domains"></div>
       <p class="hint" id="domains-hint"></p>
+      <p class="hint">A phone that once saw <b>shaulb.com</b> redirect (before 2026-09-23) may still jump to sbl.cx
+        from its own cache; <b>Open</b> uses a fresh address and shows what the domain really does.</p>
     </section>
 
     <section>
