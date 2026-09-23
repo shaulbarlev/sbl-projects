@@ -292,7 +292,6 @@ iframe {
   display: block;
   aspect-ratio: 3 / 4;
   margin-top: 0.75rem;
-  border: 1px solid var(--line);
   overflow: hidden;
 }
 .note .photo img {
