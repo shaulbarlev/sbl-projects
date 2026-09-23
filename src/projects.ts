@@ -414,7 +414,7 @@ export const ISLANDS: Island[] = [
     h: 400,
     lamps: ['#22c55e', '#f59e0b'],
     note: {
-      text: 'Having fun? This is driving the real traffic light in my apartment.',
+      text: 'You are driving the real traffic light in my apartment.',
       // One photo per state of the light, uncropped; the note shows the current one.
       photos: {
         off: { src: '/islands/traffic-off.jpg', alt: 'The traffic light at home, both lamps off' },

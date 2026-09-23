@@ -124,8 +124,9 @@ function place() {
   for (const t of placed()) {
     const a = tiles.get(t.id)
     if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
+    // A note sits just right of its island, its middle on the island's middle.
     const note = notes.get(t.id)
-    if (note) Object.assign(note.style, { left: `${t.x + t.w + 24}px`, top: `${t.y + Math.round(t.h * 0.3)}px` })
+    if (note) Object.assign(note.style, { left: `${t.x + t.w + 12}px`, top: `${t.y + Math.round(t.h / 2)}px` })
   }
   reel.place(world.links.find((t) => t.id === 'film')!)
 }

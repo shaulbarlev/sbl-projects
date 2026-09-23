@@ -265,6 +265,7 @@ iframe {
 /* a word beside an island, once the visitor has played with it */
 .note {
   position: absolute;
+  z-index: 6; /* over the tiles and any open card */
   width: 220px;
   padding: 0.75rem;
   border: 1px solid var(--line-strong);
@@ -272,15 +273,17 @@ iframe {
   font-size: 13px;
   line-height: 1.5;
   opacity: 0;
-  transform: translateX(-8px);
+  /* centred on the island's middle, and grows out of its left edge when it appears */
+  transform: translateY(-50%) scale(0.6);
+  transform-origin: left center;
   transition:
-    opacity 0.4s,
-    transform 0.4s;
+    opacity 0.15s,
+    transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
   pointer-events: none;
 }
 .note.shown {
   opacity: 1;
-  transform: none;
+  transform: translateY(-50%);
 }
 .note p {
   margin: 0;
