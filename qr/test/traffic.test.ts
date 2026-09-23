@@ -83,6 +83,12 @@ describe('the traffic light page', () => {
     const page = await (await SELF.fetch(`${ORIGIN}/traffic?bare`)).text();
     expect(page).toContain('aria-label="Green light"');
     expect(page).toContain('aria-label="Orange light"');
+    // Sized by its content, hidden when off; and one script whose function
+    // names do not shadow each other (a duplicate declaration silently wins).
+    expect(page).toContain('html { height: auto; }');
+    expect(page).toContain('body[hidden] { display: none; }');
+    const names = [...page.matchAll(/^\s*function (\w+)\(/gm)].map((m) => m[1]);
+    expect(new Set(names).size).toBe(names.length);
     // and the map may ask across origins whether the light is on
     const state = await SELF.fetch(`${ORIGIN}/traffic/state`);
     expect(state.headers.get('access-control-allow-origin')).toBe('*');

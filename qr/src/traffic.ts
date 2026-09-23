@@ -56,6 +56,8 @@ export function renderTraffic(bare = false): string {
 <title>Traffic light</title>
 <style>
   html, body { height: 100%; margin: 0; }
+  /* Switched off at home there is nothing here: not the light, not the field. */
+  body[hidden] { display: none; }
   /* Dark like the pages that embed it: a scheme mismatch makes a browser paint the frame opaque. */
   html { color-scheme: dark; }
   body {
@@ -131,7 +133,9 @@ export function renderTraffic(bare = false): string {
     opacity: 0; transition: opacity .8s;
   }
   .who[hidden] { display: none; }
-  /* Embedded: sized by content, the name field in the flow under the light. */
+  /* Embedded: sized by content (the page reports its height to the frame, so it must
+     be the content's, not the frame's), the name field in the flow under the light. */
+  ${bare ? 'html { height: auto; }' : ''}
   body.bare { height: auto; min-height: 0; padding: 12px 0 8px; }
   body.bare main { gap: 16px; }
   body.bare .who { position: static; margin-top: 16px; }
@@ -239,7 +243,7 @@ ${lamps}
 
   // Switched off at home, the light is not there: the page shows nothing, and
   // the map it lives in hears so (shared/embed.js reports the hidden body).
-  function show(data) {
+  function present(data) {
     if ('enabled' in data) document.body.hidden = !data.enabled;
   }
 
@@ -267,7 +271,7 @@ ${lamps}
     // Only a state message, or an error carrying the real state, repaints.
     // A successful tap says nothing about state: the lamp already flipped,
     // and the push from home confirms or corrects it.
-    if (data.type === 'state') show(data);
+    if (data.type === 'state') present(data);
     if (data.states && (data.type === 'state' || data.error)) paint(data);
     if (data.error) {
       fail();
@@ -312,7 +316,7 @@ ${lamps}
   function refresh() {
     return fetch('/traffic/state', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (data) { show(data); paint(data); })
+      .then(function (data) { present(data); paint(data); })
       .catch(fail);
   }
   function poll() {
