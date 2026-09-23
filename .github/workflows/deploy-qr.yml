@@ -10,7 +10,8 @@ name: Deploy QR
 on:
   push:
     branches: [main]
-    paths: ['qr/**', '.github/workflows/deploy-qr.yml']
+    # shared/ is inlined into the Worker (the traffic light's embed script)
+    paths: ['qr/**', 'shared/**', '.github/workflows/deploy-qr.yml']
   workflow_dispatch:
 
 # Never let two deploys race; the later push wins.
