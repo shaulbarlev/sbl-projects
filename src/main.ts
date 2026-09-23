@@ -373,7 +373,8 @@ function opening(at: Rect | null, then: () => void) {
   plane.classList.add('intro-run')
   plane.classList.remove('intro')
   const pushIn = setTimeout(() => (at ? map.go({ x: at.x + at.w / 2, y: at.y + at.h / 2, z: 1 }, 1100) : map.goHome(1100)), 700)
-  const arrive = setTimeout(then, 1900)
+  // A linked project starts growing while the camera is still settling on it.
+  const arrive = setTimeout(then, at ? 1400 : 1900)
   setTimeout(() => plane.classList.remove('intro-run'), 1800)
   const skip = () => {
     clearTimeout(pushIn)
