@@ -86,7 +86,10 @@ export function guest() {
       const main = document.querySelector('main')
       const b = main ? main.getBoundingClientRect() : null
       const box = b ? { x: b.left, y: b.top, w: b.width, h: b.height } : undefined
-      window.parent.postMessage({ type: 'skin:layout', height: document.documentElement.scrollHeight, box, fields, lamps, off: document.body.hidden }, '*')
+      // The body's own height, not the document's: a root's scrollHeight is never
+      // less than the frame's, so the frame could then only ever grow.
+      const height = Math.ceil(document.body.getBoundingClientRect().bottom)
+      window.parent.postMessage({ type: 'skin:layout', height, box, fields, lamps, off: document.body.hidden }, '*')
     }, 50)
   }
   new ResizeObserver(tell).observe(document.body)
