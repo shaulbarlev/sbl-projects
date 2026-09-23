@@ -9,6 +9,7 @@ import { createMap } from './map'
 import { renderProject } from './project'
 import { ISLANDS, PROJECTS, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
+import { host as embedHost } from '../shared/embed.js'
 
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -43,33 +44,16 @@ for (const island of ISLANDS) {
   if (island.kind === 'frame') {
     // Loaded only once scrolled near: each open copy is a live socket to the light.
     const frame = h('iframe', { src: island.src, title: island.title, loading: 'lazy' })
-    // A cover takes the pointer, so a drag that starts on the light pans the map like
-    // anywhere else; a clean tap is relayed to the page, which taps what is under it.
-    // The page's text fields are cut out of the cover, so a real tap reaches them.
+    // The cover over the frame (shared/embed.js): a drag on it pans the map, a tap
+    // reaches the page, and the page's reported height sizes the island.
     const cover = h('div', { class: 'cover' })
     el = h('div', { class: 'tile island frame' }, frame, cover)
-    let down: { x: number; y: number; t: number } | null = null
-    cover.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY, t: e.timeStamp }))
-    cover.addEventListener('pointerup', (e) => {
-      const was = down
-      down = null
-      if (!was || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 6 || e.timeStamp - was.t > 500) return
-      const r = frame.getBoundingClientRect()
-      const scale = r.width / frame.offsetWidth
-      frame.contentWindow?.postMessage({ type: 'skin:tap', x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }, new URL(island.src).origin)
-    })
-    window.addEventListener('message', (e) => {
-      if (e.source !== frame.contentWindow || e.data?.type !== 'skin:layout') return
+    embedHost(frame, cover, (height) => {
       const at = world.islands.find((t) => t.id === island.id)
-      if (at && Math.abs(at.h - e.data.height) > 2) {
-        at.h = Math.round(e.data.height)
-        el.style.height = `${at.h}px`
-        map.redraw()
-      }
-      const fields = (e.data.fields as { x: number; y: number; w: number; h: number }[]).map(
-        (f) => `${f.x}px ${f.y}px, ${f.x + f.w}px ${f.y}px, ${f.x + f.w}px ${f.y + f.h}px, ${f.x}px ${f.y + f.h}px, ${f.x}px ${f.y}px`,
-      )
-      cover.style.clipPath = fields.length ? `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${fields.join(', ')})` : ''
+      if (!at || Math.abs(at.h - height) <= 2) return
+      at.h = height
+      el.style.height = `${height}px`
+      map.redraw()
     })
   } else {
     el = h(

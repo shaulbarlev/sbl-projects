@@ -30,6 +30,13 @@ new_sqlite_classes = ["RedirectState"]
 binding = "FILES"
 bucket_name = "skin-files"
 
+# shared/embed.js is one file for both sides of the embedded traffic light: the
+# map imports it, this Worker inlines its source into the page.
+[[rules]]
+type = "Text"
+globs = ["**/shared/*.js"]
+fallthrough = true
+
 # The site at sbl.cx: the map of projects (repo sbl-projects). Served for every
 # path the QR does not own, and at the root when nothing is set.
 [[services]]

@@ -1,4 +1,5 @@
 import { escapeHtml } from './html';
+import embed from '../../shared/embed.js';
 
 /**
  * The traffic light: two lamps, top to bottom, each one switch at home.
@@ -457,40 +458,12 @@ ${lamps}
     if (open()) ws.send('ping'); else refresh();
   });
   connect();
-
-  // Embedded in the portfolio's map: tell the page around what size this is
-  // and where the text fields are, and take a tap relayed from its cover.
-  if (document.body.classList.contains('bare') && window.parent !== window) {
-    var TRUSTED = /^https:\/\/([a-z0-9-]+\.)*(sbl\.cx|shaulb\.com|shaulbarlev\.com|workers\.dev)$/;
-    var sending = null;
-    function tell() {
-      clearTimeout(sending);
-      sending = setTimeout(function () {
-        var fields = Array.prototype.slice.call(document.querySelectorAll('input')).filter(function (el) {
-          return el.offsetParent !== null;
-        }).map(function (el) { var r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
-        window.parent.postMessage({ type: 'skin:layout', height: document.documentElement.scrollHeight, fields: fields }, '*');
-      }, 50);
-    }
-    new ResizeObserver(tell).observe(document.body);
-    new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style'] });
-    window.addEventListener('load', tell);
-    window.addEventListener('message', function (e) {
-      if (!TRUSTED.test(e.origin) || !e.data || e.data.type !== 'skin:tap') return;
-      var el = document.elementFromPoint(e.data.x, e.data.y);
-      var lamp = el && el.closest('.lamp');
-      if (lamp) {
-        lamp.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: e.data.x, clientY: e.data.y }));
-        return;
-      }
-      var press = el && el.closest('button, input');
-      if (press && press.tagName === 'INPUT') press.focus();
-      else if (press) press.click();
-    });
-    tell();
-  }
 })();
 </script>
+${bare ? `<script type="module">
+${embed}
+guest();
+</script>` : ''}
 </body>
 </html>`;
 }

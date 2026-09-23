@@ -68,9 +68,14 @@ describe('the traffic light page', () => {
     expect(off.status).toBe(200);
     expect(await off.text()).toContain('background: transparent');
     await traffic(true);
-    const on = await SELF.fetch(`${ORIGIN}/traffic?bare`);
-    expect(await on.text()).toContain('background: transparent');
-    expect(await (await SELF.fetch(`${ORIGIN}/traffic`)).text()).toContain('background: #0a0a0a');
+    const on = await (await SELF.fetch(`${ORIGIN}/traffic?bare`)).text();
+    expect(on).toContain('background: transparent');
+    // the guest side of shared/embed.js, inlined: it reports its layout and takes relayed taps
+    expect(on).toContain("'skin:layout'");
+    expect(on).toContain('guest();');
+    const plain = await (await SELF.fetch(`${ORIGIN}/traffic`)).text();
+    expect(plain).toContain('background: #0a0a0a');
+    expect(plain).not.toContain('skin:layout');
   });
 
   it('renders while on', async () => {
