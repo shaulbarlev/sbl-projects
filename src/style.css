@@ -265,7 +265,7 @@ iframe {
 /* a word beside an island, once the visitor has played with it */
 .note {
   position: absolute;
-  width: 200px;
+  width: 220px;
   padding: 0.75rem;
   border: 1px solid var(--line-strong);
   background: var(--bg);

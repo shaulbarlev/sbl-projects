@@ -394,7 +394,7 @@ export type Island =
   /**
    * A live page from elsewhere, shown as it is; `lamps` are its lights' colours,
    * for the minimap before it has loaded. `note` appears beside it once the
-   * visitor has played with it for a few seconds, with `photos` (square) under.
+   * visitor has played with it for a few seconds, with `photos` (square, two by two) under.
    */
   | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number; lamps?: string[]; note?: { text: string; photos: { src: string; alt: string }[] } }
 
@@ -413,10 +413,12 @@ export const ISLANDS: Island[] = [
     lamps: ['#22c55e', '#f59e0b'],
     note: {
       text: 'Having fun? This is driving the real traffic light in my apartment.',
-      // Two square photos of the light, one per state. Drop them in public/islands/.
+      // Four square photos of the light, one per state. Drop them in public/islands/.
       photos: [
+        { src: '/islands/traffic-off.jpg', alt: 'The traffic light at home, both lamps off' },
         { src: '/islands/traffic-green.jpg', alt: 'The traffic light at home, green lit' },
         { src: '/islands/traffic-orange.jpg', alt: 'The traffic light at home, orange lit' },
+        { src: '/islands/traffic-both.jpg', alt: 'The traffic light at home, both lamps lit' },
       ],
     },
   },
