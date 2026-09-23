@@ -75,7 +75,6 @@ export function openCard(opts: {
   // The closed tile is its square picture plus its label: what the fold must end at.
   const closedH = tile.offsetHeight
   if (opts.cut) tile.classList.add('cut')
-  tile.classList.remove('unfolded')
   tile.classList.add('card')
   tile.style.setProperty('--card-w', `${w}px`)
   tile.style.setProperty('--hero', `${hero}px`)
@@ -122,7 +121,6 @@ export function openCard(opts: {
       view?.remove()
       view = null
       tile.classList.remove('card', 'folding')
-      tile.classList.add('unfolded')
       tile.style.removeProperty('height')
       opts.onClosed()
     }

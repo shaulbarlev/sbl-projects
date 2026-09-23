@@ -810,11 +810,17 @@ body.has-project .home-button {
   transition: height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
 }
 .tile.card > span {
-  display: none;
+  /* kept at the foot of the box, unseen, so that it can fade back in with the fold rather than after it */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.42s;
 }
-/* the label fades back in as the fold ends */
-.tile.unfolded > span {
-  animation: reel-in 0.25s both;
+.tile.card.folding > span {
+  opacity: 1;
 }
 .tile.card .pv {
   position: static;
