@@ -69,7 +69,8 @@ for (const island of ISLANDS) {
       plane.append(note)
       showState([])
     }
-    let firstTap = 0
+    // The note appears three seconds after the first tap on the light.
+    let tapped = false
     embedHost(
       frame,
       cover,
@@ -86,8 +87,9 @@ for (const island of ISLANDS) {
         map.redraw()
       },
       () => {
-        firstTap ||= performance.now()
-        if (performance.now() - firstTap > 4000) note?.classList.add('shown')
+        if (tapped) return
+        tapped = true
+        setTimeout(() => note?.classList.add('shown'), 3000)
       },
     )
   } else {
