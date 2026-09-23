@@ -153,6 +153,9 @@ body {
 /* ---------------------------------------------------------------- layout */
 main { max-width: 560px; margin: 0 auto; padding: 16px 16px 8px; }
 .panel { display: grid; gap: 22px; }
+/* A grid item will not shrink below its content's minimum on its own: without this a
+   ten-image strip (which scrolls sideways) widens the whole tab past the phone. */
+.panel > section { min-width: 0; }
 .panel[hidden] { display: none; }
 
 section > h2 {
@@ -264,6 +267,7 @@ label.field {
 
 /* ----------------------------------------------------------------- lists */
 .list { display: grid; gap: 10px; }
+.list > * { min-width: 0; } /* same reason as .panel > section */
 .item {
   display: flex; align-items: center; gap: 10px;
   border: var(--edge-w) solid var(--edge); border-radius: var(--radius);

@@ -137,6 +137,12 @@ export interface State {
    * come to this Worker too. Absent, a domain is the site at its own address.
    */
   domains: Record<string, Slot>;
+  /**
+   * Which of the addresses is the site: served in place there, and where every
+   * other address sends its visitors when nothing else is set for it. Set from
+   * the panel's Domains card.
+   */
+  siteHost: string;
 }
 
 /** What the resolver decided to serve, and why. */

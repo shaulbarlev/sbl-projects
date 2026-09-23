@@ -18,6 +18,7 @@ const EMPTY: State = {
   partyEnabled: false,
   hits: 0,
   domains: {},
+  siteHost: 'shaulb.com',
 };
 
 /** What the home agent last reported for the lamps. */
@@ -117,6 +118,13 @@ export class RedirectState implements DurableObject {
         const s = await this.load();
         s.domains = { ...s.domains, [body.host]: { target: body.target as Target, setAt: body.now } };
         s.mru = pushMru(s.mru, body.target, body.now);
+        await this.save(s);
+        return json(s);
+      }
+
+      case 'set-site': {
+        const s = await this.load();
+        s.siteHost = String(body.host);
         await this.save(s);
         return json(s);
       }

@@ -77,7 +77,7 @@ export default {
         return await handleTraffic(request, env, ctx, url);
       }
       // The root is the QR's; every other path goes where the site lives.
-      if (path !== '/') return homePage(request, env, url);
+      if (path !== '/') return homePage(request, env, url, (await callState(env, 'get')) as State);
       return await handleRedirect(request, env, ctx, url);
     } catch (err) {
       console.error('unhandled', err);
@@ -151,7 +151,7 @@ async function handleRedirect(
   if (claimCookie) headers.append('set-cookie', claimCookie);
 
   // Nothing set: on to the site.
-  if (resolution.source === 'fallback') return homePage(request, env, url, claimCookie);
+  if (resolution.source === 'fallback') return homePage(request, env, url, state, claimCookie);
 
   return serve(request, env, state, resolution.target, headers, claimCookie, url.origin);
 }
@@ -174,7 +174,7 @@ async function serve(
 ): Promise<Response> {
   const isRobot = UNFURLER.test(request.headers.get('user-agent') ?? '');
   const url = new URL(request.url);
-  const site = () => homePage(request, env, url, claimCookie);
+  const site = () => homePage(request, env, url, state, claimCookie);
 
   // An image set resolves to a different file on every scan. The draw happens
   // in the Durable Object so that concurrent scanners advance the same bag
@@ -224,7 +224,7 @@ async function serve(
   // A file lives on this host too, at /f/, and is not the site.
   if (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)) {
     const there = new URL(destination);
-    return homePage(request, env, there, claimCookie);
+    return homePage(request, env, there, state, claimCookie);
   }
 
   if (state.splash && !isRobot) {
@@ -241,24 +241,28 @@ async function serve(
   return new Response(null, { status: 302, headers });
 }
 
+/** Every address this Worker answers on; the panel picks which one is the site. */
+export const HOSTS = ['sbl.cx', 'shaulb.com', 'shaulbarlev.com'] as const;
+
 /**
- * Where the site lives, and how a visitor with nothing else to see gets there:
- * served in place on shaulb.com, sent on to the same path there from anywhere
- * else. Always 302: what an address does is a setting, not a fact to cache.
+ * Where the site lives (`state.siteHost`, chosen in the panel), and how a
+ * visitor with nothing else to see gets there: served in place on that host,
+ * sent on to the same path there from anywhere else. Always 302: what an
+ * address does is a setting, not a fact to cache.
  */
-const SITE_URL = 'https://shaulb.com';
-async function homePage(request: Request, env: Env, url: URL, claimCookie: string | null = null): Promise<Response> {
+async function homePage(request: Request, env: Env, url: URL, state: State, claimCookie: string | null = null): Promise<Response> {
   const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
   if (claimCookie) headers.append('set-cookie', claimCookie);
-  const onSite = new URL(request.url).hostname.replace(/^www\./, '') === 'shaulb.com';
+  const siteUrl = `https://${state.siteHost}`;
+  const onSite = new URL(request.url).hostname.replace(/^www\./, '') === state.siteHost;
   if (onSite && env.SITE) {
-    const page = await env.SITE.fetch(new Request(SITE_URL + url.pathname + url.search, request));
+    const page = await env.SITE.fetch(new Request(siteUrl + url.pathname + url.search, request));
     if (!claimCookie) return page;
     const withClaim = new Response(page.body, page);
     withClaim.headers.append('set-cookie', claimCookie);
     return withClaim;
   }
-  headers.set('location', (env.SITE ? SITE_URL : env.FALLBACK_URL.replace(/\/$/, '')) + url.pathname + url.search);
+  headers.set('location', (env.SITE ? siteUrl : env.FALLBACK_URL.replace(/\/$/, '')) + url.pathname + url.search);
   return new Response(null, { status: 302, headers });
 }
 
@@ -357,7 +361,7 @@ async function handleDomain(request: Request, env: Env, url: URL, domain: string
   const state = (await callState(env, 'get')) as State;
   const slot = state.domains[domain];
   const target = slot && isServable(state, slot.target) ? slot.target : null;
-  if (!target) return homePage(request, env, url);
+  if (!target) return homePage(request, env, url, state);
   const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
   return serve(request, env, state, target, headers, null, FILES_ORIGIN);
 }
@@ -427,7 +431,7 @@ async function handleTraffic(
   // The embedded copy has nowhere to redirect to: switched off, it shows its
   // lamps dark (the socket is refused and polling reports the switch off).
   const bare = url.searchParams.has('bare');
-  if (!home.enabled && !bare) return homePage(request, env, url);
+  if (!home.enabled && !bare) return homePage(request, env, url, (await callState(env, 'get')) as State);
 
   if (path === '/traffic' || path === '/traffic/') return html(renderTraffic(bare));
   if (path === '/traffic/state' && request.method === 'GET') return json(home);
@@ -604,7 +608,14 @@ async function handleApi(request: Request, env: Env, url: URL, now: number): Pro
     return json(await view(env, sent.state));
   }
 
-  // A domain with no setting is the site.
+  // Which address is the site; the others send their visitors there when nothing is set.
+  if (route === 'site' && request.method === 'POST') {
+    const body = (await request.json()) as { host?: string };
+    if (!HOSTS.includes(body.host as (typeof HOSTS)[number])) return json({ error: 'Unknown address' }, 400);
+    return json(await view(env, (await callState(env, 'set-site', { host: body.host })) as State));
+  }
+
+  // A domain with no setting goes where the site lives.
   if (route.startsWith('domain/') && request.method === 'DELETE') {
     const host = route.slice('domain/'.length);
     if (!DOMAINS.has(host)) return json({ error: 'Unknown domain' }, 400);
@@ -842,8 +853,9 @@ async function view(env: Env, known?: State) {
     bookmarkLabels: state.bookmarks.map((b) => bookmarkLabel(b, state)),
     // The lamps and what the agent last said about them.
     home: { lights: [...LIGHTS, PARTY], ...(await callState(env, 'home-state')) },
-    // The other domains, in order, for the panel's card and the sheet's buttons.
+    // The other domains, in order, for the panel's card and the sheet's buttons; and every address.
     domainHosts: [...DOMAINS],
+    hosts: [...HOSTS],
   };
 }
 
@@ -852,7 +864,7 @@ function bookmarkLabel(bookmark: { label: string; target: Target }, state: State
 }
 
 function summarise(state: State, resolution: Resolution, now: number): string {
-  const main = state.main ? describeTarget(state.main.target, state) : 'shaulb.com';
+  const main = state.main ? describeTarget(state.main.target, state) : state.siteHost;
   if (sequenceLive(state, now)) {
     const seq = state.sequence!;
     return `Sequence armed · ${seq.cursor} of ${seq.steps.length} claimed · ${left(seq.expiresAt - now)} left`;
@@ -861,7 +873,7 @@ function summarise(state: State, resolution: Resolution, now: number): string {
     return `Temporary for ${left(resolution.expiresAt - now)}: ${describeTarget(resolution.target, state)} · then ${main}`;
   }
   if (resolution.source === 'main') return `Main: ${main}`;
-  return `On to ${main}`;
+  return `On to the portfolio at ${main}`;
 }
 
 function left(ms: number): string {

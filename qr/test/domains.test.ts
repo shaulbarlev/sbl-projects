@@ -75,4 +75,20 @@ describe('the other domains', () => {
     const state = (await (await SELF.fetch(`${ORIGIN}/_/api/state`, authed(cookie))).json()) as any;
     expect(state.domainHosts).toEqual(['shaulb.com', 'shaulbarlev.com']);
   });
+
+  it('the site can live at any of the addresses, chosen from the panel', async () => {
+    const set = (host: string) => SELF.fetch(`${ORIGIN}/_/api/site`, authed(cookie, { host }));
+    expect((await set('example.com')).status).toBe(400);
+    const state = (await (await set('sbl.cx')).json()) as any;
+    expect(state.siteHost).toBe('sbl.cx');
+    // the QR's root with nothing set now serves the site in place, and the others send visitors to sbl.cx
+    await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
+    expect(await (await visit('https://sbl.cx/')).text()).toBe('the site /');
+    expect(await (await visit('https://sbl.cx/doorlock/')).text()).toBe('the site /doorlock/');
+    expect((await visit('https://shaulb.com/x')).headers.get('location')).toBe('https://sbl.cx/x');
+    expect((await visit('https://shaulbarlev.com/')).headers.get('location')).toBe('https://sbl.cx/');
+    await set('shaulb.com');
+    expect((await visit('https://sbl.cx/', )).headers.get('location')).toBe('https://shaulb.com/');
+    expect(await (await visit('https://shaulb.com/')).text()).toBe('the site /');
+  });
 });

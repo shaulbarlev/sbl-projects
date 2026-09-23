@@ -23,6 +23,7 @@ function state(partial: Partial<State> = {}): State {
     partyEnabled: false,
     hits: 0,
     domains: {},
+    siteHost: 'shaulb.com',
     ...partial,
   };
 }

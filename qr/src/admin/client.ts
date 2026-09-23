@@ -64,7 +64,7 @@ export const ADMIN_JS = String.raw`
 
   function describe(target) {
     // Nothing set: scans go on to the site.
-    if (!target) return 'shaulb.com (the site)';
+    if (!target) return 'the portfolio at ' + state.siteHost;
     if (target.kind === 'url') return target.url;
     if (target.kind === 'file') return target.name;
     if (target.kind === 'pool') {
@@ -202,8 +202,8 @@ export const ADMIN_JS = String.raw`
           act(api('temp/extend', { byMs: 900000 }), 'Extended 15 minutes');
         }));
       } else if (res.source === 'fallback') {
-        kicker = 'shaulb.com';
-        meta = 'No main destination set — scans go on to the site at shaulb.com.';
+        kicker = 'Portfolio';
+        meta = 'No main destination set — scans go on to the portfolio at ' + state.siteHost + '.';
         actions.hidden = true;
       } else {
         kicker = 'Main';
@@ -282,8 +282,24 @@ export const ADMIN_JS = String.raw`
    */
   function renderDomains() {
     var hosts = state.domainHosts || [];
+    var siteHost = state.siteHost;
     var host = $('domains');
     host.innerHTML = '';
+
+    // The chooser: one button per address, the site's pressed.
+    var chooser = $('site-host');
+    chooser.innerHTML = '';
+    (state.hosts || []).forEach(function (name) {
+      var b = button(name, name === siteHost ? 'primary' : '', function () {
+        if (name === siteHost) return;
+        if (!confirm('Put the portfolio at ' + name + '?\n\nIt will be served there, and every other address with nothing set will send visitors there.')) return;
+        act(api('site', { host: name }), 'The portfolio lives at ' + name);
+      });
+      b.setAttribute('aria-pressed', name === siteHost ? 'true' : 'false');
+      chooser.appendChild(b);
+    });
+
+    var whenUnset = function (name) { return name === siteHost ? 'the portfolio' : '→ ' + siteHost + ' (the portfolio)'; };
 
     var qr = document.createElement('div');
     qr.className = 'item';
@@ -291,7 +307,7 @@ export const ADMIN_JS = String.raw`
     var live = state.sequenceStatus && state.sequenceStatus.live ? 'the sequence'
       : res.source === 'temp' ? 'temporary · ' + describe(res.target)
       : res.source === 'main' ? 'main · ' + describe(res.target)
-      : '→ shaulb.com';
+      : whenUnset('sbl.cx');
     qr.innerHTML = '<div class="name">sbl.cx <span class="sub">the QR · ' + esc(live) + '</span></div>';
     host.appendChild(qr);
 
@@ -302,7 +318,7 @@ export const ADMIN_JS = String.raw`
       var label = document.createElement('div');
       label.className = 'name';
       label.innerHTML = esc(name) + '<span class="sub">' +
-        (slot ? esc(describe(slot.target)) : name === 'shaulb.com' ? 'the site' : '→ shaulb.com') + '</span>';
+        (slot ? esc(describe(slot.target)) : esc(whenUnset(name))) + '</span>';
       row.appendChild(label);
       // A fresh URL each time: a browser that once cached a redirect for the
       // bare address would otherwise show that, not what the domain does now.
