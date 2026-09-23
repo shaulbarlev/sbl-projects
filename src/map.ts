@@ -390,6 +390,8 @@ export function createMap(opts: {
   resize()
 
   return {
+    /** Redraw the minimap and markers after a rect in the world changed */
+    redraw: drawOverlays,
     /** Swap in a new layout and start again from home */
     setWorld(next: World) {
       world = next

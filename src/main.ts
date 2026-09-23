@@ -42,7 +42,35 @@ for (const island of ISLANDS) {
   let el: HTMLElement
   if (island.kind === 'frame') {
     // Loaded only once scrolled near: each open copy is a live socket to the light.
-    el = h('div', { class: 'tile island frame' }, h('iframe', { src: island.src, title: island.title, loading: 'lazy' }))
+    const frame = h('iframe', { src: island.src, title: island.title, loading: 'lazy' })
+    // A cover takes the pointer, so a drag that starts on the light pans the map like
+    // anywhere else; a clean tap is relayed to the page, which taps what is under it.
+    // The page's text fields are cut out of the cover, so a real tap reaches them.
+    const cover = h('div', { class: 'cover' })
+    el = h('div', { class: 'tile island frame' }, frame, cover)
+    let down: { x: number; y: number; t: number } | null = null
+    cover.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY, t: e.timeStamp }))
+    cover.addEventListener('pointerup', (e) => {
+      const was = down
+      down = null
+      if (!was || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 6 || e.timeStamp - was.t > 500) return
+      const r = frame.getBoundingClientRect()
+      const scale = r.width / frame.offsetWidth
+      frame.contentWindow?.postMessage({ type: 'skin:tap', x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }, new URL(island.src).origin)
+    })
+    window.addEventListener('message', (e) => {
+      if (e.source !== frame.contentWindow || e.data?.type !== 'skin:layout') return
+      const at = world.islands.find((t) => t.id === island.id)
+      if (at && Math.abs(at.h - e.data.height) > 2) {
+        at.h = Math.round(e.data.height)
+        el.style.height = `${at.h}px`
+        map.redraw()
+      }
+      const fields = (e.data.fields as { x: number; y: number; w: number; h: number }[]).map(
+        (f) => `${f.x}px ${f.y}px, ${f.x + f.w}px ${f.y}px, ${f.x + f.w}px ${f.y + f.h}px, ${f.x}px ${f.y + f.h}px, ${f.x}px ${f.y}px`,
+      )
+      cover.style.clipPath = fields.length ? `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${fields.join(', ')})` : ''
+    })
   } else {
     el = h(
       'button',

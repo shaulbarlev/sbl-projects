@@ -256,6 +256,11 @@ iframe {
   height: 100%;
   background: transparent;
 }
+/* over the frame: takes the pointer, except where it is cut away for the page's text fields */
+.tile.island.frame .cover {
+  position: absolute;
+  inset: 0;
+}
 
 /* letters standing in for an icon, in a pixel font to sit with the pixel icons */
 .tile.link i.px {

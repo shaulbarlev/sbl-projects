@@ -30,8 +30,13 @@ export const HOME_ENTITIES: ReadonlySet<string> = new Set([...LIGHT_ENTITIES, PA
  * further when home cannot be reached. State arrives over a socket as it
  * changes, with HTTP polling as the fallback.
  *
- * `bare` is the same page for embedding elsewhere (the map at sbl.cx sets it
- * in an iframe): no background, so it sits on whatever is behind it. One page, one
+ * `bare` is the same page for embedding elsewhere (the portfolio's map sets it
+ * in an iframe): no background, laid out to its content rather than the
+ * viewport, and talking to the page around it: it reports its height and its
+ * text fields (so the frame can be sized to the light and a cover left off
+ * the fields), and takes a tap relayed from a cover over the frame, since
+ * what is under the finger there is the only way for the map to tell a drag
+ * from a tap. No background, so it sits on whatever is behind it. One page, one
  * script, wherever the light is shown.
  */
 export function renderTraffic(bare = false): string {
@@ -125,6 +130,10 @@ export function renderTraffic(bare = false): string {
     opacity: 0; transition: opacity .8s;
   }
   .who[hidden] { display: none; }
+  /* Embedded: sized by content, the name field in the flow under the light. */
+  body.bare { height: auto; min-height: 0; padding: 12px 0 8px; }
+  body.bare main { gap: 16px; }
+  body.bare .who { position: static; margin-top: 16px; }
   .who .field { position: relative; display: flex; }
   .who input {
     width: min(58vw, 240px); padding: 10px 44px 10px 16px; /* room for the arrow */
@@ -155,7 +164,7 @@ export function renderTraffic(bare = false): string {
   .who input:not(:placeholder-shown) + .go svg { stroke: #e5e5e7; }
 </style>
 </head>
-<body>
+<body${bare ? ' class="bare"' : ''}>
 <main>
   <div class="housing">
 ${lamps}
@@ -448,6 +457,38 @@ ${lamps}
     if (open()) ws.send('ping'); else refresh();
   });
   connect();
+
+  // Embedded in the portfolio's map: tell the page around what size this is
+  // and where the text fields are, and take a tap relayed from its cover.
+  if (document.body.classList.contains('bare') && window.parent !== window) {
+    var TRUSTED = /^https:\/\/([a-z0-9-]+\.)*(sbl\.cx|shaulb\.com|shaulbarlev\.com|workers\.dev)$/;
+    var sending = null;
+    function tell() {
+      clearTimeout(sending);
+      sending = setTimeout(function () {
+        var fields = Array.prototype.slice.call(document.querySelectorAll('input')).filter(function (el) {
+          return el.offsetParent !== null;
+        }).map(function (el) { var r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+        window.parent.postMessage({ type: 'skin:layout', height: document.documentElement.scrollHeight, fields: fields }, '*');
+      }, 50);
+    }
+    new ResizeObserver(tell).observe(document.body);
+    new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style'] });
+    window.addEventListener('load', tell);
+    window.addEventListener('message', function (e) {
+      if (!TRUSTED.test(e.origin) || !e.data || e.data.type !== 'skin:tap') return;
+      var el = document.elementFromPoint(e.data.x, e.data.y);
+      var lamp = el && el.closest('.lamp');
+      if (lamp) {
+        lamp.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: e.data.x, clientY: e.data.y }));
+        return;
+      }
+      var press = el && el.closest('button, input');
+      if (press && press.tagName === 'INPUT') press.focus();
+      else if (press) press.click();
+    });
+    tell();
+  }
 })();
 </script>
 </body>
