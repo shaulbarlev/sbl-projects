@@ -783,6 +783,12 @@ body.has-project .home-button {
 .tile.card:focus-visible {
   outline: none;
 }
+/* and on a touch screen the fold hands focus back to the tile, which is for keyboards, not for a ring */
+@media (hover: none) {
+  .tile:focus-visible {
+    outline: none;
+  }
+}
 /* the edge drawing of the picture, over it, unseen until the card opens */
 .tile > img.edges {
   position: absolute;
