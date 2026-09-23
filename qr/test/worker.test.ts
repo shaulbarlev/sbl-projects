@@ -63,7 +63,9 @@ describe('a served file', () => {
 describe('after review', () => {
   it("a link to a page of the site shows that page, not the site's root", async () => {
     await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://sbl.cx/doorlock/' } }));
-    expect(await (await SELF.fetch(ORIGIN, { redirect: 'manual' })).text()).toBe('the site /doorlock/');
+    expect((await SELF.fetch(ORIGIN, { redirect: 'manual' })).headers.get('location')).toBe('https://shaulb.com/doorlock/');
+    // at shaulb.com itself it is served in place, so a link there cannot loop
+    expect(await (await SELF.fetch('https://shaulb.com/doorlock/', { redirect: 'manual' })).text()).toBe('the site /doorlock/');
   });
 
   it('a file deleted from the Library stops being served, the slot falling through', async () => {
@@ -76,8 +78,8 @@ describe('after review', () => {
     expect((await SELF.fetch(ORIGIN, { redirect: 'manual' })).headers.get('location')).toContain(`/f/${file.key}/`);
     await SELF.fetch(`${ORIGIN}/_/api/files/${file.key}`, authed(cookie, undefined, 'DELETE'));
     const scan = await SELF.fetch(ORIGIN, { redirect: 'manual' });
-    expect(scan.status).toBe(200);
-    expect(await scan.text()).toBe('the site /');
+    expect(scan.status).toBe(302);
+    expect(scan.headers.get('location')).toBe('https://shaulb.com/');
   });
 
   it('answers a malformed API request with a 400, not a page', async () => {
@@ -124,16 +126,17 @@ describe('after review', () => {
 });
 
 describe('public redirect', () => {
-  it('serves the site before anything is configured', async () => {
+  it('sends a scan on to shaulb.com before anything is configured', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/temp`, authed(cookie, undefined, 'DELETE'));
     const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
-    expect(response.status).toBe(200);
-    expect(await response.text()).toBe('the site /');
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('https://shaulb.com/');
   });
 
-  it('serves the site for every path that is not its own', async () => {
-    expect(await (await SELF.fetch(`${ORIGIN}/doorlock/`)).text()).toBe('the site /doorlock/');
-    expect(await (await SELF.fetch(`${ORIGIN}/assets/main.js`)).text()).toBe('the site /assets/main.js');
+  it('sends every path that is not its own on to the same path at shaulb.com', async () => {
+    const page = await SELF.fetch(`${ORIGIN}/doorlock/?a=1`, { redirect: 'manual' });
+    expect(page.headers.get('location')).toBe('https://shaulb.com/doorlock/?a=1');
+    expect((await SELF.fetch(`${ORIGIN}/assets/main.js`, { redirect: 'manual' })).headers.get('location')).toBe('https://shaulb.com/assets/main.js');
   });
 
   it('still serves a file, and an image from a set, though they live on this host too', async () => {
@@ -149,12 +152,12 @@ describe('public redirect', () => {
     expect(scan.headers.get('location')).toBe(`https://sbl.cx/f/${file.key}/pic.png`);
   });
 
-  it('serves the site when the destination is the site itself, rather than hop there', async () => {
-    for (const site of ['https://sbl.cx/', 'https://shaulb.com/', 'https://fallback.example.com/']) {
+  it('a destination that is the site under any name goes to shaulb.com', async () => {
+    for (const site of ['https://sbl.cx/', 'https://shaulbarlev.com/', 'https://fallback.example.com/']) {
       await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { slot: 'main', target: { kind: 'url', url: site } }));
       const response = await SELF.fetch(ORIGIN, { redirect: 'manual' });
-      expect(response.status).toBe(200);
-      expect(await response.text()).toBe('the site /');
+      expect(response.status).toBe(302);
+      expect(response.headers.get('location')).toBe('https://shaulb.com/');
     }
   });
 
@@ -192,12 +195,12 @@ describe('public redirect', () => {
     expect(response.headers.get('location')).toBe('https://temp.example.com/');
   });
 
-  it('leaves unknown paths to the site, whatever the QR points at', async () => {
+  it('sends unknown paths to the site, whatever the QR points at', async () => {
     await SELF.fetch(`${ORIGIN}/_/api/send`,
       authed(cookie, { slot: 'main', target: { kind: 'url', url: 'https://main.example.com/' } }));
     const response = await SELF.fetch(`${ORIGIN}/some/mistyped/path`, { redirect: 'manual' });
-    expect(response.status).toBe(200);
-    expect(await response.text()).toBe('the site /some/mistyped/path');
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('https://shaulb.com/some/mistyped/path');
   });
 
   it('counts scans', async () => {

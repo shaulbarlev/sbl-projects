@@ -76,8 +76,8 @@ export default {
       if (path === '/traffic' || path.startsWith('/traffic/')) {
         return await handleTraffic(request, env, ctx, url);
       }
-      // The root is the QR's; every other path is the site's.
-      if (path !== '/' && env.SITE) return await env.SITE.fetch(request);
+      // The root is the QR's; every other path goes where the site lives.
+      if (path !== '/') return homePage(request, env, url);
       return await handleRedirect(request, env, ctx, url);
     } catch (err) {
       console.error('unhandled', err);
@@ -150,14 +150,8 @@ async function handleRedirect(
   });
   if (claimCookie) headers.append('set-cookie', claimCookie);
 
-  // Nothing set: the site is here.
-  if (resolution.source === 'fallback' && env.SITE) {
-    const page = await env.SITE.fetch(request);
-    if (!claimCookie) return page;
-    const withClaim = new Response(page.body, page);
-    withClaim.headers.append('set-cookie', claimCookie);
-    return withClaim;
-  }
+  // Nothing set: on to the site.
+  if (resolution.source === 'fallback') return homePage(request, env, url, claimCookie);
 
   return serve(request, env, state, resolution.target, headers, claimCookie, url.origin);
 }
@@ -179,17 +173,8 @@ async function serve(
   fileOrigin: string,
 ): Promise<Response> {
   const isRobot = UNFURLER.test(request.headers.get('user-agent') ?? '');
-  const site = async () => {
-    if (!env.SITE) {
-      headers.set('location', env.FALLBACK_URL);
-      return new Response(null, { status: 302, headers });
-    }
-    const page = await env.SITE.fetch(request);
-    if (!claimCookie) return page;
-    const withClaim = new Response(page.body, page);
-    withClaim.headers.append('set-cookie', claimCookie);
-    return withClaim;
-  };
+  const url = new URL(request.url);
+  const site = () => homePage(request, env, url, claimCookie);
 
   // An image set resolves to a different file on every scan. The draw happens
   // in the Durable Object so that concurrent scanners advance the same bag
@@ -233,12 +218,13 @@ async function serve(
 
   const destination = targetToUrl(served, fileOrigin);
 
-  // A link to the site itself: the site is here, not a hop away (so a
-  // destination of the site's old address cannot loop). A file lives on this
-  // host too, at /f/, and is not the site.
+  // A link to the site under any of its names goes to the site's own address,
+  // keeping the path (a main of sbl.cx/doorlock/ lands on that project), and
+  // is served in place when the request is already there, so nothing loops.
+  // A file lives on this host too, at /f/, and is not the site.
   if (served.kind === 'url' && isSite(destination, env.FALLBACK_URL)) {
-    // The site's own path, when the link names one: a main of sbl.cx/doorlock/ shows that project.
-    return env.SITE ? env.SITE.fetch(new Request(destination, request)) : site();
+    const there = new URL(destination);
+    return homePage(request, env, there, claimCookie);
   }
 
   if (state.splash && !isRobot) {
@@ -252,6 +238,27 @@ async function serve(
   // 302, never 301: a cached permanent redirect poisons the QR on every device
   // that ever scanned it, and there is no way to un-ring that bell.
   headers.set('location', destination);
+  return new Response(null, { status: 302, headers });
+}
+
+/**
+ * Where the site lives, and how a visitor with nothing else to see gets there:
+ * served in place on shaulb.com, sent on to the same path there from anywhere
+ * else. Always 302: what an address does is a setting, not a fact to cache.
+ */
+const SITE_URL = 'https://shaulb.com';
+async function homePage(request: Request, env: Env, url: URL, claimCookie: string | null = null): Promise<Response> {
+  const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+  if (claimCookie) headers.append('set-cookie', claimCookie);
+  const onSite = new URL(request.url).hostname.replace(/^www\./, '') === 'shaulb.com';
+  if (onSite && env.SITE) {
+    const page = await env.SITE.fetch(new Request(SITE_URL + url.pathname + url.search, request));
+    if (!claimCookie) return page;
+    const withClaim = new Response(page.body, page);
+    withClaim.headers.append('set-cookie', claimCookie);
+    return withClaim;
+  }
+  headers.set('location', (env.SITE ? SITE_URL : env.FALLBACK_URL.replace(/\/$/, '')) + url.pathname + url.search);
   return new Response(null, { status: 302, headers });
 }
 
@@ -337,24 +344,22 @@ async function claimStep(
 
 /** The domains that can be pointed on their own from the panel (sbl.cx is the QR, with its slots). */
 export const DOMAINS: ReadonlySet<string> = new Set(['shaulb.com', 'shaulbarlev.com']);
-const HOME_URL = 'https://sbl.cx';
+/** Files live on the QR's own domain, whichever domain a scan came in on. */
+const FILES_ORIGIN = 'https://sbl.cx';
 
 /**
  * One of the other domains. Pointed at something from the panel, it serves it
  * exactly as the QR would (a set draws per scan, a message renders in place,
- * the splash applies); otherwise it is the site, at its own address. Only
- * sbl.cx follows the QR's temp and main.
+ * the splash applies); otherwise shaulb.com is the site and any other name
+ * sends its visitors there. Only sbl.cx follows the QR's temp and main.
  */
 async function handleDomain(request: Request, env: Env, url: URL, domain: string): Promise<Response> {
   const state = (await callState(env, 'get')) as State;
   const slot = state.domains[domain];
   const target = slot && isServable(state, slot.target) ? slot.target : null;
-  if (!target) {
-    if (env.SITE) return env.SITE.fetch(request);
-    return Response.redirect(HOME_URL + url.pathname + url.search, 302);
-  }
+  if (!target) return homePage(request, env, url);
   const headers = new Headers({ 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
-  return serve(request, env, state, target, headers, null, HOME_URL);
+  return serve(request, env, state, target, headers, null, FILES_ORIGIN);
 }
 
 /**
@@ -422,7 +427,7 @@ async function handleTraffic(
   // The embedded copy has nowhere to redirect to: switched off, it shows its
   // lamps dark (the socket is refused and polling reports the switch off).
   const bare = url.searchParams.has('bare');
-  if (!home.enabled && !bare) return env.SITE ? env.SITE.fetch(request) : handleRedirect(request, env, ctx, url);
+  if (!home.enabled && !bare) return homePage(request, env, url);
 
   if (path === '/traffic' || path === '/traffic/') return html(renderTraffic(bare));
   if (path === '/traffic/state' && request.method === 'GET') return json(home);
@@ -847,7 +852,7 @@ function bookmarkLabel(bookmark: { label: string; target: Target }, state: State
 }
 
 function summarise(state: State, resolution: Resolution, now: number): string {
-  const main = state.main ? describeTarget(state.main.target, state) : 'the site';
+  const main = state.main ? describeTarget(state.main.target, state) : 'shaulb.com';
   if (sequenceLive(state, now)) {
     const seq = state.sequence!;
     return `Sequence armed · ${seq.cursor} of ${seq.steps.length} claimed · ${left(seq.expiresAt - now)} left`;
@@ -856,7 +861,7 @@ function summarise(state: State, resolution: Resolution, now: number): string {
     return `Temporary for ${left(resolution.expiresAt - now)}: ${describeTarget(resolution.target, state)} · then ${main}`;
   }
   if (resolution.source === 'main') return `Main: ${main}`;
-  return `The site: ${main}`;
+  return `On to ${main}`;
 }
 
 function left(ms: number): string {

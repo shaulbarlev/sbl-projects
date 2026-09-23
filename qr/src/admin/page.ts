@@ -167,9 +167,10 @@ export function adminPage(host: string): string {
 
     <section>
       <h2>Domains</h2>
-      <p class="sub">Three addresses, each on its own. <b>sbl.cx</b> is the QR: it follows the temp,
-        main and sequence above. The others show the site until pointed somewhere;
-        <b>Send</b> on anything offers them, with every kind of destination.</p>
+      <p class="sub">Three addresses, each on its own; this panel is where all three are set.
+        <b>sbl.cx</b> is the QR and follows the temp, main and sequence above. <b>shaulb.com</b> is the site.
+        Anything not pointed somewhere sends visitors to shaulb.com. <b>Send</b> on anything offers the
+        other two, with every kind of destination.</p>
       <div class="list" id="domains"></div>
       <p class="hint" id="domains-hint"></p>
       <p class="hint">A phone that once saw <b>shaulb.com</b> redirect (before 2026-09-23) may still jump to sbl.cx
