@@ -73,26 +73,28 @@ describe('the traffic light page', () => {
     // the guest side of shared/embed.js, inlined: it reports its layout and takes relayed taps
     expect(on).toContain("'skin:layout'");
     expect(on).toContain('guest();');
-    const plain = await (await SELF.fetch(`${ORIGIN}/traffic`)).text();
-    expect(plain).toContain('background: #0a0a0a');
-    expect(plain).not.toContain('skin:layout');
   });
 
-  it('renders while on', async () => {
+  it('sends /traffic on to the map, and only the bare copy renders here', async () => {
     await traffic(true);
-    const response = await SELF.fetch(`${ORIGIN}/traffic`);
-    expect(response.status).toBe(200);
-    const page = await response.text();
+    const response = await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' });
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('https://shaulb.com/traffic');
+    const page = await (await SELF.fetch(`${ORIGIN}/traffic?bare`)).text();
     expect(page).toContain('aria-label="Green light"');
     expect(page).toContain('aria-label="Orange light"');
+    // and the map may ask across origins whether the light is on
+    const state = await SELF.fetch(`${ORIGIN}/traffic/state`);
+    expect(state.headers.get('access-control-allow-origin')).toBe('*');
+    expect(((await state.json()) as any).enabled).toBe(true);
   });
 
   it('takes over the root when sent, and steps aside when switched off', async () => {
     await traffic(true);
     await SELF.fetch(`${ORIGIN}/_/api/send`, authed(cookie, { traffic: 'yes', minutes: 5 }));
     const takeover = await scan();
-    expect(takeover.status).toBe(200);
-    expect(await takeover.text()).toContain('<title>Traffic light</title>');
+    expect(takeover.status).toBe(302);
+    expect(takeover.headers.get('location')).toBe('https://shaulb.com/traffic');
 
     // Off is off everywhere: the temp is still there but skipped, like an
     // empty image set.

@@ -386,19 +386,59 @@ function opening(at: Rect | null, then: () => void) {
   }
 }
 
+/**
+ * An island with a gate asks whether it exists right now (the traffic light's
+ * master switch). Off, it is taken off the map, minimap and all.
+ */
+async function gated(): Promise<Set<string>> {
+  const gone = new Set<string>()
+  await Promise.all(
+    ISLANDS.filter((i) => i.kind === 'frame' && i.gate).map(async (i) => {
+      if (i.kind !== 'frame' || !i.gate) return
+      try {
+        const state = (await (await fetch(i.gate, { cache: 'no-store' })).json()) as { enabled?: boolean }
+        if (state.enabled === false) gone.add(i.id)
+      } catch {
+        // Unknown: leave it on the map.
+      }
+    }),
+  )
+  for (const id of gone) {
+    tiles.get(id)?.remove()
+    notes.get(id)?.remove()
+    const at = world.islands.findIndex((t) => t.id === id)
+    if (at !== -1) world.islands.splice(at, 1)
+  }
+  if (gone.size) map.redraw()
+  return gone
+}
+
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-const linked = findProject(slugNow())
+const slug = slugNow()
+const linked = findProject(slug)
 const linkedTile = linked && world.tiles.find((t) => t.id === linked.id)
+const anchored = ISLANDS.find((i) => i.kind === 'frame' && i.path === slug)
 if (linked && linkedTile && !calm) {
   // Arrived by a link to a project: the field, the flight to its tile, and the card growing from it.
+  void gated()
   opening(linkedTile, () => {
     opener = tiles.get(linked.id) ?? null
     sync()
   })
+} else if (anchored) {
+  // Arrived by a link to an island: the field, then the flight to it. Switched
+  // off, the link is just the map.
+  const gone = await gated()
+  const at = world.islands.find((t) => t.id === anchored.id)
+  if (at && !gone.has(anchored.id) && !calm) opening(at, () => {})
+  else if (at && !gone.has(anchored.id)) map.focus(at, 0)
+  else map.goHome(0)
 } else if (!calm && !sessionStorage.getItem('intro') && !linked) {
   sessionStorage.setItem('intro', '1')
+  void gated()
   opening(null, () => {})
 } else {
+  void gated()
   if (!linked) map.goHome(0)
   sync()
 }

@@ -396,9 +396,22 @@ export type Island =
    * for the minimap before it has loaded. `note` appears beside it once the
    * visitor has played with it for a few seconds, with one photo under it: the
    * one for the light's state right now, keyed by which lamps are lit ("off",
-   * "green", "orange", "both" for two lamps in page order).
+   * "green", "orange", "both" for two lamps in page order). `gate` is a JSON
+   * URL whose `enabled` says whether the island exists at all right now, and
+   * `path` a URL path of this site that arrives focused on it.
    */
-  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number; lamps?: string[]; note?: { text: string; photos: Record<string, { src: string; alt: string }> } }
+  | {
+      id: string
+      kind: 'frame'
+      src: string
+      title: string
+      w: number
+      h: number
+      lamps?: string[]
+      note?: { text: string; photos: Record<string, { src: string; alt: string }> }
+      gate?: string
+      path?: string
+    }
 
 export const ISLANDS: Island[] = [
   { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
@@ -413,6 +426,9 @@ export const ISLANDS: Island[] = [
     w: 340,
     h: 400,
     lamps: ['#22c55e', '#f59e0b'],
+    // The master switch in the QR's panel: off, the light is not on the map at all.
+    gate: 'https://sbl.cx/traffic/state',
+    path: 'traffic',
     note: {
       text: 'You are driving the real traffic light in my apartment.',
       // One photo per state of the light, uncropped; the note shows the current one.

@@ -208,12 +208,21 @@ async function serve(
   }
 
   // A text target is the destination, so there is nothing to redirect to and
-  // nothing for a splash to precede. The traffic light takes over the root
-  // the same way.
-  if (served.kind === 'text' || served.kind === 'traffic') {
+  // nothing for a splash to precede.
+  if (served.kind === 'text') {
     headers.set('content-type', 'text/html; charset=utf-8');
-    const page = served.kind === 'text' ? renderMessage(served.text) : renderTraffic();
-    return new Response(page, { headers });
+    return new Response(renderMessage(served.text), { headers });
+  }
+
+  // The traffic light lives on the portfolio's map now; the page of its own is
+  // the embedded copy only. A scan sent to it lands on the map, focused on it.
+  if (served.kind === 'traffic') {
+    if (env.SITE) {
+      headers.set('location', `https://${state.siteHost}/traffic`);
+      return new Response(null, { status: 302, headers });
+    }
+    headers.set('content-type', 'text/html; charset=utf-8');
+    return new Response(renderTraffic(), { headers });
   }
 
   const destination = targetToUrl(served, fileOrigin);
@@ -433,8 +442,19 @@ async function handleTraffic(
   const bare = url.searchParams.has('bare');
   if (!home.enabled && !bare) return homePage(request, env, url, (await callState(env, 'get')) as State);
 
-  if (path === '/traffic' || path === '/traffic/') return html(renderTraffic(bare));
-  if (path === '/traffic/state' && request.method === 'GET') return json(home);
+  // The page of its own is retired: the light lives on the portfolio's map, which
+  // embeds the bare copy. Readable across origins, so the map can ask whether
+  // the light is on before drawing it.
+  if (path === '/traffic' || path === '/traffic/') {
+    if (bare) return html(renderTraffic(true));
+    const state = (await callState(env, 'get')) as State;
+    return env.SITE ? Response.redirect(`https://${state.siteHost}/traffic`, 302) : html(renderTraffic());
+  }
+  if (path === '/traffic/state' && request.method === 'GET') {
+    const response = json(home);
+    response.headers.set('access-control-allow-origin', '*');
+    return response;
+  }
 
   return json({ error: 'Not found' }, 404);
 }
