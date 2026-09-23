@@ -31,8 +31,9 @@ over a 2D plane you explore like a map.
   is as tall as its page and is read by panning the map, its top in view first.
   While a card is open a drag moves only up and down; a hard sideways pull, or
   panning until most of the card has left the view, folds it back into the
-  tile. Every project has its own URL, `/<id>/`, which opens its card; `/pikud`
-  is an extra entry for Pikud HaoLED.
+  tile. Every project has its own URL, `/<id>/`: arriving by one plays the opening
+  (the field drawn, the flight) to that project's tile and grows its card from
+  it; `/pikud` is an extra entry for Pikud HaoLED.
 
 ## The QR Worker, in `qr/`
 

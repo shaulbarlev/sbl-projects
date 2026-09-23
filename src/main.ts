@@ -2,7 +2,7 @@ import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import './style.css'
 import { openCard, type Card } from './card'
 import { h } from './dom'
-import { NARROW, WIDE, scatter } from './layout'
+import { NARROW, WIDE, scatter, type Rect } from './layout'
 import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
@@ -340,20 +340,21 @@ window.addEventListener('keydown', (e) => {
 })
 
 // Links shared before the map existed look like /#doorlock.
-function adoptLegacyHash() {
+window.addEventListener('hashchange', () => {
   const project = findProject(location.hash.slice(1))
   if (project) history.replaceState(null, '', `/${project.id}/`)
   sync()
-}
-window.addEventListener('hashchange', adoptLegacyHash)
+})
+const legacy = findProject(location.hash.slice(1))
+if (legacy) history.replaceState(null, '', `/${legacy.id}/`)
 
-adoptLegacyHash()
-
-// --- opening: the whole field at a glance while the tiles scatter out from
-// home, then the camera pushes in. Once a session, and never over a project.
-const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-if (current === null && !calm && !sessionStorage.getItem('intro')) {
-  sessionStorage.setItem('intro', '1')
+/**
+ * The opening: the whole field at a glance while the tiles scatter out from
+ * home, then the camera pushes in, to the wordmark or, for a link to a project,
+ * to that project's tile, whose card then grows. The visitor's first move wins
+ * over the choreography and skips to the end.
+ */
+function opening(at: Rect | null, then: () => void) {
   placed().forEach((t, i) => {
     const a = tiles.get(t.id)!
     a.style.setProperty('--dx', `${world.home.x + world.home.w / 2 - (t.x + t.w / 2)}px`)
@@ -365,12 +366,32 @@ if (current === null && !calm && !sessionStorage.getItem('intro')) {
   void plane.offsetWidth // commit the gathered state before it is released with a transition
   plane.classList.add('intro-run')
   plane.classList.remove('intro')
-  const pushIn = setTimeout(() => map.goHome(1100), 700)
+  const pushIn = setTimeout(() => (at ? map.go({ x: at.x + at.w / 2, y: at.y + at.h / 2, z: 1 }, 1100) : map.goHome(1100)), 700)
+  const arrive = setTimeout(then, 1900)
   setTimeout(() => plane.classList.remove('intro-run'), 1800)
-  // The visitor's first move wins over the choreography.
-  for (const type of ['pointerdown', 'wheel', 'keydown'] as const) {
-    window.addEventListener(type, () => clearTimeout(pushIn), { once: true, capture: true })
+  const skip = () => {
+    clearTimeout(pushIn)
+    clearTimeout(arrive)
+    then()
   }
-} else if (current === null) {
-  map.goHome(0)
+  for (const type of ['pointerdown', 'wheel', 'keydown'] as const) {
+    window.addEventListener(type, skip, { once: true, capture: true })
+  }
+}
+
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
+const linked = findProject(slugNow())
+const linkedTile = linked && world.tiles.find((t) => t.id === linked.id)
+if (linked && linkedTile && !calm) {
+  // Arrived by a link to a project: the field, the flight to its tile, and the card growing from it.
+  opening(linkedTile, () => {
+    opener = tiles.get(linked.id) ?? null
+    sync()
+  })
+} else if (!calm && !sessionStorage.getItem('intro') && !linked) {
+  sessionStorage.setItem('intro', '1')
+  opening(null, () => {})
+} else {
+  if (!linked) map.goHome(0)
+  sync()
 }
