@@ -98,7 +98,7 @@ export function renderProject(
 ): HTMLElement {
   const { he, en } = splitByScript(project.description ?? '')
 
-  const back = h('a', { class: 'pv-back', href: '/' }, '← map')
+  const back = h('a', { class: 'pv-back', href: '/', 'aria-label': 'Back to the map' }, '←')
   const close = h('button', { class: 'pv-close', type: 'button', 'aria-label': 'Close' }, h('i', { class: 'hn hn-times', 'aria-hidden': 'true' }))
   const backdrop = h('div', { class: 'pv-backdrop' })
   for (const el of [back, close, backdrop]) {
@@ -140,7 +140,7 @@ export function renderProject(
     return a
   }
   // The foot of the page: the next projects either way, and the way back to the map.
-  const backAgain = h('a', { class: 'pv-back-foot', href: '/' }, '← map')
+  const backAgain = h('a', { class: 'pv-back-foot', href: '/', 'aria-label': 'Back to the map' }, '←')
   backAgain.addEventListener('click', (e) => {
     e.preventDefault()
     onClose()

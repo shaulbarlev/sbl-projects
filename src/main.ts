@@ -47,6 +47,8 @@ for (const island of ISLANDS) {
   if (island.kind === 'frame') {
     // Loaded only once scrolled near: each open copy is a live socket to the light.
     const frame = h('iframe', { src: island.src, title: island.title, loading: 'lazy' })
+    // Unseen until the page has drawn: a loading frame paints opaque for a moment.
+    frame.addEventListener('load', () => frame.classList.add('drawn'))
     // The cover over the frame (shared/embed.js): a drag on it pans the map, a tap
     // reaches the page, and the page's reported height sizes the island.
     const cover = h('div', { class: 'cover' })
