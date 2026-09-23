@@ -426,6 +426,27 @@ iframe {
 .mm-island {
   background: rgb(255 255 255 / 0.18);
 }
+/* an island that is a light: its lamps, lit or dim */
+.mm-island.mm-light {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: none;
+}
+.mm-light i {
+  width: 42%;
+  max-width: 10px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.3;
+}
+.mm-light i.on {
+  opacity: 1;
+  box-shadow: 0 0 4px var(--c);
+}
 .mm-home {
   border: 1px solid rgb(255 255 255 / 0.7);
 }

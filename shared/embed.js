@@ -12,7 +12,10 @@
  * where its text fields are, so the host cuts them out of the cover and a real
  * tap reaches them (a relayed one could not open the keyboard).
  *
- * Messages:  guest → host  { type: 'skin:layout', height, fields: [{x,y,w,h}] }
+ * The guest also reports its lamps (colour, lit or not, in page order), so the
+ * host can draw the light small, on a minimap say.
+ *
+ * Messages:  guest → host  { type: 'skin:layout', height, fields: [{x,y,w,h}], lamps: [{color, on}] }
  *            host → guest  { type: 'skin:tap', x, y }   (guest CSS px)
  */
 
@@ -27,9 +30,9 @@ const TAP_MS = 500
  * The host side: wire a cover over `frame`.
  * @param {HTMLIFrameElement} frame
  * @param {HTMLElement} cover  positioned over the frame, taking the pointer
- * @param {(height: number) => void} onHeight  the guest's content height, whenever it changes
+ * @param {(layout: { height: number, lamps?: { color: string, on: boolean }[] }) => void} onLayout  whenever the guest's layout or lamps change
  */
-export function host(frame, cover, onHeight) {
+export function host(frame, cover, onLayout) {
   const origin = new URL(frame.src).origin
   /** @type {{ x: number, y: number, t: number } | null} */
   let down = null
@@ -47,7 +50,7 @@ export function host(frame, cover, onHeight) {
   })
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow || e.origin !== origin || !e.data || e.data.type !== 'skin:layout') return
-    onHeight(Math.round(e.data.height))
+    onLayout({ height: Math.round(e.data.height), lamps: e.data.lamps })
     /** @type {{ x: number, y: number, w: number, h: number }[]} */
     const fields = e.data.fields
     // The cover, with a hole for each field (evenodd: the inner rings are cut out).
@@ -73,11 +76,14 @@ export function guest() {
           const r = el.getBoundingClientRect()
           return { x: r.left, y: r.top, w: r.width, h: r.height }
         })
-      window.parent.postMessage({ type: 'skin:layout', height: document.documentElement.scrollHeight, fields }, '*')
+      const lamps = [...document.querySelectorAll('.lamp')]
+        .filter((el) => el.offsetParent !== null)
+        .map((el) => ({ color: getComputedStyle(el).getPropertyValue('--c').trim(), on: el.getAttribute('aria-pressed') === 'true' }))
+      window.parent.postMessage({ type: 'skin:layout', height: document.documentElement.scrollHeight, fields, lamps }, '*')
     }, 50)
   }
   new ResizeObserver(tell).observe(document.body)
-  new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style'] })
+  new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style', 'aria-pressed'] })
   window.addEventListener('load', tell)
   window.addEventListener('message', (e) => {
     if (!TRUSTED.test(e.origin) || !e.data || e.data.type !== 'skin:tap') return

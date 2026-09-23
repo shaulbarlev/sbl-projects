@@ -48,7 +48,8 @@ for (const island of ISLANDS) {
     // reaches the page, and the page's reported height sizes the island.
     const cover = h('div', { class: 'cover' })
     el = h('div', { class: 'tile island frame' }, frame, cover)
-    embedHost(frame, cover, (height) => {
+    embedHost(frame, cover, ({ height, lamps }) => {
+      if (lamps) map.setLamps(island.id, lamps)
       const at = world.islands.find((t) => t.id === island.id)
       if (!at || Math.abs(at.h - height) <= 2) return
       at.h = height
@@ -110,6 +111,11 @@ const map = createMap({
   },
   onBreak: () => card?.close(),
 })
+
+// A light's lamps show on the minimap dim until its page reports them lit or not.
+for (const island of ISLANDS) {
+  if (island.kind === 'frame' && island.lamps) map.setLamps(island.id, island.lamps.map((color) => ({ color, on: false })))
+}
 
 narrow.addEventListener('change', () => {
   world = layout()

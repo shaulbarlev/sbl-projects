@@ -391,15 +391,15 @@ export function displayPictures(p: Project): string[] {
  */
 export type Island =
   | { id: string; kind: 'picture'; src: string; alt: string; w: number; h: number }
-  /** A live page from elsewhere, shown as it is */
-  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number }
+  /** A live page from elsewhere, shown as it is; `lamps` are its lights' colours, for the minimap before it has loaded */
+  | { id: string; kind: 'frame'; src: string; title: string; w: number; h: number; lamps?: string[] }
 
 export const ISLANDS: Island[] = [
   { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
   // The traffic light at home, the very page sbl.cx/traffic serves (its bare copy, no
   // background): lamps, socket, name field, party button and master switch are all its
   // own. The page reports its true height once loaded; `h` is the guess until then.
-  { id: 'traffic', kind: 'frame', src: 'https://sbl.cx/traffic?bare', title: 'The traffic light at home. Tap a lamp.', w: 340, h: 400 },
+  { id: 'traffic', kind: 'frame', src: 'https://sbl.cx/traffic?bare', title: 'The traffic light at home. Tap a lamp.', w: 340, h: 400, lamps: ['#22c55e', '#f59e0b'] },
 ]
 
 /** The film & art reel. At 70 MB it is over this host's 25 MiB limit per file, so it is a file of the QR Worker's (R2, served with ranges). */

@@ -49,6 +49,9 @@ export function createMap(opts: {
   let vw = 0
   let vh = 0
   const seen = new Set<string>()
+  // An island that is a light: its lamps, drawn on the minimap as circles.
+  const lamps = new Map<string, { color: string; on: boolean }[]>()
+  const lampDots = new Map<string, HTMLElement>()
   // A rect the world is stretched to hold while something (an open card) sticks out of it.
   let reach: Rect | null = null
   const worldW = () => Math.max(world.w, reach ? reach.x + reach.w + 40 : 0)
@@ -105,8 +108,29 @@ export function createMap(opts: {
     }
     for (const id of seen) markSeen(id)
     minimap.style.aspectRatio = `${world.w} / ${world.h}`
-    minimap.replaceChildren(dot(world.home, 'mm-home'), ...world.links.map((t) => dot(t, 'mm-link')), ...world.islands.map((t) => dot(t, 'mm-island')), ...dots.values(), frame)
+    lampDots.clear()
+    const islandDots = world.islands.map((t) => {
+      const d = dot(t, lamps.has(t.id) ? 'mm-island mm-light' : 'mm-island')
+      if (lamps.has(t.id)) lampDots.set(t.id, d)
+      return d
+    })
+    minimap.replaceChildren(dot(world.home, 'mm-home'), ...world.links.map((t) => dot(t, 'mm-link')), ...islandDots, ...dots.values(), frame)
+    lamps.forEach((_, id) => paintLamps(id))
     markers.replaceChildren(...pointersTo.values())
+  }
+
+  function paintLamps(id: string) {
+    const d = lampDots.get(id)
+    const list = lamps.get(id)
+    if (!d || !list) return
+    d.replaceChildren(
+      ...list.map((l) => {
+        const i = document.createElement('i')
+        i.style.setProperty('--c', l.color)
+        if (l.on) i.className = 'on'
+        return i
+      }),
+    )
   }
 
   function markSeen(id: string) {
@@ -392,6 +416,12 @@ export function createMap(opts: {
   return {
     /** Redraw the minimap and markers after a rect in the world changed */
     redraw: drawOverlays,
+    /** An island's lamps, for its minimap mark */
+    setLamps(id: string, list: { color: string; on: boolean }[]) {
+      lamps.set(id, list)
+      if (lampDots.has(id)) paintLamps(id)
+      else drawOverlays()
+    },
     /** Swap in a new layout and start again from home */
     setWorld(next: World) {
       world = next
