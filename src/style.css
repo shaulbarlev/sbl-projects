@@ -123,6 +123,10 @@ iframe {
   transition: opacity 0.6s;
 }
 
+.tile[hidden],
+.note[hidden] {
+  display: none;
+}
 .tile {
   position: absolute;
   display: block;

@@ -87,6 +87,12 @@ describe('the traffic light page', () => {
     const state = await SELF.fetch(`${ORIGIN}/traffic/state`);
     expect(state.headers.get('access-control-allow-origin')).toBe('*');
     expect(((await state.json()) as any).enabled).toBe(true);
+    // switched off too: that is how the map and the bare copy learn it
+    await traffic(false);
+    const off = await SELF.fetch(`${ORIGIN}/traffic/state`);
+    expect(off.headers.get('content-type')).toContain('json');
+    expect(off.headers.get('access-control-allow-origin')).toBe('*');
+    expect(((await off.json()) as any).enabled).toBe(false);
   });
 
   it('takes over the root when sent, and steps aside when switched off', async () => {
@@ -282,6 +288,26 @@ describe('the page socket', () => {
 
     page.close();
     agent.close();
+  });
+
+  it('tells open pages when the master switch flips, so the light can vanish and return', async () => {
+    await traffic(true);
+    const pageRes = await SELF.fetch(`${ORIGIN}/traffic/ws`, { headers: { upgrade: 'websocket' } });
+    const page = pageRes.webSocket!;
+    page.accept();
+    const seen: any[] = [];
+    page.addEventListener('message', (event) => seen.push(JSON.parse(String(event.data))));
+    await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.enabled === true)).toBe(true));
+
+    await traffic(false);
+    await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.enabled === false)).toBe(true));
+    // The bare page keeps polling too, and hears the same.
+    const off = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
+    expect(off.enabled).toBe(false);
+
+    await traffic(true);
+    await vi.waitFor(() => expect(seen.filter((m) => m.type === 'state' && m.enabled === true).length).toBeGreaterThan(1));
+    page.close();
   });
 });
 

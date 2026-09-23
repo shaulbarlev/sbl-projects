@@ -473,7 +473,11 @@ export class RedirectState implements DurableObject {
         await this.save(s);
         // Home keeps a mirror of this switch. Only a real change is sent, so
         // the echo Home Assistant makes when it hears it dies in one round.
-        if (changed) this.tellHome({ type: 'switch', on });
+        // The pages hear it too: off, the light is not shown at all.
+        if (changed) {
+          this.tellHome({ type: 'switch', on });
+          await this.broadcast();
+        }
         return json(s);
       }
 

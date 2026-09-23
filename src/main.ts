@@ -2,7 +2,7 @@ import '@hackernoon/pixel-icon-library/fonts/iconfont.css'
 import './style.css'
 import { openCard, type Card } from './card'
 import { h } from './dom'
-import { NARROW, WIDE, scatter, type Rect } from './layout'
+import { NARROW, WIDE, scatter, type Rect, type Tile } from './layout'
 import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
@@ -25,6 +25,8 @@ const notes = new Map<string, HTMLElement>()
 const boxes = new Map<string, { x: number; y: number; w: number; h: number }>()
 /** The project card open on the map, if any */
 let card: Card | null = null
+/** Islands taken off the map for now (the light's master switch is off), with their place kept */
+const shelved = new Map<string, Tile>()
 
 // The contact links are written in the page under the wordmark, and become the
 // small tiles nearest to it.
@@ -77,7 +79,12 @@ for (const island of ISLANDS) {
     embedHost(
       frame,
       cover,
-      ({ height, box, lamps }) => {
+      ({ height, box, lamps, off }) => {
+        // Switched off at home, the light is not there, minimap and all; back on, it returns.
+        if (off !== undefined && off !== shelved.has(island.id)) {
+          off ? shelve(island.id) : unshelve(island.id)
+          map.redraw()
+        }
         if (lamps) {
           map.setLamps(island.id, lamps)
           showState(lamps)
@@ -112,6 +119,23 @@ for (const island of ISLANDS) {
   }
   tiles.set(island.id, el)
   plane.append(el)
+}
+
+/** Takes an island off the map, its place kept; the element stays, hidden, so its page can still report */
+function shelve(id: string) {
+  const i = world.islands.findIndex((t) => t.id === id)
+  if (i !== -1) shelved.set(id, world.islands[i])
+  world.islands.splice(i, i === -1 ? 0 : 1)
+  tiles.get(id)?.setAttribute('hidden', '')
+  notes.get(id)?.setAttribute('hidden', '')
+}
+function unshelve(id: string) {
+  const t = shelved.get(id)
+  if (!t) return
+  shelved.delete(id)
+  world.islands.push(t)
+  tiles.get(id)?.removeAttribute('hidden')
+  notes.get(id)?.removeAttribute('hidden')
 }
 
 const layout = () =>
@@ -175,6 +199,7 @@ narrow.addEventListener('change', () => {
   card = null
   open?.close(true)
   world = layout()
+  for (const id of [...shelved.keys()]) shelve(id)
   place()
   map.setWorld(world)
   sync()
@@ -427,11 +452,11 @@ async function gated(): Promise<Set<string>> {
       }
     }),
   )
+  // Off from the start, its page is never loaded: it is back on the next visit.
   for (const id of gone) {
+    shelve(id)
     tiles.get(id)?.remove()
     notes.get(id)?.remove()
-    const at = world.islands.findIndex((t) => t.id === id)
-    if (at !== -1) world.islands.splice(at, 1)
   }
   if (gone.size) map.redraw()
   return gone

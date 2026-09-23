@@ -237,6 +237,12 @@ ${lamps}
   var wanted = {};
   var SETTLE_MS = 1500;
 
+  // Switched off at home, the light is not there: the page shows nothing, and
+  // the map it lives in hears so (shared/embed.js reports the hidden body).
+  function show(data) {
+    if ('enabled' in data) document.body.hidden = !data.enabled;
+  }
+
   function paint(data) {
     var online = !!data.online;
     showParty(!!data.party);
@@ -261,6 +267,7 @@ ${lamps}
     // Only a state message, or an error carrying the real state, repaints.
     // A successful tap says nothing about state: the lamp already flipped,
     // and the push from home confirms or corrects it.
+    if (data.type === 'state') show(data);
     if (data.states && (data.type === 'state' || data.error)) paint(data);
     if (data.error) {
       fail();
@@ -305,7 +312,7 @@ ${lamps}
   function refresh() {
     return fetch('/traffic/state', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(paint)
+      .then(function (data) { show(data); paint(data); })
       .catch(fail);
   }
   function poll() {

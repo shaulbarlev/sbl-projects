@@ -437,23 +437,25 @@ async function handleTraffic(
   }
 
   const home = await callState(env, 'home-state');
-  // The embedded copy has nowhere to redirect to: switched off, it shows its
-  // lamps dark (the socket is refused and polling reports the switch off).
-  const bare = url.searchParams.has('bare');
-  if (!home.enabled && !bare) return homePage(request, env, url, (await callState(env, 'get')) as State);
-
-  // The page of its own is retired: the light lives on the portfolio's map, which
-  // embeds the bare copy. Readable across origins, so the map can ask whether
-  // the light is on before drawing it.
-  if (path === '/traffic' || path === '/traffic/') {
-    if (bare) return html(renderTraffic(true));
-    const state = (await callState(env, 'get')) as State;
-    return env.SITE ? Response.redirect(`https://${state.siteHost}/traffic`, 302) : html(renderTraffic());
-  }
+  // The state answers whatever the switch says, switch included: the embedded
+  // copy polls it when its socket is refused, and the map asks it before drawing
+  // the light. Readable across origins for that.
   if (path === '/traffic/state' && request.method === 'GET') {
     const response = json(home);
     response.headers.set('access-control-allow-origin', '*');
     return response;
+  }
+  // The embedded copy has nowhere to redirect to: switched off, it hides itself
+  // (the socket is refused and polling reports the switch off).
+  const bare = url.searchParams.has('bare');
+  if (!home.enabled && !bare) return homePage(request, env, url, (await callState(env, 'get')) as State);
+
+  // The page of its own is retired: the light lives on the portfolio's map, which
+  // embeds the bare copy.
+  if (path === '/traffic' || path === '/traffic/') {
+    if (bare) return html(renderTraffic(true));
+    const state = (await callState(env, 'get')) as State;
+    return env.SITE ? Response.redirect(`https://${state.siteHost}/traffic`, 302) : html(renderTraffic());
   }
 
   return json({ error: 'Not found' }, 404);
