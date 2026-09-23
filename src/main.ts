@@ -84,12 +84,14 @@ for (const island of ISLANDS) {
         }
         if (box) boxes.set(island.id, box)
         const at = world.islands.find((t) => t.id === island.id)
-        if (at && Math.abs(at.h - height) > 2) {
+        if (!at) return
+        // The page reports on every lamp change; only a new size moves anything.
+        if (Math.abs(at.h - height) > 2) {
           at.h = height
           el.style.height = `${height}px`
           map.redraw()
         }
-        place()
+        placeNote(at)
       },
       () => {
         if (tapped) return
@@ -122,6 +124,14 @@ const layout = () =>
 let world = layout()
 const placed = () => [...world.links, ...world.tiles, ...world.islands]
 
+/** A note sits just right of what is drawn in its island, its middle on that content's middle */
+function placeNote(t: Rect & { id: string }) {
+  const note = notes.get(t.id)
+  const box = boxes.get(t.id) ?? { x: 0, y: 0, w: t.w, h: t.h }
+  if (note) Object.assign(note.style, { left: `${t.x + box.x + box.w + 10}px`, top: `${t.y + box.y + Math.round(box.h / 2)}px` })
+}
+
+/** Lays the world out: every tile to its place (an open card keeps its own) */
 function place() {
   plane.style.width = `${world.w}px`
   plane.style.height = `${world.h}px`
@@ -130,11 +140,8 @@ function place() {
   homeEl.style.width = `${world.home.w}px`
   for (const t of placed()) {
     const a = tiles.get(t.id)
-    if (a) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
-    // A note sits just right of what is drawn in its island, its middle on that content's middle.
-    const note = notes.get(t.id)
-    const box = boxes.get(t.id) ?? { x: 0, y: 0, w: t.w, h: t.h }
-    if (note) Object.assign(note.style, { left: `${t.x + box.x + box.w + 10}px`, top: `${t.y + box.y + Math.round(box.h / 2)}px` })
+    if (a && !a.classList.contains('card')) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
+    placeNote(t)
   }
   reel.place(world.links.find((t) => t.id === 'film')!)
 }
@@ -163,9 +170,14 @@ for (const island of ISLANDS) {
 }
 
 narrow.addEventListener('change', () => {
+  // A card open across the change (a phone turned sideways) is reopened on the new layout.
+  const open = card
+  card = null
+  open?.close(true)
   world = layout()
   place()
   map.setWorld(world)
+  sync()
 })
 
 // True while focus is moving by Tab, as opposed to a click or a restored focus.
@@ -262,7 +274,6 @@ const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/
 function sync() {
   const project = findProject(slugNow())
   closeLightbox()
-  document.body.classList.toggle('has-project', project !== undefined)
   document.title = project ? `${project.title} — shaul bar-lev` : SITE_TITLE
   if (card && card.id !== project?.id) {
     card.close()
@@ -292,7 +303,12 @@ function sync() {
           opener = tiles.get(to.id) ?? null
           sync()
         }),
-      onFolding: () => document.body.classList.remove('has-project'),
+      // Lock and chrome are released as the fold starts; sync() decides again at its end,
+      // so previous / next (a close and an open in one pass) leaves them on.
+      onFolding: () => {
+        map.lock(false)
+        document.body.classList.remove('has-project')
+      },
       onClosed: () => {
         if (card !== opened) return
         card = null
@@ -307,8 +323,9 @@ function sync() {
     opener?.focus({ preventScroll: true })
     opener = null
   }
-  // Reading lock only while a card is open
+  // The reading lock and the map's chrome follow whether a card is open.
   map.lock(card !== null)
+  document.body.classList.toggle('has-project', card !== null)
   current = project?.id ?? null
 }
 
@@ -322,7 +339,7 @@ window.addEventListener('popstate', () => sync())
 window.addEventListener('keydown', (e) => {
   // The image viewer has its own keys, and Esc there must not close the project too.
   if (lightboxOpen() || e.metaKey || e.ctrlKey || e.altKey) return
-  if (document.body.classList.contains('has-project')) {
+  if (card) {
     if (e.key === 'Escape') closeProject()
     return
   }
@@ -374,16 +391,23 @@ function opening(at: Rect | null, then: () => void) {
   plane.classList.remove('intro')
   const pushIn = setTimeout(() => (at ? map.go({ x: at.x + at.w / 2, y: at.y + at.h / 2, z: 1 }, 1100) : map.goHome(1100)), 700)
   // A linked project starts growing while the camera is still settling on it.
-  const arrive = setTimeout(then, at ? 1400 : 1900)
+  const arrive = setTimeout(() => {
+    stop()
+    then()
+  }, at ? 1400 : 1900)
   setTimeout(() => plane.classList.remove('intro-run'), 1800)
-  const skip = () => {
+  const inputs = ['pointerdown', 'wheel', 'keydown'] as const
+  function stop() {
     clearTimeout(pushIn)
     clearTimeout(arrive)
-    then()
+    inputs.forEach((type) => window.removeEventListener(type, skip, true))
   }
-  for (const type of ['pointerdown', 'wheel', 'keydown'] as const) {
-    window.addEventListener(type, skip, { once: true, capture: true })
+  function skip() {
+    stop()
+    // After the event that skipped, so that a key (Escape) does not also act on what `then` opens.
+    setTimeout(then, 0)
   }
+  inputs.forEach((type) => window.addEventListener(type, skip, { capture: true }))
 }
 
 /**

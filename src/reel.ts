@@ -40,6 +40,7 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) 
   face.addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return
     e.preventDefault()
+    if (video) return
     // Nothing is fetched but the poster until play is pressed.
     video = h('video', { controls: true, playsinline: true, preload: 'none', poster: REEL.poster }, h('source', { src: REEL.src, type: 'video/mp4' }))
     box.append(video)
