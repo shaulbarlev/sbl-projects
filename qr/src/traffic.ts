@@ -327,27 +327,29 @@ ${lamps}
 
   // ---------------------------------------------------------------- who
   // Somebody who scans this has no idea whose light it is, and the page
-  // says nothing. Once they have actually played — two taps and a pause of
-  // two seconds — ask once. A name is reused without asking for as long as
-  // this phone keeps coming back; only a week away brings the question back,
-  // prefilled. Somebody back for a second visit who never gave a name sees
-  // the field from the start.
+  // says nothing. The first time they play — two taps and a pause of two
+  // seconds — nothing is asked. Somebody back to play again who never gave
+  // a name sees the field from the start. A name is reused without asking
+  // for as long as this phone keeps coming back; only a week away brings
+  // the question back, prefilled.
+  //
+  // What counts is playing, not loading: the page is on the portfolio's map,
+  // where it loads for everyone who passes, so a load says nothing about
+  // whether they have met the light. Nothing is written until they play.
   //
   // Every visit that touches a lamp is recorded at its first pause, named or
   // not. A name typed after that goes as a second record for the same visit,
   // and the ledger shows that one in its place.
   var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
-  var me = read(), pending = null, logged = false;
+  var me = read(), pending = null, logged = false, counted = false;
   var visit = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false, gated = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
-  var returning = me.visits > 0;
-  // Away since the last visit; phones from before seen fall back to the
+  // Has played before, on this phone.
+  var returning = (me.plays || 0) > 0;
+  // Away since the last play; phones from before "seen" fall back to the
   // last answer.
   var away = Date.now() - (me.seen || me.at || 0);
-  me.visits = (me.visits || 0) + 1;
-  me.seen = Date.now();
-  try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (err) {}
 
   function read() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (err) { return {}; }
@@ -394,6 +396,7 @@ ${lamps}
   function ask() {
     if (asked) return;
     asked = true;
+    if (!returning) return;                       // a first play is never asked
     var fresh = away < WEEK;
     if (fresh && me.dismissed) return;            // a no lasts the week
     if (fresh && me.name) return;                 // known: no prompt, log() named them
@@ -416,7 +419,10 @@ ${lamps}
       if (burst >= 2) pauses++;
       burst = 0;
       log();
-      if (pauses >= BURSTS) ask();
+      if (pauses < BURSTS) return;
+      // Played: this visit now counts as one, for the next.
+      if (!counted) { counted = true; remember({ plays: (me.plays || 0) + 1, seen: Date.now() }); }
+      ask();
     }, PAUSE);
   }
   form.onsubmit = function (e) {
