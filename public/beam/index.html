@@ -10,39 +10,41 @@
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --line:#30363d; --ink:#e6edf3; --dim:#8b949e;
-    --a:#4c9aff; --b:#ff8f4c; --ok:#3fb950; --warn:#d29922;
+    --a:#4c9aff; --b:#ff8f4c; --rod:#8b949e; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
     font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
-    -webkit-text-size-adjust:100%; overscroll-behavior:none;}
+    -webkit-text-size-adjust:100%;overscroll-behavior:none;}
   body{display:flex;flex-direction:column;height:100dvh;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   #stage{position:relative;flex:1 1 auto;min-height:0;}
   canvas{display:block;width:100%;height:100%;touch-action:none;}
-  #hud{position:absolute;left:10px;top:8px;font-variant-numeric:tabular-nums;
-    font-size:13px;color:var(--dim);pointer-events:none;line-height:1.5;}
+  #hud{position:absolute;left:10px;top:7px;font-size:12.5px;color:var(--dim);
+    font-variant-numeric:tabular-nums;pointer-events:none;line-height:1.5;}
   #hud b{color:var(--ink);font-weight:600;}
-  #verdict{position:absolute;left:10px;right:10px;bottom:8px;font-size:13px;
-    padding:8px 10px;border:1px solid var(--line);border-radius:10px;
-    background:rgba(22,27,34,.82);pointer-events:none;}
+  #verdict{position:absolute;left:8px;right:8px;bottom:7px;font-size:12.5px;line-height:1.4;
+    padding:7px 9px;border:1px solid var(--line);border-radius:10px;
+    background:rgba(22,27,34,.85);pointer-events:none;}
   #verdict .t{font-weight:600;color:var(--ok);}
-  #verdict.un .t{color:var(--warn);}
+  #verdict.warn .t{color:var(--warn);} #verdict.bad .t{color:var(--bad);}
   #panel{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);
-    padding:10px 12px 12px;display:grid;gap:9px;}
-  .row{display:flex;align-items:center;gap:10px;}
-  .row label{flex:0 0 78px;font-size:13px;color:var(--dim);}
-  .row .val{flex:0 0 62px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;}
-  .dotA{color:var(--a);} .dotB{color:var(--b);}
-  input[type=range]{flex:1 1 auto;min-width:0;height:28px;margin:0;accent-color:var(--a);background:transparent;}
-  .btns{display:flex;gap:8px;flex-wrap:wrap;}
-  button{flex:1 1 auto;min-width:82px;padding:9px 10px;font-size:13px;color:var(--ink);
-    background:#21262d;border:1px solid var(--line);border-radius:9px;touch-action:manipulation;}
+    padding:8px 11px 10px;display:grid;gap:6px;}
+  .row{display:flex;align-items:center;gap:9px;height:27px;}
+  .row label{flex:0 0 84px;font-size:12.5px;color:var(--dim);white-space:nowrap;}
+  .row .val{flex:0 0 58px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;}
+  .dA{color:var(--a);} .dB{color:var(--b);} .dR{color:var(--rod);}
+  input[type=range]{flex:1 1 auto;min-width:0;height:26px;margin:0;background:transparent;accent-color:var(--a);}
+  #mB{accent-color:var(--b);} #mR{accent-color:#8b949e;} #pv{accent-color:#a371f7;} #fr{accent-color:#8b949e;}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:1px;}
+  button{flex:1 1 auto;min-width:70px;padding:8px 6px;font-size:12.5px;color:var(--ink);
+    background:#21262d;border:1px solid var(--line);border-radius:8px;touch-action:manipulation;}
   button:active{background:#2d333b;}
-  .toggles{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--dim);}
-  .toggles label{display:flex;align-items:center;gap:6px;}
-  input[type=checkbox]{width:18px;height:18px;accent-color:var(--a);}
+  button.on{border-color:#4c9aff;color:#79b8ff;}
+  .toggles{display:flex;gap:13px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);align-items:center;}
+  .toggles label{display:flex;align-items:center;gap:5px;}
+  input[type=checkbox]{width:17px;height:17px;accent-color:var(--a);}
 </style>
 </head>
 <body>
@@ -53,31 +55,28 @@
 </div>
 
 <div id="panel">
-  <div class="row">
-    <label><span class="dotA">●</span> mass A</label>
-    <input id="mA" type="range" min="5" max="200" step="1" value="50">
-    <span class="val" id="mAv">50 g</span>
-  </div>
-  <div class="row">
-    <label><span class="dotB">●</span> mass B</label>
-    <input id="mB" type="range" min="5" max="200" step="1" value="50">
-    <span class="val" id="mBv">50 g</span>
-  </div>
-  <div class="row">
-    <label>friction</label>
-    <input id="fr" type="range" min="0" max="100" step="1" value="12">
-    <span class="val" id="frv">12%</span>
-  </div>
+  <div class="row"><label><span class="dA">●</span> mass A</label>
+    <input id="mA" type="range" min="0" max="200" step="1" value="50"><span class="val" id="mAv">50 g</span></div>
+  <div class="row"><label><span class="dB">●</span> mass B</label>
+    <input id="mB" type="range" min="0" max="200" step="1" value="50"><span class="val" id="mBv">50 g</span></div>
+  <div class="row"><label><span class="dR">▬</span> rod</label>
+    <input id="mR" type="range" min="0" max="300" step="1" value="20"><span class="val" id="mRv">20 g</span></div>
+  <div class="row"><label>pivot height</label>
+    <input id="pv" type="range" min="-30" max="40" step="1" value="0"><span class="val" id="pvv">0 mm</span></div>
+  <div class="row"><label>friction</label>
+    <input id="fr" type="range" min="0" max="100" step="1" value="12"><span class="val" id="frv">12%</span></div>
   <div class="toggles">
     <label><input id="grav" type="checkbox" checked> gravity</label>
     <label><input id="rest" type="checkbox" checked> release at rest</label>
     <label><input id="vec" type="checkbox" checked> show forces</label>
   </div>
   <div class="btns">
-    <button id="bHoriz">0°</button>
-    <button id="b30">30°</button>
-    <button id="b60">60°</button>
-    <button id="bStop">stop</button>
+    <button id="p1">neutral</button>
+    <button id="p2">heavy rod</button>
+    <button id="p3">scale</button>
+    <button id="p4">top-heavy</button>
+    <button id="pNudge">nudge</button>
+    <button id="pStop">stop</button>
   </div>
 </div>
 
@@ -86,281 +85,341 @@
 'use strict';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const hud = document.getElementById('hud');
-const verdict = document.getElementById('verdict');
+const hud = document.getElementById('hud'), verdict = document.getElementById('verdict');
 const vT = verdict.querySelector('.t'), vD = verdict.querySelector('.d');
 
-// ---- physical model -------------------------------------------------------
-// Rigid massless-ish rod, pivoted exactly at its geometric centre.
-// Point mass A at +r along the rod, point mass B at -r.
-const G        = 9.80665;   // m/s^2
-const ARM      = 0.12;      // m, half-length of the rod (each arm)
-const ROD_MASS = 0.020;     // kg, the rod itself (symmetric -> no net torque)
+/* ---------------------------------------------------------------------------
+ * Model. A rigid body: a uniform rod of half-length ARM with a point mass at
+ * each end, hung on a pin. The pin sits on the rod's mid-line, but DPIV metres
+ * above it (`pivot height`), rigidly attached — that one number is what turns a
+ * beam that holds any angle into a weighing scale.
+ *
+ * Body frame: x along the rod, origin at the rod's centre, pivot at (0, dPiv).
+ * theta = the body's rotation, 0 with the rod horizontal and A to the right.
+ * ------------------------------------------------------------------------- */
+const G = 9.80665, ARM = 0.12;
 
 const S = {
-  theta: 0,        // rad, angle of arm A measured CCW from horizontal-right
-  omega: 0,        // rad/s
-  mA: 0.050, mB: 0.050,
-  c: 0,            // pivot damping coefficient (N·m·s/rad)
-  gravity: true,
-  releaseAtRest: true,
-  showVec: true
+  theta:0, omega:0,
+  mA:0.050, mB:0.050, mRod:0.020,
+  dPiv:0,            // m, pivot above the rod's centre line
+  c:0,               // N·m·s/rad at the pin
+  gravity:true, releaseAtRest:true, showVec:true
 };
 
-function inertia(){
-  return S.mA*ARM*ARM + S.mB*ARM*ARM + ROD_MASS*(2*ARM)*(2*ARM)/12;
-}
-// Gravity torque about the pivot. Only the *difference* of the moments matters:
-//   tau = -g*cos(theta) * (mA*rA - mB*rB)
+const M     = () => S.mA + S.mB + S.mRod;                 // total mass
+const sCom  = () => M() > 0 ? ARM*(S.mA - S.mB)/M() : 0;  // COM along the rod, from its centre
+// About the pin: rod + ends about the rod centre, then the parallel-axis shift
+// for the pin's offset. A uniform rod adds inertia and nothing else.
+const inertia = () => S.mA*ARM*ARM + S.mB*ARM*ARM + S.mRod*(2*ARM)*(2*ARM)/12 + M()*S.dPiv*S.dPiv;
+
+// Gravity torque about the pin. The COM sits at (s, -d) from the pin in the
+// body frame, so tau = -Mg(s·cos θ + d·sin θ): the first term is the weights
+// fighting each other, the second is the restoring term of a real balance.
 function gravTorque(th){
   if(!S.gravity) return 0;
-  return -G*Math.cos(th)*(S.mA*ARM - S.mB*ARM);
+  return -G*(ARM*(S.mA - S.mB)*Math.cos(th) + M()*S.dPiv*Math.sin(th));
 }
-function alpha(th, om){
-  return (gravTorque(th) - S.c*om) / inertia();
-}
+const alpha = (th,om) => (gravTorque(th) - S.c*om) / Math.max(inertia(), 1e-9);
 
-const H = 1/480;            // s, fixed integration step
+// Where it wants to sit: tau = -M·g·R·sin(theta + phi), so the stable angle is
+// -phi and the small-swing period is 2*pi*sqrt(I / M g R). R = 0 is the whole
+// point of the experiment: no preferred angle at all.
+const restR   = () => Math.hypot(sCom(), S.dPiv);
+const restPhi = () => Math.atan2(sCom(), S.dPiv);
+
+// One nudge: the same angular impulse every time (N·m·s). What it does to the
+// spin is 1/I, so this button is an inertia meter you can feel — a heavy rod
+// takes the identical push and turns half as fast.
+const NUDGE = 0.0015;
+
+const H = 1/480;
 let acc = 0, last = 0;
-
-function step(h){
-  // semi-implicit (symplectic) Euler — no spurious energy gain, so a beam left
-  // at an angle in neutral equilibrium genuinely stays put.
+function stepOnce(h){                        // semi-implicit Euler: no fake energy
   S.omega += alpha(S.theta, S.omega)*h;
   S.theta += S.omega*h;
 }
 
-// ---- canvas sizing --------------------------------------------------------
-let W=0, Hh=0, dpr=1, px=1, cx=0, cy=0;
+/* ---- geometry ----------------------------------------------------------- */
+let W=0, Hh=0, px=1, cx=0, cy=0;
 function resize(){
-  dpr = Math.min(window.devicePixelRatio||1, 3);
+  const dpr = Math.min(window.devicePixelRatio||1, 3);
   const r = cv.getBoundingClientRect();
-  W = Math.max(1, Math.round(r.width)); Hh = Math.max(1, Math.round(r.height));
+  W = Math.max(1,Math.round(r.width)); Hh = Math.max(1,Math.round(r.height));
   cv.width = Math.round(W*dpr); cv.height = Math.round(Hh*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  cx = W/2; cy = Hh/2;
-  px = Math.min(W*0.40/ARM, Hh*0.40/ARM);   // pixels per metre
+  cx = W/2; cy = Hh*0.46;
+  px = Math.min(W*0.38/ARM, Hh*0.36/ARM);
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', ()=>setTimeout(resize,250));
 if(window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
-function toScreen(x,y){ return [cx + x*px, cy - y*px]; }
-function radius(m){ return 9 + 26*Math.cbrt(m/0.200); }   // visual only
+// body point -> world (pin at the origin), then -> screen
+function bw(u,v,th){
+  const dx = u, dy = v - S.dPiv, c = Math.cos(th), s = Math.sin(th);
+  return [dx*c - dy*s, dx*s + dy*c];
+}
+const scr = (x,y) => [cx + x*px, cy - y*px];
+const bs  = (u,v,th) => { const p = bw(u,v,th===undefined?S.theta:th); return scr(p[0],p[1]); };
+const radius = m => 7 + 27*Math.cbrt(Math.max(m,0.001)/0.200);
 
-// ---- drawing -------------------------------------------------------------
+/* ---- drawing ------------------------------------------------------------ */
+function drawBeam(th, ghost){
+  const [Ax,Ay] = bs(ARM,0,th), [Bx,By] = bs(-ARM,0,th), [Rx,Ry] = bs(0,0,th);
+  const [Px,Py] = scr(0,0);
+  ctx.save();
+  ctx.lineCap='round';
+  if(ghost){ ctx.globalAlpha=.22; ctx.setLineDash([4,6]); }
+  // the stem from the pin down to the rod, when the pin is offset
+  if(Math.abs(S.dPiv) > 1e-5){
+    ctx.lineWidth=4; ctx.strokeStyle='#a371f7';
+    ctx.beginPath(); ctx.moveTo(Px,Py); ctx.lineTo(Rx,Ry); ctx.stroke();
+  }
+  ctx.lineWidth = 5 + 5*Math.min(S.mRod/0.300,1);
+  ctx.strokeStyle = ghost ? '#8b949e' : '#6e7681';
+  ctx.beginPath(); ctx.moveTo(Ax,Ay); ctx.lineTo(Bx,By); ctx.stroke();
+  ctx.restore();
+  return {Ax,Ay,Bx,By,Rx,Ry,Px,Py};
+}
+
 function draw(){
   ctx.clearRect(0,0,W,Hh);
+  const [Px,Py] = scr(0,0);
 
-  const th = S.theta;
-  const ax = ARM*Math.cos(th),  ay = ARM*Math.sin(th);
-  const [Ax,Ay] = toScreen(ax,ay), [Bx,By] = toScreen(-ax,-ay), [Px,Py] = toScreen(0,0);
-  const rA = radius(S.mA), rB = radius(S.mB);
+  // horizontal through the pin
+  ctx.save(); ctx.setLineDash([5,6]); ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(8,Py); ctx.lineTo(W-8,Py); ctx.stroke(); ctx.restore();
 
-  // horizontal reference
-  ctx.save();
-  ctx.setLineDash([5,6]); ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(cx-ARM*px*1.35, cy); ctx.lineTo(cx+ARM*px*1.35, cy); ctx.stroke();
-  ctx.restore();
+  // where it is heading, when it has somewhere to head
+  const R = restR();
+  if(R > 1e-6 && S.gravity){
+    let d = S.theta + restPhi();
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    if(Math.abs(d) > 0.05) drawBeam(-restPhi(), true);
+  }
+
+  const g = drawBeam(S.theta, false);
 
   // angle arc
-  if(Math.abs(th)>0.01){
-    ctx.save();
-    ctx.strokeStyle='#484f58'; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.arc(Px,Py, Math.min(46, ARM*px*0.5), 0, -th, th>0);
+  if(Math.abs(S.theta) > 0.015){
+    ctx.save(); ctx.strokeStyle='#484f58'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(Px,Py, Math.min(42, ARM*px*0.45), 0, -S.theta, S.theta>0);
     ctx.stroke(); ctx.restore();
   }
 
-  // rod
-  ctx.save();
-  ctx.lineCap='round'; ctx.lineWidth=7; ctx.strokeStyle='#6e7681';
-  ctx.beginPath(); ctx.moveTo(Ax,Ay); ctx.lineTo(Bx,By); ctx.stroke();
-  ctx.restore();
-
-  // pivot: a little stand + frictionless bearing
+  // the pin and its stand
   ctx.save();
   ctx.strokeStyle='#484f58'; ctx.fillStyle='#21262d'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(Px-13, Py+22); ctx.lineTo(Px+13, Py+22);
-  ctx.lineTo(Px, Py+3); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.arc(Px,Py,6,0,Math.PI*2); ctx.fillStyle='#8b949e'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(Px-13,Py+22); ctx.lineTo(Px+13,Py+22); ctx.lineTo(Px,Py+3);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(Px,Py,5.5,0,Math.PI*2); ctx.fillStyle='#a371f7'; ctx.fill();
   ctx.restore();
 
   // weights
-  function weight(x,y,r,col,label,grams){
+  function weight(x,y,m,col,label){
+    const r = radius(m);
     ctx.save();
-    const g = ctx.createRadialGradient(x-r*0.35,y-r*0.4,r*0.15,x,y,r);
-    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,.55)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    const grd = ctx.createRadialGradient(x-r*0.35,y-r*0.4,r*0.15,x,y,r);
+    grd.addColorStop(0,col); grd.addColorStop(1,'rgba(0,0,0,.55)');
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.lineWidth=2; ctx.strokeStyle=col; ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font='600 13px -apple-system,system-ui,sans-serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(label, x, y-6);
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='600 13px -apple-system,system-ui,sans-serif'; ctx.fillText(label,x,y-6);
     ctx.font='11px -apple-system,system-ui,sans-serif'; ctx.fillStyle='rgba(255,255,255,.85)';
-    ctx.fillText(grams+'g', x, y+8);
+    ctx.fillText((m*1000).toFixed(0)+'g',x,y+8);
     ctx.restore();
   }
-  weight(Ax,Ay,rA,'#4c9aff','A',(S.mA*1000).toFixed(0));
-  weight(Bx,By,rB,'#ff8f4c','B',(S.mB*1000).toFixed(0));
+  weight(g.Ax,g.Ay,S.mA,'#4c9aff','A');
+  weight(g.Bx,g.By,S.mB,'#ff8f4c','B');
 
-  // weight vectors + lever arms
-  if(S.showVec && S.gravity){
-    const scale = 140/0.200;   // px per kg of weight-force
-    function arrow(x,y,len,col){
-      if(len<4) return;
-      ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+len); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x,y+len); ctx.lineTo(x-5,y+len-8); ctx.lineTo(x+5,y+len-8);
-      ctx.closePath(); ctx.fill(); ctx.restore();
-    }
-    arrow(Ax,Ay+rA, S.mA*scale, 'rgba(76,154,255,.85)');
-    arrow(Bx,By+rB, S.mB*scale, 'rgba(255,143,76,.85)');
-    // horizontal lever arms (the only part of the arm that makes torque)
-    ctx.save(); ctx.setLineDash([3,4]); ctx.lineWidth=1;
-    ctx.strokeStyle='rgba(139,148,158,.7)';
-    ctx.beginPath(); ctx.moveTo(Ax,cy); ctx.lineTo(Ax,Ay); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(Bx,cy); ctx.lineTo(Bx,By); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(Px,cy); ctx.lineTo(Ax,cy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(Px,cy); ctx.lineTo(Bx,cy); ctx.stroke();
-    ctx.restore();
-  }
-
-  // grab hint
-  if(!drag.active){
+  if(S.showVec){
+    // centre of mass of the whole thing — the only point gravity cares about
+    const [Cx,Cy] = bs(sCom(),0);
     ctx.save();
-    ctx.fillStyle='rgba(139,148,158,.55)';
-    ctx.font='12px -apple-system,system-ui,sans-serif'; ctx.textAlign='right';
-    ctx.fillText('drag either weight', W-10, 18);
+    ctx.strokeStyle='#e6edf3'; ctx.fillStyle='#0d1117'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.arc(Cx,Cy,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(Cx,Cy,7,-Math.PI/2,0); ctx.lineTo(Cx,Cy);
+    ctx.arc(Cx,Cy,7,Math.PI/2,Math.PI); ctx.closePath();
+    ctx.fillStyle='#e6edf3'; ctx.fill();
     ctx.restore();
+
+    if(S.gravity){
+      const sc = 150/0.250;
+      const arrow = (x,y,len,col,w)=>{
+        if(len<5) return;
+        ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=w||2;
+        ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+len); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x,y+len); ctx.lineTo(x-5,y+len-8); ctx.lineTo(x+5,y+len-8);
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      };
+      arrow(g.Ax, g.Ay+radius(S.mA), S.mA*sc, 'rgba(76,154,255,.85)');
+      arrow(g.Bx, g.By+radius(S.mB), S.mB*sc, 'rgba(255,143,76,.85)');
+      arrow(Cx, Cy+9, M()*sc, 'rgba(230,237,243,.55)', 2.5);
+      // the lever arm that makes the torque: the sideways gap between COM and pin
+      if(Math.abs(Cx-g.Px) > 2){
+        ctx.save(); ctx.setLineDash([3,4]); ctx.lineWidth=1.5;
+        ctx.strokeStyle='rgba(230,237,243,.5)';
+        ctx.beginPath(); ctx.moveTo(g.Px,g.Py); ctx.lineTo(Cx,g.Py); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(Cx,g.Py); ctx.lineTo(Cx,Cy); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  if(!drag.active){
+    ctx.save(); ctx.fillStyle='rgba(139,148,158,.5)'; ctx.textAlign='right';
+    ctx.font='12px -apple-system,system-ui,sans-serif';
+    ctx.fillText('drag either weight', W-10, 17); ctx.restore();
   }
 }
 
-// ---- readouts ------------------------------------------------------------
-function deg(r){ let d = r*180/Math.PI; d = ((d+180)%360+360)%360-180; return d; }
-function fmt(n,d){ return (n<0?'−':'')+Math.abs(n).toFixed(d); }
+/* ---- readouts ----------------------------------------------------------- */
+const degOf = r => { let d = r*180/Math.PI; return ((d+180)%360+360)%360-180; };
+const fmt = (n,d) => (n<0?'−':'')+Math.abs(n).toFixed(d);
 
 let hudT = 0;
 function readout(){
-  const th = S.theta;
-  const tA = -G*Math.cos(th)*S.mA*ARM;      // N·m, A's contribution (CW negative)
-  const tB =  G*Math.cos(th)*S.mB*ARM;
-  const net = S.gravity ? tA+tB : 0;
+  const th = S.theta, R = restR();
+  const tW = -G*ARM*(S.mA-S.mB)*Math.cos(th);      // weights against each other
+  const tP = -G*M()*S.dPiv*Math.sin(th);           // the pin-above-COM restoring term
+  const net = S.gravity ? tW+tP : 0;
   hud.innerHTML =
-    'angle <b>'+fmt(deg(th),1)+'°</b> from horizontal<br>'+
-    'spin <b>'+fmt(S.omega,2)+'</b> rad/s<br>'+
-    'torque A <b>'+fmt(tA*1000,2)+'</b> · B <b>'+fmt(tB*1000,2)+'</b> mN·m<br>'+
-    'net torque <b>'+fmt(net*1000,3)+'</b> mN·m';
+    'angle <b>'+fmt(degOf(th),1)+'°</b> &nbsp; spin <b>'+fmt(S.omega,2)+'</b> rad/s<br>'+
+    'weights <b>'+fmt(tW*1000,2)+'</b> &nbsp; pivot <b>'+fmt(tP*1000,2)+'</b> mN·m<br>'+
+    'net torque <b>'+fmt(net*1000,3)+'</b> mN·m<br>'+
+    'inertia <b>'+(inertia()*1e6).toFixed(0)+'</b> g·cm² &nbsp; one nudge → <b>'+
+      (NUDGE/inertia()).toFixed(2)+'</b> rad/s';
 
-  const diff = Math.abs(S.mA - S.mB);
   if(!S.gravity){
-    verdict.className='un';
-    vT.textContent='Gravity off.';
-    vD.textContent='Nothing but friction acts — turn gravity back on for the real test.';
-  } else if(diff < 1e-12){
+    verdict.className='warn';
+    vT.textContent='Gravity off.'; vD.textContent='Only friction acts. Turn it back on for the real test.';
+    return;
+  }
+  const dm = (S.mA-S.mB)*1000, heavy = S.mA>S.mB ? 'A' : 'B';
+  // A uniform rod is symmetric about the pin, so its weight never makes torque.
+  // It is pure inertia — which is exactly what the nudge button shows.
+  const rodNote = S.mRod >= 0.100
+    ? ' The '+(S.mRod*1000).toFixed(0)+' g rod adds no torque of its own — half of it lies on each side of the pin — but it does add inertia: hit "nudge" and the same push now only reaches '+(NUDGE/inertia()).toFixed(2)+' rad/s.'
+    : '';
+
+  if(R < 1e-9){
     verdict.className='';
-    vT.textContent='Balanced → it holds any angle.';
-    vD.textContent='Equal masses, equal arms: the two gravity torques cancel at every angle, so net torque is exactly 0. No restoring force toward horizontal — this is neutral equilibrium.';
+    vT.textContent='Holds any angle.';
+    vD.textContent='The centre of mass sits exactly on the pin, so gravity has no lever arm at any angle — net torque is 0 wherever you put it. Neutral equilibrium: nothing pulls it back to horizontal.'+rodNote;
+    return;
+  }
+  const eq = degOf(-restPhi());
+  const T = 2*Math.PI*Math.sqrt(inertia()/(M()*G*R));
+  if(Math.abs(S.dPiv) < 1e-6){
+    verdict.className='warn';
+    vT.textContent='Unbalanced by '+Math.abs(dm).toFixed(0)+' g.';
+    vD.textContent='The COM has moved off the pin, along the rod. It swings like a pendulum until the heavier side ('+heavy+') hangs straight down at '+fmt(eq,0)+'°. Free swing ≈ '+T.toFixed(2)+' s.'+rodNote;
+  } else if(S.dPiv > 0){
+    verdict.className='';
+    vT.textContent = Math.abs(dm) < 0.5 ? 'A real balance: back to level.' : 'A scale: settles at '+fmt(eq,1)+'°.';
+    vD.textContent='The pin is '+(S.dPiv*1000).toFixed(0)+' mm above the rod, so the COM hangs below it and gravity pulls it back. '+
+      (Math.abs(dm) < 0.5
+        ? 'Perfectly level is now the one stable angle; tilt it and it swings back, period ≈ '+T.toFixed(2)+' s.'
+        : Math.abs(dm).toFixed(0)+' g of difference tilts it to '+fmt(eq,1)+'° and it stops there — that tilt is the reading of a weighing scale.')+rodNote;
   } else {
-    verdict.className='un';
-    const heavy = S.mA>S.mB ? 'A' : 'B';
-    vT.textContent='Unbalanced by '+(diff*1000).toFixed(0)+' g.';
-    vD.textContent='Net torque is non-zero, so it swings like a pendulum until the heavier weight ('+heavy+') hangs at the bottom.';
+    verdict.className='bad';
+    vT.textContent='Top-heavy: it flips.';
+    vD.textContent='The pin is '+Math.abs(S.dPiv*1000).toFixed(0)+' mm below the rod, so the COM rides above it. Level is an equilibrium you can balance a pencil on: the smallest nudge and it turns right over to '+fmt(eq,0)+'°.'+rodNote;
   }
 }
 
-// ---- pointer drag --------------------------------------------------------
-const drag = {active:false, id:null, grabB:false, lastAng:0, lastT:0, vel:0};
-
-function pointerAngle(ev){
+/* ---- dragging ----------------------------------------------------------- */
+const drag = {active:false,id:null,grabB:false,off:0,lastT:0,vel:0};
+function pAng(ev){
   const r = cv.getBoundingClientRect();
-  const x = ev.clientX - r.left - cx;
-  const y = -(ev.clientY - r.top - cy);
-  return Math.atan2(y, x);
+  return Math.atan2(-(ev.clientY-r.top-cy), ev.clientX-r.left-cx);
 }
-function unwrap(a, ref){
+function unwrap(a,ref){
   while(a-ref >  Math.PI) a -= 2*Math.PI;
   while(a-ref < -Math.PI) a += 2*Math.PI;
   return a;
 }
-
 cv.addEventListener('pointerdown', ev=>{
   ev.preventDefault();
-  const r = cv.getBoundingClientRect();
-  const mx = ev.clientX-r.left, my = ev.clientY-r.top;
-  const ax = ARM*Math.cos(S.theta), ay = ARM*Math.sin(S.theta);
-  const [Ax,Ay]=toScreen(ax,ay), [Bx,By]=toScreen(-ax,-ay);
+  const r = cv.getBoundingClientRect(), mx = ev.clientX-r.left, my = ev.clientY-r.top;
+  const [Ax,Ay] = bs(ARM,0), [Bx,By] = bs(-ARM,0);
   const dA = Math.hypot(mx-Ax,my-Ay), dB = Math.hypot(mx-Bx,my-By);
-  const grab = Math.max(radius(S.mA), radius(S.mB)) + 26;
-  if(Math.min(dA,dB) > grab) return;            // only the weights are handles
-  drag.active = true; drag.grabB = dB<dA; drag.id = ev.pointerId;
-  drag.lastAng = pointerAngle(ev); drag.lastT = performance.now()/1000; drag.vel = 0;
-  S.omega = 0;
+  if(Math.min(dA,dB) > Math.max(radius(S.mA),radius(S.mB)) + 28) return;
+  drag.active = true; drag.grabB = dB < dA; drag.id = ev.pointerId;
+  // the grabbed weight's own angle in the body frame — with an offset pin it is
+  // not simply 0 or pi, so remember it and keep the finger on that weight.
+  const u = drag.grabB ? -ARM : ARM;
+  drag.off = Math.atan2(-S.dPiv, u);
+  drag.lastT = performance.now()/1000; drag.vel = 0; S.omega = 0;
   try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
 }, {passive:false});
 
 cv.addEventListener('pointermove', ev=>{
   if(!drag.active || ev.pointerId!==drag.id) return;
   ev.preventDefault();
-  const a = pointerAngle(ev);
-  const now = performance.now()/1000;
-  const target = drag.grabB ? a + Math.PI : a;
-  const prev = S.theta;
-  S.theta = unwrap(target, prev);
-  const dt = Math.max(1e-3, now - drag.lastT);
-  drag.vel = 0.7*drag.vel + 0.3*((S.theta - prev)/dt);
-  drag.lastT = now; drag.lastAng = a;
+  const now = performance.now()/1000, prev = S.theta;
+  S.theta = unwrap(pAng(ev) - drag.off, prev);
+  const dt = Math.max(1e-3, now-drag.lastT);
+  drag.vel = 0.7*drag.vel + 0.3*((S.theta-prev)/dt);
+  drag.lastT = now;
 }, {passive:false});
 
 function endDrag(ev){
   if(!drag.active || (ev && ev.pointerId!==drag.id)) return;
   drag.active = false;
-  S.omega = S.releaseAtRest ? 0 : Math.max(-25, Math.min(25, drag.vel));
+  S.omega = S.releaseAtRest ? 0 : Math.max(-30, Math.min(30, drag.vel));
   try{ cv.releasePointerCapture(drag.id); }catch(e){}
 }
 cv.addEventListener('pointerup', endDrag);
 cv.addEventListener('pointercancel', endDrag);
 cv.addEventListener('pointerleave', endDrag);
-// belt-and-braces for older iOS: stop the page from scrolling under the canvas
 cv.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
 document.addEventListener('gesturestart', e=>e.preventDefault());
 
-// ---- controls ------------------------------------------------------------
-const $ = id=>document.getElementById(id);
-function syncMass(){
-  S.mA = +$('mA').value/1000; S.mB = +$('mB').value/1000;
+/* ---- controls ----------------------------------------------------------- */
+const $ = id => document.getElementById(id);
+function sync(){
+  S.mA = +$('mA').value/1000; S.mB = +$('mB').value/1000; S.mRod = +$('mR').value/1000;
+  S.dPiv = +$('pv').value/1000; S.c = 0.0025*(+$('fr').value/100);
   $('mAv').textContent = $('mA').value+' g';
   $('mBv').textContent = $('mB').value+' g';
+  $('mRv').textContent = $('mR').value+' g';
+  $('pvv').textContent = (+$('pv').value>0?'+':'')+$('pv').value+' mm';
+  $('frv').textContent = $('fr').value+'%';
 }
-function syncFric(){
-  const p = +$('fr').value;
-  $('frv').textContent = p+'%';
-  S.c = 0.0025 * (p/100);
-}
-$('mA').addEventListener('input', syncMass);
-$('mB').addEventListener('input', syncMass);
-$('fr').addEventListener('input', syncFric);
-$('grav').addEventListener('change', e=>{ S.gravity = e.target.checked; });
-$('rest').addEventListener('change', e=>{ S.releaseAtRest = e.target.checked; });
-$('vec').addEventListener('change', e=>{ S.showVec = e.target.checked; });
-function setAngle(d){ S.theta = d*Math.PI/180; S.omega = 0; }
-$('bHoriz').addEventListener('click', ()=>setAngle(0));
-$('b30').addEventListener('click', ()=>setAngle(30));
-$('b60').addEventListener('click', ()=>setAngle(60));
-$('bStop').addEventListener('click', ()=>{ S.omega = 0; });
-syncMass(); syncFric();
+['mA','mB','mR','pv','fr'].forEach(id => $(id).addEventListener('input', sync));
+$('grav').addEventListener('change', e=>S.gravity = e.target.checked);
+$('rest').addEventListener('change', e=>S.releaseAtRest = e.target.checked);
+$('vec').addEventListener('change', e=>S.showVec = e.target.checked);
 
-// ---- loop ----------------------------------------------------------------
+// Each preset brings its own friction: a balance with almost no friction swings
+// for a minute before it reads, and a frictionless beam is what makes a nudge
+// keep going.
+function preset(a,b,rod,piv,fric,th){
+  $('mA').value=a; $('mB').value=b; $('mR').value=rod; $('pv').value=piv; $('fr').value=fric;
+  sync(); S.theta = th*Math.PI/180; S.omega = 0;
+}
+$('p1').addEventListener('click', ()=>preset(50,50,20,0,12,35));   // holds any angle
+$('p2').addEventListener('click', ()=>preset(50,50,300,0,0,35));   // no torque, all inertia
+$('p3').addEventListener('click', ()=>preset(50,50,20,18,55,35));  // a real balance
+$('p4').addEventListener('click', ()=>preset(50,50,20,-12,12,4));  // flips
+$('pNudge').addEventListener('click', ()=>{ S.omega += NUDGE/inertia(); });
+$('pStop').addEventListener('click', ()=>{ S.omega = 0; });
+sync();
+
+/* ---- loop --------------------------------------------------------------- */
 function frame(t){
   const now = t/1000;
   if(!last) last = now;
-  let dt = now - last; last = now;
-  if(dt > 0.25) dt = 0.25;                 // tab was backgrounded
+  let dt = now-last; last = now;
+  if(dt > 0.25) dt = 0.25;
   if(!drag.active){
-    acc += dt;
-    let guard = 0;
-    while(acc >= H && guard++ < 2000){ step(H); acc -= H; }
-  } else { acc = 0; }
+    acc += dt; let guard = 0;
+    while(acc >= H && guard++ < 2000){ stepOnce(H); acc -= H; }
+  } else acc = 0;
   draw();
-  if(now - hudT > 0.08){ readout(); hudT = now; }
+  if(now-hudT > 0.08){ readout(); hudT = now; }
   requestAnimationFrame(frame);
 }
 resize();
