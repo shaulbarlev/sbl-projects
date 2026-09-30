@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="color-scheme" content="dark">
+<title>Balance beam — does it hold its angle?</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --ink:#e6edf3; --dim:#8b949e;
+    --a:#4c9aff; --b:#ff8f4c; --ok:#3fb950; --warn:#d29922;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    -webkit-text-size-adjust:100%; overscroll-behavior:none;}
+  body{display:flex;flex-direction:column;height:100dvh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  #stage{position:relative;flex:1 1 auto;min-height:0;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;}
+  #hud{position:absolute;left:10px;top:8px;font-variant-numeric:tabular-nums;
+    font-size:13px;color:var(--dim);pointer-events:none;line-height:1.5;}
+  #hud b{color:var(--ink);font-weight:600;}
+  #verdict{position:absolute;left:10px;right:10px;bottom:8px;font-size:13px;
+    padding:8px 10px;border:1px solid var(--line);border-radius:10px;
+    background:rgba(22,27,34,.82);pointer-events:none;}
+  #verdict .t{font-weight:600;color:var(--ok);}
+  #verdict.un .t{color:var(--warn);}
+  #panel{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);
+    padding:10px 12px 12px;display:grid;gap:9px;}
+  .row{display:flex;align-items:center;gap:10px;}
+  .row label{flex:0 0 78px;font-size:13px;color:var(--dim);}
+  .row .val{flex:0 0 62px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;}
+  .dotA{color:var(--a);} .dotB{color:var(--b);}
+  input[type=range]{flex:1 1 auto;min-width:0;height:28px;margin:0;accent-color:var(--a);background:transparent;}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;}
+  button{flex:1 1 auto;min-width:82px;padding:9px 10px;font-size:13px;color:var(--ink);
+    background:#21262d;border:1px solid var(--line);border-radius:9px;touch-action:manipulation;}
+  button:active{background:#2d333b;}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--dim);}
+  .toggles label{display:flex;align-items:center;gap:6px;}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--a);}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="hud"></div>
+  <div id="verdict"><span class="t"></span> <span class="d"></span></div>
+</div>
+
+<div id="panel">
+  <div class="row">
+    <label><span class="dotA">●</span> mass A</label>
+    <input id="mA" type="range" min="5" max="200" step="1" value="50">
+    <span class="val" id="mAv">50 g</span>
+  </div>
+  <div class="row">
+    <label><span class="dotB">●</span> mass B</label>
+    <input id="mB" type="range" min="5" max="200" step="1" value="50">
+    <span class="val" id="mBv">50 g</span>
+  </div>
+  <div class="row">
+    <label>friction</label>
+    <input id="fr" type="range" min="0" max="100" step="1" value="12">
+    <span class="val" id="frv">12%</span>
+  </div>
+  <div class="toggles">
+    <label><input id="grav" type="checkbox" checked> gravity</label>
+    <label><input id="rest" type="checkbox" checked> release at rest</label>
+    <label><input id="vec" type="checkbox" checked> show forces</label>
+  </div>
+  <div class="btns">
+    <button id="bHoriz">0°</button>
+    <button id="b30">30°</button>
+    <button id="b60">60°</button>
+    <button id="bStop">stop</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const hud = document.getElementById('hud');
+const verdict = document.getElementById('verdict');
+const vT = verdict.querySelector('.t'), vD = verdict.querySelector('.d');
+
+// ---- physical model -------------------------------------------------------
+// Rigid massless-ish rod, pivoted exactly at its geometric centre.
+// Point mass A at +r along the rod, point mass B at -r.
+const G        = 9.80665;   // m/s^2
+const ARM      = 0.12;      // m, half-length of the rod (each arm)
+const ROD_MASS = 0.020;     // kg, the rod itself (symmetric -> no net torque)
+
+const S = {
+  theta: 0,        // rad, angle of arm A measured CCW from horizontal-right
+  omega: 0,        // rad/s
+  mA: 0.050, mB: 0.050,
+  c: 0,            // pivot damping coefficient (N·m·s/rad)
+  gravity: true,
+  releaseAtRest: true,
+  showVec: true
+};
+
+function inertia(){
+  return S.mA*ARM*ARM + S.mB*ARM*ARM + ROD_MASS*(2*ARM)*(2*ARM)/12;
+}
+// Gravity torque about the pivot. Only the *difference* of the moments matters:
+//   tau = -g*cos(theta) * (mA*rA - mB*rB)
+function gravTorque(th){
+  if(!S.gravity) return 0;
+  return -G*Math.cos(th)*(S.mA*ARM - S.mB*ARM);
+}
+function alpha(th, om){
+  return (gravTorque(th) - S.c*om) / inertia();
+}
+
+const H = 1/480;            // s, fixed integration step
+let acc = 0, last = 0;
+
+function step(h){
+  // semi-implicit (symplectic) Euler — no spurious energy gain, so a beam left
+  // at an angle in neutral equilibrium genuinely stays put.
+  S.omega += alpha(S.theta, S.omega)*h;
+  S.theta += S.omega*h;
+}
+
+// ---- canvas sizing --------------------------------------------------------
+let W=0, Hh=0, dpr=1, px=1, cx=0, cy=0;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio||1, 3);
+  const r = cv.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width)); Hh = Math.max(1, Math.round(r.height));
+  cv.width = Math.round(W*dpr); cv.height = Math.round(Hh*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cx = W/2; cy = Hh/2;
+  px = Math.min(W*0.40/ARM, Hh*0.40/ARM);   // pixels per metre
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', ()=>setTimeout(resize,250));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+
+function toScreen(x,y){ return [cx + x*px, cy - y*px]; }
+function radius(m){ return 9 + 26*Math.cbrt(m/0.200); }   // visual only
+
+// ---- drawing -------------------------------------------------------------
+function draw(){
+  ctx.clearRect(0,0,W,Hh);
+
+  const th = S.theta;
+  const ax = ARM*Math.cos(th),  ay = ARM*Math.sin(th);
+  const [Ax,Ay] = toScreen(ax,ay), [Bx,By] = toScreen(-ax,-ay), [Px,Py] = toScreen(0,0);
+  const rA = radius(S.mA), rB = radius(S.mB);
+
+  // horizontal reference
+  ctx.save();
+  ctx.setLineDash([5,6]); ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx-ARM*px*1.35, cy); ctx.lineTo(cx+ARM*px*1.35, cy); ctx.stroke();
+  ctx.restore();
+
+  // angle arc
+  if(Math.abs(th)>0.01){
+    ctx.save();
+    ctx.strokeStyle='#484f58'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(Px,Py, Math.min(46, ARM*px*0.5), 0, -th, th>0);
+    ctx.stroke(); ctx.restore();
+  }
+
+  // rod
+  ctx.save();
+  ctx.lineCap='round'; ctx.lineWidth=7; ctx.strokeStyle='#6e7681';
+  ctx.beginPath(); ctx.moveTo(Ax,Ay); ctx.lineTo(Bx,By); ctx.stroke();
+  ctx.restore();
+
+  // pivot: a little stand + frictionless bearing
+  ctx.save();
+  ctx.strokeStyle='#484f58'; ctx.fillStyle='#21262d'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(Px-13, Py+22); ctx.lineTo(Px+13, Py+22);
+  ctx.lineTo(Px, Py+3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(Px,Py,6,0,Math.PI*2); ctx.fillStyle='#8b949e'; ctx.fill();
+  ctx.restore();
+
+  // weights
+  function weight(x,y,r,col,label,grams){
+    ctx.save();
+    const g = ctx.createRadialGradient(x-r*0.35,y-r*0.4,r*0.15,x,y,r);
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=col; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='600 13px -apple-system,system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label, x, y-6);
+    ctx.font='11px -apple-system,system-ui,sans-serif'; ctx.fillStyle='rgba(255,255,255,.85)';
+    ctx.fillText(grams+'g', x, y+8);
+    ctx.restore();
+  }
+  weight(Ax,Ay,rA,'#4c9aff','A',(S.mA*1000).toFixed(0));
+  weight(Bx,By,rB,'#ff8f4c','B',(S.mB*1000).toFixed(0));
+
+  // weight vectors + lever arms
+  if(S.showVec && S.gravity){
+    const scale = 140/0.200;   // px per kg of weight-force
+    function arrow(x,y,len,col){
+      if(len<4) return;
+      ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+len); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x,y+len); ctx.lineTo(x-5,y+len-8); ctx.lineTo(x+5,y+len-8);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    arrow(Ax,Ay+rA, S.mA*scale, 'rgba(76,154,255,.85)');
+    arrow(Bx,By+rB, S.mB*scale, 'rgba(255,143,76,.85)');
+    // horizontal lever arms (the only part of the arm that makes torque)
+    ctx.save(); ctx.setLineDash([3,4]); ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(139,148,158,.7)';
+    ctx.beginPath(); ctx.moveTo(Ax,cy); ctx.lineTo(Ax,Ay); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(Bx,cy); ctx.lineTo(Bx,By); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(Px,cy); ctx.lineTo(Ax,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(Px,cy); ctx.lineTo(Bx,cy); ctx.stroke();
+    ctx.restore();
+  }
+
+  // grab hint
+  if(!drag.active){
+    ctx.save();
+    ctx.fillStyle='rgba(139,148,158,.55)';
+    ctx.font='12px -apple-system,system-ui,sans-serif'; ctx.textAlign='right';
+    ctx.fillText('drag either weight', W-10, 18);
+    ctx.restore();
+  }
+}
+
+// ---- readouts ------------------------------------------------------------
+function deg(r){ let d = r*180/Math.PI; d = ((d+180)%360+360)%360-180; return d; }
+function fmt(n,d){ return (n<0?'−':'')+Math.abs(n).toFixed(d); }
+
+let hudT = 0;
+function readout(){
+  const th = S.theta;
+  const tA = -G*Math.cos(th)*S.mA*ARM;      // N·m, A's contribution (CW negative)
+  const tB =  G*Math.cos(th)*S.mB*ARM;
+  const net = S.gravity ? tA+tB : 0;
+  hud.innerHTML =
+    'angle <b>'+fmt(deg(th),1)+'°</b> from horizontal<br>'+
+    'spin <b>'+fmt(S.omega,2)+'</b> rad/s<br>'+
+    'torque A <b>'+fmt(tA*1000,2)+'</b> · B <b>'+fmt(tB*1000,2)+'</b> mN·m<br>'+
+    'net torque <b>'+fmt(net*1000,3)+'</b> mN·m';
+
+  const diff = Math.abs(S.mA - S.mB);
+  if(!S.gravity){
+    verdict.className='un';
+    vT.textContent='Gravity off.';
+    vD.textContent='Nothing but friction acts — turn gravity back on for the real test.';
+  } else if(diff < 1e-12){
+    verdict.className='';
+    vT.textContent='Balanced → it holds any angle.';
+    vD.textContent='Equal masses, equal arms: the two gravity torques cancel at every angle, so net torque is exactly 0. No restoring force toward horizontal — this is neutral equilibrium.';
+  } else {
+    verdict.className='un';
+    const heavy = S.mA>S.mB ? 'A' : 'B';
+    vT.textContent='Unbalanced by '+(diff*1000).toFixed(0)+' g.';
+    vD.textContent='Net torque is non-zero, so it swings like a pendulum until the heavier weight ('+heavy+') hangs at the bottom.';
+  }
+}
+
+// ---- pointer drag --------------------------------------------------------
+const drag = {active:false, id:null, grabB:false, lastAng:0, lastT:0, vel:0};
+
+function pointerAngle(ev){
+  const r = cv.getBoundingClientRect();
+  const x = ev.clientX - r.left - cx;
+  const y = -(ev.clientY - r.top - cy);
+  return Math.atan2(y, x);
+}
+function unwrap(a, ref){
+  while(a-ref >  Math.PI) a -= 2*Math.PI;
+  while(a-ref < -Math.PI) a += 2*Math.PI;
+  return a;
+}
+
+cv.addEventListener('pointerdown', ev=>{
+  ev.preventDefault();
+  const r = cv.getBoundingClientRect();
+  const mx = ev.clientX-r.left, my = ev.clientY-r.top;
+  const ax = ARM*Math.cos(S.theta), ay = ARM*Math.sin(S.theta);
+  const [Ax,Ay]=toScreen(ax,ay), [Bx,By]=toScreen(-ax,-ay);
+  const dA = Math.hypot(mx-Ax,my-Ay), dB = Math.hypot(mx-Bx,my-By);
+  const grab = Math.max(radius(S.mA), radius(S.mB)) + 26;
+  if(Math.min(dA,dB) > grab) return;            // only the weights are handles
+  drag.active = true; drag.grabB = dB<dA; drag.id = ev.pointerId;
+  drag.lastAng = pointerAngle(ev); drag.lastT = performance.now()/1000; drag.vel = 0;
+  S.omega = 0;
+  try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
+}, {passive:false});
+
+cv.addEventListener('pointermove', ev=>{
+  if(!drag.active || ev.pointerId!==drag.id) return;
+  ev.preventDefault();
+  const a = pointerAngle(ev);
+  const now = performance.now()/1000;
+  const target = drag.grabB ? a + Math.PI : a;
+  const prev = S.theta;
+  S.theta = unwrap(target, prev);
+  const dt = Math.max(1e-3, now - drag.lastT);
+  drag.vel = 0.7*drag.vel + 0.3*((S.theta - prev)/dt);
+  drag.lastT = now; drag.lastAng = a;
+}, {passive:false});
+
+function endDrag(ev){
+  if(!drag.active || (ev && ev.pointerId!==drag.id)) return;
+  drag.active = false;
+  S.omega = S.releaseAtRest ? 0 : Math.max(-25, Math.min(25, drag.vel));
+  try{ cv.releasePointerCapture(drag.id); }catch(e){}
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', endDrag);
+// belt-and-braces for older iOS: stop the page from scrolling under the canvas
+cv.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+document.addEventListener('gesturestart', e=>e.preventDefault());
+
+// ---- controls ------------------------------------------------------------
+const $ = id=>document.getElementById(id);
+function syncMass(){
+  S.mA = +$('mA').value/1000; S.mB = +$('mB').value/1000;
+  $('mAv').textContent = $('mA').value+' g';
+  $('mBv').textContent = $('mB').value+' g';
+}
+function syncFric(){
+  const p = +$('fr').value;
+  $('frv').textContent = p+'%';
+  S.c = 0.0025 * (p/100);
+}
+$('mA').addEventListener('input', syncMass);
+$('mB').addEventListener('input', syncMass);
+$('fr').addEventListener('input', syncFric);
+$('grav').addEventListener('change', e=>{ S.gravity = e.target.checked; });
+$('rest').addEventListener('change', e=>{ S.releaseAtRest = e.target.checked; });
+$('vec').addEventListener('change', e=>{ S.showVec = e.target.checked; });
+function setAngle(d){ S.theta = d*Math.PI/180; S.omega = 0; }
+$('bHoriz').addEventListener('click', ()=>setAngle(0));
+$('b30').addEventListener('click', ()=>setAngle(30));
+$('b60').addEventListener('click', ()=>setAngle(60));
+$('bStop').addEventListener('click', ()=>{ S.omega = 0; });
+syncMass(); syncFric();
+
+// ---- loop ----------------------------------------------------------------
+function frame(t){
+  const now = t/1000;
+  if(!last) last = now;
+  let dt = now - last; last = now;
+  if(dt > 0.25) dt = 0.25;                 // tab was backgrounded
+  if(!drag.active){
+    acc += dt;
+    let guard = 0;
+    while(acc >= H && guard++ < 2000){ step(H); acc -= H; }
+  } else { acc = 0; }
+  draw();
+  if(now - hudT > 0.08){ readout(); hudT = now; }
+  requestAnimationFrame(frame);
+}
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
