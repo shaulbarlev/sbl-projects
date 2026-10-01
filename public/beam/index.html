@@ -67,7 +67,6 @@
     <input id="fr" type="range" min="0" max="100" step="1" value="12"><span class="val" id="frv">12%</span></div>
   <div class="toggles">
     <label><input id="grav" type="checkbox" checked> gravity</label>
-    <label><input id="rest" type="checkbox" checked> release at rest</label>
     <label><input id="vec" type="checkbox" checked> show forces</label>
   </div>
   <div class="btns">
@@ -104,8 +103,19 @@ const S = {
   mA:0.050, mB:0.050, mRod:0.020,
   dPiv:0,            // m, pivot above the rod's centre line
   c:0,               // N·m·s/rad at the pin
-  gravity:true, releaseAtRest:true, showVec:true
+  gravity:true, showVec:true
 };
+
+/* Dragging is a force, not a position. The finger pulls the beam through a
+ * stiff spring instead of being glued to it, which is the only way a mass can
+ * resist you through a touchscreen: a heavy beam lags behind the finger, takes
+ * longer to get going, and keeps going when you let go. Damping is a fixed
+ * coefficient — tuned to sit just under critical for the default 50/50/20 g
+ * beam — so loading the beam up makes it progressively more underdamped, and
+ * it starts to feel like something with weight on the end of a stick. */
+const GRIP = 0.13;        // N·m per rad of lag
+const GRIP_DAMP = 0.012;  // N·m·s per rad/s of slip between beam and finger
+let fingerTorque = 0;     // last torque the finger applied, for the readout
 
 const M     = () => S.mA + S.mB + S.mRod;                 // total mass
 const sCom  = () => M() > 0 ? ARM*(S.mA - S.mB)/M() : 0;  // COM along the rod, from its centre
@@ -120,7 +130,18 @@ function gravTorque(th){
   if(!S.gravity) return 0;
   return -G*(ARM*(S.mA - S.mB)*Math.cos(th) + M()*S.dPiv*Math.sin(th));
 }
-const alpha = (th,om) => (gravTorque(th) - S.c*om) / Math.max(inertia(), 1e-9);
+function alpha(th, om){
+  let tau = gravTorque(th) - S.c*om;
+  if(drag.active){
+    // Damped against the *slip* between beam and finger, not against the beam's
+    // own motion: hold your finger still and the beam parks and stops, keep it
+    // moving and the beam is dragged up to speed and keeps that speed when you
+    // let go. Damping the beam absolutely would have swallowed every flick.
+    fingerTorque = GRIP*(drag.target - th) - GRIP_DAMP*(om - drag.vel);
+    tau += fingerTorque;
+  }
+  return tau / Math.max(inertia(), 1e-9);
+}
 
 // Where it wants to sit: tau = -M·g·R·sin(theta + phi), so the stable angle is
 // -phi and the small-swing period is 2*pi*sqrt(I / M g R). R = 0 is the whole
@@ -197,6 +218,15 @@ function draw(){
     let d = S.theta + restPhi();
     d = Math.atan2(Math.sin(d), Math.cos(d));
     if(Math.abs(d) > 0.05) drawBeam(-restPhi(), true);
+  }
+
+  // where the finger is asking for, when the beam has not caught up yet
+  if(drag.active && Math.abs(drag.target - S.theta) > 0.02){
+    const [Fx,Fy] = bs(drag.grabB ? -ARM : ARM, 0, drag.target);
+    ctx.save();
+    ctx.strokeStyle='rgba(230,237,243,.30)'; ctx.lineWidth=1.5; ctx.setLineDash([3,5]);
+    ctx.beginPath(); ctx.arc(Fx,Fy,13,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
   }
 
   const g = drawBeam(S.theta, false);
@@ -289,7 +319,8 @@ function readout(){
     'weights <b>'+fmt(tW*1000,2)+'</b> &nbsp; pivot <b>'+fmt(tP*1000,2)+'</b> mN·m<br>'+
     'net torque <b>'+fmt(net*1000,3)+'</b> mN·m<br>'+
     'inertia <b>'+(inertia()*1e6).toFixed(0)+'</b> g·cm² &nbsp; one nudge → <b>'+
-      (NUDGE/inertia()).toFixed(2)+'</b> rad/s';
+      (NUDGE/inertia()).toFixed(2)+'</b> rad/s'+
+    (drag.active ? '<br>your finger <b>'+fmt(fingerTorque*1000,1)+'</b> mN·m' : '');
 
   if(!S.gravity){
     verdict.className='warn';
@@ -330,7 +361,7 @@ function readout(){
 }
 
 /* ---- dragging ----------------------------------------------------------- */
-const drag = {active:false,id:null,grabB:false,off:0,lastT:0,vel:0};
+const drag = {active:false,id:null,grabB:false,off:0,target:0,vel:0,lastT:0};
 function pAng(ev){
   const r = cv.getBoundingClientRect();
   return Math.atan2(-(ev.clientY-r.top-cy), ev.clientX-r.left-cx);
@@ -351,24 +382,34 @@ cv.addEventListener('pointerdown', ev=>{
   // not simply 0 or pi, so remember it and keep the finger on that weight.
   const u = drag.grabB ? -ARM : ARM;
   drag.off = Math.atan2(-S.dPiv, u);
-  drag.lastT = performance.now()/1000; drag.vel = 0; S.omega = 0;
+  // catching a moving beam: aim at where it already is, then let the finger lead
+  drag.target = S.theta; drag.vel = 0; drag.lastT = performance.now()/1000;
   try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
 }, {passive:false});
 
 cv.addEventListener('pointermove', ev=>{
   if(!drag.active || ev.pointerId!==drag.id) return;
   ev.preventDefault();
-  const now = performance.now()/1000, prev = S.theta;
-  S.theta = unwrap(pAng(ev) - drag.off, prev);
-  const dt = Math.max(1e-3, now-drag.lastT);
-  drag.vel = 0.7*drag.vel + 0.3*((S.theta-prev)/dt);
+  // unwrapped against the previous target, not against the beam, so you can
+  // keep winding it round and round even while it trails behind your finger
+  const prev = drag.target, now = performance.now()/1000;
+  drag.target = unwrap(pAng(ev) - drag.off, prev);
+  const dt = Math.max(1e-3, now - drag.lastT);
+  drag.vel = Math.max(-30, Math.min(30, 0.6*drag.vel + 0.4*((drag.target - prev)/dt)));
   drag.lastT = now;
 }, {passive:false});
 
 function endDrag(ev){
   if(!drag.active || (ev && ev.pointerId!==drag.id)) return;
-  drag.active = false;
-  S.omega = S.releaseAtRest ? 0 : Math.max(-30, Math.min(30, drag.vel));
+  // Letting go does nothing but stop pulling: whatever spin the beam had
+  // picked up, it keeps. Hold still for a moment first and it leaves your
+  // finger at rest; flick it and it goes.
+  drag.active = false; fingerTorque = 0;
+  // A springy grip can never be let go of perfectly still, and on a beam with
+  // no preferred angle a leftover 0.03 rad/s coasts for ever and reads as "it
+  // is slowly turning, so something must be pulling it". Below what a finger
+  // could feel, call it stopped — real stiction would.
+  if(Math.abs(S.omega) < 0.10) S.omega = 0;
   try{ cv.releasePointerCapture(drag.id); }catch(e){}
 }
 cv.addEventListener('pointerup', endDrag);
@@ -390,7 +431,6 @@ function sync(){
 }
 ['mA','mB','mR','pv','fr'].forEach(id => $(id).addEventListener('input', sync));
 $('grav').addEventListener('change', e=>S.gravity = e.target.checked);
-$('rest').addEventListener('change', e=>S.releaseAtRest = e.target.checked);
 $('vec').addEventListener('change', e=>S.showVec = e.target.checked);
 
 // Each preset brings its own friction: a balance with almost no friction swings
@@ -414,10 +454,10 @@ function frame(t){
   if(!last) last = now;
   let dt = now-last; last = now;
   if(dt > 0.25) dt = 0.25;
-  if(!drag.active){
-    acc += dt; let guard = 0;
-    while(acc >= H && guard++ < 2000){ stepOnce(H); acc -= H; }
-  } else acc = 0;
+  if(drag.active && now - drag.lastT > 0.06) drag.vel = 0;
+  acc += dt;
+  let guard = 0;
+  while(acc >= H && guard++ < 2000){ stepOnce(H); acc -= H; }
   draw();
   if(now-hudT > 0.08){ readout(); hudT = now; }
   requestAnimationFrame(frame);
