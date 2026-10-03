@@ -349,11 +349,28 @@ function show(geometry, object, name, bytes) {
     });
   }
 
+  // The bounds to frame, ignoring strays. Photogrammetry clouds routinely carry
+  // a handful of points far from the subject; a plain bounding box then opens
+  // the model as a speck. Per axis, keep the middle 98% of a sample.
+  function robustBox(root) {
+    const pos = [];
+    root.traverse(n => { const a = n.geometry && n.geometry.getAttribute('position'); if (a) pos.push(a); });
+    const total = pos.reduce((s, a) => s + a.count, 0);
+    if (!total) return new THREE.Box3();
+    if (total < 5000) return new THREE.Box3().setFromObject(root);
+    const step = Math.max(1, Math.floor(total / 200000));
+    const xs = [], ys = [], zs = [];
+    for (const a of pos) for (let i = 0; i < a.count; i += step) { xs.push(a.getX(i)); ys.push(a.getY(i)); zs.push(a.getZ(i)); }
+    const span = arr => { arr.sort((p, q) => p - q); const k = Math.floor(arr.length * 0.01); return [arr[k], arr[arr.length - 1 - k]]; };
+    const [x0, x1] = span(xs), [y0, y1] = span(ys), [z0, z1] = span(zs);
+    return new THREE.Box3(new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x1, y1, z1));
+  }
+
   // A group holding the model shifted so its centre is the origin: COLMAP
   // coordinates can sit thousands of units out, which makes orbiting and the
   // depth buffer misbehave.
   const probe = gltfRoot || meshObj || pointsObj;
-  const box = new THREE.Box3().setFromObject(probe);
+  const box = robustBox(probe);
   if (box.isEmpty()) throw new Error('the file parsed but holds no geometry');
   const centre = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
