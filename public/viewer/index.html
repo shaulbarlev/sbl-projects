@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:,">
+<title>3D viewer — point clouds and meshes</title>
+<style>
+  :root{ --bg:#0d1117; --panel:#161b22; --line:#30363d; --ink:#e6edf3; --dim:#8b949e;
+         --a:#4c9aff; --bad:#f85149; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    -webkit-text-size-adjust:100%;overscroll-behavior:none;}
+  body{position:fixed;inset:0;overflow:hidden;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  #stage{position:absolute;inset:0;touch-action:none;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;}
+
+  /* Everything floating over the canvas keeps clear of the notch and the home
+     bar; the canvas itself stays full-bleed. */
+  .over{position:absolute;left:0;right:0;pointer-events:none;
+    padding-left:calc(10px + env(safe-area-inset-left));
+    padding-right:calc(10px + env(safe-area-inset-right));}
+  #bar{bottom:0;padding-bottom:calc(9px + env(safe-area-inset-bottom));padding-top:9px;
+    background:linear-gradient(to top,rgba(13,17,23,.92),rgba(13,17,23,0));
+    display:grid;gap:7px;}
+  #bar.hide{display:none;}
+  #btns{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto;}
+  button{padding:8px 11px;font-size:12.5px;color:var(--ink);background:#21262dcc;
+    border:1px solid var(--line);border-radius:8px;touch-action:manipulation;}
+  button:active{background:#2d333b;}
+  button.on{border-color:var(--a);color:#79b8ff;}
+  #sizeRow{display:flex;align-items:center;gap:9px;height:26px;pointer-events:auto;}
+  #sizeRow label{font-size:12.5px;color:var(--dim);flex:0 0 auto;}
+  input[type=range]{flex:1 1 auto;min-width:0;height:26px;margin:0;max-width:320px;
+    background:transparent;accent-color:var(--a);touch-action:auto;}
+  #stats{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* intro / progress / error all sit in the same centred sheet */
+  #sheet{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+    background:rgba(13,17,23,.88);}
+  #sheet.show{display:flex;}
+  #card{width:100%;max-width:420px;max-height:100%;overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;}
+  #card h1{margin:0 0 8px;font-size:16px;font-weight:600;}
+  #card p{margin:0 0 9px;font-size:13.5px;color:var(--dim);}
+  #card code{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#79b8ff;
+    word-break:break-all;}
+  #card .err{color:var(--bad);font-size:13.5px;word-break:break-word;}
+  #cardBtns{display:flex;gap:8px;margin-top:12px;}
+  #cardBtns button{flex:1 1 auto;}
+  #track{height:5px;border-radius:3px;background:#21262d;overflow:hidden;margin:11px 0 7px;}
+  #fill{height:100%;width:0;background:var(--a);transition:width .12s linear;}
+  #pct{font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;}
+  #drop{position:absolute;inset:7px;border:2px dashed var(--a);border-radius:14px;
+    display:none;pointer-events:none;}
+  #drop.show{display:block;}
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="drop"></div>
+
+<div class="over" id="bar">
+  <div id="btns">
+    <button id="bReset">reset view</button>
+    <button id="bGeom">points</button>
+    <button id="bShade">colors</button>
+    <button id="bOpen">open…</button>
+  </div>
+  <div id="sizeRow"><label for="size">point size</label>
+    <input id="size" type="range" min="-2" max="2" step="0.05" value="0"></div>
+  <div id="stats"></div>
+</div>
+
+<div id="sheet"><div id="card"></div></div>
+<input id="file" type="file" accept=".ply,.glb,.gltf,model/gltf-binary,model/gltf+json">
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+const stage = $('stage'), cv = $('c');
+const bar = $('bar'), sheet = $('sheet'), card = $('card');
+const bGeom = $('bGeom'), bShade = $('bShade'), sizeRow = $('sizeRow'), sizeIn = $('size');
+
+/* ---- renderer, scene, camera ------------------------------------------- */
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  showError('This browser could not start WebGL.', e);
+}
+if (renderer) {
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x0d1117, 1);
+}
+
+let home = null;   // the opening camera framing, what "reset view" returns to
+let half = null;   // half the model's bounding box, what that framing is built from
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
+scene.add(camera);
+
+// Hemisphere for the ambient wash, one key light parented to the camera so an
+// untextured grey statue is lit from wherever you are looking from — a fixed
+// key light leaves half of every orbit in the dark on a phone.
+scene.add(new THREE.HemisphereLight(0xd8e4ff, 0x20252c, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(0.5, 0.9, 0.8);
+camera.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+fill.position.set(-0.7, -0.2, -0.5);
+camera.add(fill);
+
+const controls = new OrbitControls(camera, renderer ? renderer.domElement : cv);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.9;
+controls.zoomToCursor = true;
+// one finger orbits, two fingers pinch-zoom and pan together
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+function resize() {
+  const w = stage.clientWidth || 1, h = stage.clientHeight || 1;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  if (renderer) renderer.setSize(w, h, false);
+  computeHome();   // so reset view still frames it after turning the phone
+}
+addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 250));
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+resize();
+
+function frame() {
+  controls.update();
+  if (renderer) renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---- the sheet: instructions, progress, errors -------------------------- */
+const fmtMB = b => b < 1048576
+  ? Math.max(1, Math.round(b / 1024)) + ' KB'
+  : (b / 1048576).toFixed(b > 10485760 ? 0 : 1) + ' MB';
+
+function showIntro() {
+  card.innerHTML =
+    '<h1>3D viewer</h1>' +
+    '<p>Opens a photogrammetry point cloud or mesh: <code>.ply</code> (COLMAP ' +
+    '<code>fused.ply</code> or <code>meshed-poisson.ply</code>), <code>.glb</code>, <code>.gltf</code>.</p>' +
+    '<p>Pick a file on this device, drop one on the page, or pass a URL: ' +
+    '<code>?model=https://…/fused.ply</code> (that server must allow cross-origin reads).</p>' +
+    '<p>One finger turns it, two pinch to zoom and pan.</p>' +
+    '<div id="cardBtns"><button id="pick">choose a file</button></div>';
+  $('pick').onclick = () => $('file').click();
+  sheet.classList.add('show');
+  bar.classList.add('hide');
+}
+
+function showProgress(name) {
+  card.innerHTML = '<h1>Loading</h1><p id="pname"></p>' +
+    '<div id="track"><div id="fill"></div></div><div id="pct">starting…</div>';
+  $('pname').textContent = name;
+  sheet.classList.add('show');
+  bar.classList.add('hide');
+}
+function setProgress(loaded, total) {
+  const f = $('fill'), p = $('pct');
+  if (!f || !p) return;
+  if (total) {
+    f.style.width = (100 * loaded / total).toFixed(1) + '%';
+    p.textContent = Math.round(100 * loaded / total) + '% · ' + fmtMB(loaded) + ' of ' + fmtMB(total);
+  } else {
+    // no content-length (gzip, chunked): bytes are all we honestly know
+    f.style.width = '0';
+    p.textContent = fmtMB(loaded) + ' downloaded';
+  }
+}
+function setStage(text) {
+  const p = $('pct');
+  if (p) p.textContent = text;
+}
+
+function showError(msg, err) {
+  if (err) console.error(err);
+  card.innerHTML = '<h1>Could not open it</h1><p class="err"></p>' +
+    // with no WebGL there is nothing to go back to, so offer nothing
+    (renderer ? '<div id="cardBtns"><button id="pick">choose a file</button>' +
+      '<button id="back">back</button></div>' : '');
+  card.querySelector('.err').textContent = msg + (err ? ' — ' + (err.message || err) : '');
+  if (renderer) {
+    $('pick').onclick = () => $('file').click();
+    $('back').onclick = () => { current ? hideSheet() : showIntro(); };
+  }
+  sheet.classList.add('show');
+  bar.classList.add('hide');
+}
+function hideSheet() {
+  sheet.classList.remove('show');
+  bar.classList.remove('hide');
+}
+
+/* ---- loading ------------------------------------------------------------ */
+async function fetchModel(url) {
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+  const total = +(res.headers.get('content-length') || 0);
+  if (!res.body) { setProgress(0, 0); return await res.arrayBuffer(); }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let loaded = 0, lastPaint = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    const now = performance.now();
+    if (now - lastPaint > 100) { setProgress(loaded, total); lastPaint = now; }
+  }
+  setProgress(loaded, total);
+  const buf = new Uint8Array(loaded);
+  let at = 0;
+  for (const c of chunks) { buf.set(c, at); at += c.length; }
+  return buf.buffer;
+}
+
+// The format comes from the bytes, not the name: URLs from object storage often
+// have no usable extension.
+function sniff(buf) {
+  const head = new Uint8Array(buf, 0, Math.min(16, buf.byteLength));
+  const s = String.fromCharCode(...head);
+  if (s.startsWith('ply')) return 'ply';
+  if (s.startsWith('glTF')) return 'glb';
+  if (s.trimStart().startsWith('{')) return 'gltf';
+  return null;
+}
+
+const gltfLoader = new GLTFLoader();
+const plyLoader = new PLYLoader();
+
+function parseGLTF(buf) {
+  return new Promise((ok, no) => gltfLoader.parse(buf, '', ok, no));
+}
+
+let current = null;   // the group in the scene
+
+async function load(buf, name, bytes) {
+  setStage('reading the file…');
+  await new Promise(r => setTimeout(r, 0));   // let the sheet repaint first
+  const kind = sniff(buf);
+  if (!kind) throw new Error('not a PLY or glTF file (first bytes look like neither)');
+
+  let geometry = null, object = null;
+  if (kind === 'ply') {
+    geometry = plyLoader.parse(buf);
+  } else {
+    const gltf = await parseGLTF(buf);
+    object = gltf.scene;
+  }
+  show(geometry, object, name, bytes);
+}
+
+/* ---- building what gets drawn ------------------------------------------- */
+// PLY vertex colours are sRGB bytes, but three treats a colour attribute as
+// already being in its linear working space, which washes a cloud out. A
+// 256-entry table converts them exactly (the source really is 0-255) and in one
+// pass — a pow() per component costs seconds on 20M points.
+const SRGB = new Float32Array(256);
+for (let i = 0; i < 256; i++) {
+  const c = i / 255;
+  SRGB[i] = c < 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function linearizeColors(attr) {
+  const a = attr.array;
+  for (let i = 0; i < a.length; i++) a[i] = SRGB[(a[i] * 255 + 0.5) | 0];
+  attr.needsUpdate = true;
+}
+
+const GREY = 0xc2c7cc;
+let state = { geom: 'mesh', shade: 'shaded', hasFaces: false, canSwap: false, baseSize: 1 };
+let meshObj = null, pointsObj = null, gltfRoot = null;
+
+function show(geometry, object, name, bytes) {
+  if (current) { scene.remove(current); disposeTree(current); }
+  current = null; meshObj = null; pointsObj = null; gltfRoot = null;
+
+  let verts = 0, faces = 0;
+
+  if (geometry) {
+    // faces present or not is the whole distinction: fused.ply has none,
+    // meshed-poisson.ply does. The filename is never consulted.
+    state.hasFaces = !!geometry.index && geometry.index.count >= 3;
+    state.canSwap = true;
+    const hasColor = !!geometry.getAttribute('color');
+    if (hasColor) linearizeColors(geometry.getAttribute('color'));
+    verts = geometry.getAttribute('position').count;
+    faces = state.hasFaces ? geometry.index.count / 3 : 0;
+
+    if (state.hasFaces && !geometry.getAttribute('normal')) geometry.computeVertexNormals();
+
+    const pm = new THREE.PointsMaterial({ vertexColors: hasColor, sizeAttenuation: true });
+    if (!hasColor) pm.color.setHex(GREY);
+    pointsObj = new THREE.Points(geometry, pm);
+
+    if (state.hasFaces) {
+      meshObj = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+        color: hasColor ? 0xffffff : GREY, vertexColors: hasColor,
+        roughness: 0.78, metalness: 0.0,
+        // Poisson output is closed, but cropped or half-finished scans are not;
+        // single-sided they show as holes.
+        side: THREE.DoubleSide
+      }));
+    }
+    state.geom = state.hasFaces ? 'mesh' : 'points';
+  } else {
+    gltfRoot = object;
+    state.hasFaces = true;
+    state.canSwap = false;
+    state.geom = 'mesh';
+    object.traverse(n => {
+      const g = n.geometry;
+      if (!g) return;
+      const p = g.getAttribute('position');
+      if (!p) return;
+      verts += p.count;
+      faces += g.index ? g.index.count / 3 : p.count / 3;
+      if (n.isMesh && !g.getAttribute('normal')) g.computeVertexNormals();
+      if (n.isMesh) n.userData.lit = n.material;   // kept for the shaded/unlit toggle
+    });
+  }
+
+  // A group holding the model shifted so its centre is the origin: COLMAP
+  // coordinates can sit thousands of units out, which makes orbiting and the
+  // depth buffer misbehave.
+  const probe = gltfRoot || meshObj || pointsObj;
+  const box = new THREE.Box3().setFromObject(probe);
+  if (box.isEmpty()) throw new Error('the file parsed but holds no geometry');
+  const centre = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const diag = size.length() || 1;
+
+  current = new THREE.Group();
+  current.position.copy(centre).negate();
+  scene.add(current);
+
+  // Roughly the spacing between neighbouring points on a surface, so a sparse
+  // cloud gets fat points and a dense one fine ones without touching the slider.
+  state.baseSize = Math.max(diag / Math.sqrt(Math.max(verts, 1)) * 1.6, diag * 1e-5);
+  applyPointSize();
+  applyMode();
+
+  const r = diag / 2;
+  camera.near = Math.max(r / 2000, 1e-4);
+  camera.far = r * 200;
+  half = size.clone().multiplyScalar(0.5);
+  computeHome();
+  resetView();
+
+  $('stats').textContent = [
+    name,
+    verts.toLocaleString() + ' vertices',
+    state.hasFaces ? faces.toLocaleString() + ' faces' : 'point cloud',
+    bytes ? fmtMB(bytes) : null
+  ].filter(Boolean).join(' · ');
+  hideSheet();
+}
+
+function disposeTree(root) {
+  root.traverse(n => {
+    if (n.geometry) n.geometry.dispose();
+    const m = n.material;
+    if (m) (Array.isArray(m) ? m : [m]).forEach(x => x.dispose());
+  });
+}
+
+function applyMode() {
+  if (!current) return;
+  current.clear();
+  if (gltfRoot) {
+    current.add(gltfRoot);
+    // unlit for a glTF means keeping its colours and textures but dropping the
+    // lighting, so the original material is swapped rather than replaced
+    gltfRoot.traverse(n => {
+      if (!n.isMesh) return;
+      const lit = n.userData.lit;
+      if (state.shade === 'shaded') { n.material = lit; return; }
+      if (!n.userData.unlit) {
+        n.userData.unlit = new THREE.MeshBasicMaterial({
+          color: lit.color ? lit.color.clone() : new THREE.Color(0xffffff),
+          map: lit.map || null, vertexColors: lit.vertexColors,
+          side: lit.side, transparent: lit.transparent, opacity: lit.opacity
+        });
+      }
+      n.material = n.userData.unlit;
+    });
+  } else if (state.geom === 'mesh' && meshObj) {
+    const m = meshObj.material;
+    const hasColor = !!meshObj.geometry.getAttribute('color');
+    if (state.shade === 'shaded') {
+      if (!m.isMeshStandardMaterial) {
+        meshObj.material = new THREE.MeshStandardMaterial({
+          color: hasColor ? 0xffffff : GREY, vertexColors: hasColor,
+          roughness: 0.78, metalness: 0, side: THREE.DoubleSide
+        });
+        m.dispose();
+      }
+    } else if (!m.isMeshBasicMaterial) {
+      meshObj.material = new THREE.MeshBasicMaterial({
+        color: hasColor ? 0xffffff : GREY, vertexColors: hasColor, side: THREE.DoubleSide
+      });
+      m.dispose();
+    }
+    current.add(meshObj);
+  } else {
+    current.add(pointsObj);
+  }
+
+  const showingPoints = !gltfRoot && state.geom === 'points';
+  sizeRow.style.display = showingPoints ? 'flex' : 'none';
+  // nothing to swap on a cloud with no faces, and no points view of a glTF
+  bGeom.style.display = state.hasFaces && state.canSwap ? '' : 'none';
+  bGeom.textContent = state.geom === 'mesh' ? 'points' : 'shaded mesh';
+  // a point cloud is unlit by definition; the toggle would do nothing
+  bShade.style.display = showingPoints ? 'none' : '';
+  bShade.textContent = state.shade === 'shaded' ? 'flat colours' : 'shaded';
+}
+
+function applyPointSize() {
+  if (!pointsObj) return;
+  pointsObj.material.size = state.baseSize * Math.pow(10, +sizeIn.value / 2);
+}
+
+// The opening view: looking slightly down from the front-right, pulled back far
+// enough that the whole bounding box is on screen. Each of the eight corners is
+// projected onto the camera's own axes — fitting the bounding *sphere* instead
+// is simpler but throws away most of a phone's height on anything taller than
+// it is wide.
+const VIEW_DIR = new THREE.Vector3(0.6, 0.45, 1).normalize();
+function computeHome() {
+  if (!half) return;
+  const right = new THREE.Vector3().crossVectors(VIEW_DIR, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, VIEW_DIR);
+  const tanV = Math.tan(camera.fov * Math.PI / 360), tanH = tanV * camera.aspect;
+  const p = new THREE.Vector3();
+  let dist = 0;
+  for (let i = 0; i < 8; i++) {
+    p.set((i & 1 ? 1 : -1) * half.x, (i & 2 ? 1 : -1) * half.y, (i & 4 ? 1 : -1) * half.z);
+    const z = p.dot(VIEW_DIR);
+    dist = Math.max(dist, Math.abs(p.dot(right)) / tanH + z, Math.abs(p.dot(up)) / tanV + z);
+  }
+  home = { pos: VIEW_DIR.clone().multiplyScalar(dist * 1.08), target: new THREE.Vector3(0, 0, 0) };
+}
+
+function resetView() {
+  if (!home) return;
+  camera.position.copy(home.pos);
+  controls.target.copy(home.target);
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+/* ---- inputs ------------------------------------------------------------- */
+$('bReset').onclick = resetView;
+$('bOpen').onclick = () => $('file').click();
+bGeom.onclick = () => { state.geom = state.geom === 'mesh' ? 'points' : 'mesh'; applyMode(); };
+bShade.onclick = () => { state.shade = state.shade === 'shaded' ? 'flat' : 'shaded'; applyMode(); };
+sizeIn.oninput = applyPointSize;
+
+async function openFile(file) {
+  if (!renderer) return;
+  try {
+    showProgress(file.name);
+    setProgress(file.size, file.size);
+    const buf = await file.arrayBuffer();
+    await load(buf, file.name, file.size);
+  } catch (e) {
+    showError('“' + file.name + '” did not open.', e);
+  }
+}
+$('file').onchange = e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; };
+
+const drop = $('drop');
+let dragDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); if (++dragDepth) drop.classList.add('show'); });
+addEventListener('dragover', e => { e.preventDefault(); });
+addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove('show'); } });
+addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0; drop.classList.remove('show');
+  const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (f) openFile(f);
+});
+
+// iOS still rubber-bands and double-tap-zooms a page even with user-scalable=no,
+// so gestures over the canvas are swallowed outright. The slider is left alone.
+stage.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+/* ---- start -------------------------------------------------------------- */
+const url = new URLSearchParams(location.search).get('model');
+if (!renderer) {
+  // the error is already on screen; going further would only hide it
+} else if (!url) {
+  showIntro();
+} else {
+  const name = decodeURIComponent(url.split('?')[0].split('/').pop() || 'model');
+  showProgress(name);
+  (async () => {
+    let buf;
+    try {
+      buf = await fetchModel(url);
+    } catch (e) {
+      showError('Could not fetch ' + url + '. A file on another host has to send ' +
+        'Access-Control-Allow-Origin.', e);
+      return;
+    }
+    try {
+      await load(buf, name, buf.byteLength);
+    } catch (e) {
+      showError('“' + name + '” downloaded but did not open.', e);
+    }
+  })();
+}
+</script>
+</body>
+</html>
