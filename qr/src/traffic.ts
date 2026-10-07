@@ -327,11 +327,12 @@ ${lamps}
 
   // ---------------------------------------------------------------- who
   // Somebody who scans this has no idea whose light it is, and the page
-  // says nothing. The first time they play — two taps and a pause of two
-  // seconds — nothing is asked. Somebody back to play again who never gave
-  // a name sees the field from the start. A name is reused without asking
-  // for as long as this phone keeps coming back; only a week away brings
-  // the question back, prefilled.
+  // says nothing. Two seconds of continuous play — taps less than two
+  // seconds apart — and the name becomes mandatory: the field comes up and
+  // the lamps are held until one is sent. Somebody back to play again who
+  // never gave a name sees the field from the start. A name is reused
+  // without asking for as long as this phone keeps coming back; only a week
+  // away brings the question back, prefilled.
   //
   // What counts is playing, not loading: the page is on the portfolio's map,
   // where it loads for everyone who passes, so a load says nothing about
@@ -340,10 +341,10 @@ ${lamps}
   // Every visit that touches a lamp is recorded at its first pause, named or
   // not. A name typed after that goes as a second record for the same visit,
   // and the ledger shows that one in its place.
-  var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1;
+  var KEY = 'skin.player', WEEK = 604800000, PAUSE = 2000, BURSTS = 1, PLAY = 2000;
   var me = read(), pending = null, logged = false, counted = false;
   var visit = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, asked = false, gated = false;
+  var opened = performance.now(), taps = 0, burst = 0, pauses = 0, idle = null, since = 0, asked = false, gated = false;
   var form = document.getElementById('who'), field = document.getElementById('who-name');
   // Has played before, on this phone.
   var returning = (me.plays || 0) > 0;
@@ -396,7 +397,6 @@ ${lamps}
   function ask() {
     if (asked) return;
     asked = true;
-    if (!returning) return;                       // a first play is never asked
     var fresh = away < WEEK;
     if (fresh && me.dismissed) return;            // a no lasts the week
     if (fresh && me.name) return;                 // known: no prompt, log() named them
@@ -411,9 +411,15 @@ ${lamps}
   // A burst is taps less than two seconds apart; only bursts of two or more
   // count, so a single curious prod and a walk away is not "played".
   function played() {
-    // Once shown, the field stays until a name is sent. Nobody is made to
-    // answer; the lamps work the same either way.
+    // Once shown, the field stays until a name is sent.
+    var now = performance.now();
+    if (!burst) since = now;
     taps++; burst++;
+    // Two seconds into a burst that is still going, the name is required.
+    if (burst >= 2 && now - since >= PLAY) {
+      if (!counted) { counted = true; remember({ plays: (me.plays || 0) + 1, seen: Date.now() }); }
+      ask();
+    }
     clearTimeout(idle);
     idle = setTimeout(function () {
       if (burst >= 2) pauses++;
@@ -422,7 +428,6 @@ ${lamps}
       if (pauses < BURSTS) return;
       // Played: this visit now counts as one, for the next.
       if (!counted) { counted = true; remember({ plays: (me.plays || 0) + 1, seen: Date.now() }); }
-      ask();
     }, PAUSE);
   }
   form.onsubmit = function (e) {
@@ -444,6 +449,7 @@ ${lamps}
       // Name first: until one is sent, a tap only points at the field.
       if (gated) { field.focus(); return; }
       played();
+      if (gated) { field.focus(); return; }       // that tap was the one that crossed two seconds
       var entity = el.dataset.entity;
       if (navigator.vibrate) navigator.vibrate(10);
       // Optimistic: the lamp flips now, and the tap names the state it wants
