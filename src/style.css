@@ -233,6 +233,36 @@ iframe {
   z-index: 5;
   background: #000;
   transform: none;
+  /* the close button sits just outside the frame */
+  overflow: visible;
+}
+.reel-close {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  display: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  color: rgb(var(--red));
+  background: rgb(0 0 0 / 0.6);
+  border: 1px solid rgb(var(--red) / 0.5);
+  cursor: pointer;
+}
+.reel-close:hover {
+  background: #000;
+}
+/* beats `.tile.link i`, whose 58cqw glyph is sized for a whole tile */
+.tile.link .reel-close i {
+  display: block;
+  aspect-ratio: auto;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.open > .reel-close {
+  display: grid;
 }
 .open .reel-face {
   opacity: 0;

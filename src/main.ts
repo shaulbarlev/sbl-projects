@@ -55,6 +55,7 @@ const reel = createReel(
     history.replaceState(null, '', '/')
     sync()
   },
+  () => narrow.matches,
 )
 tiles.set('film', reel.el)
 plane.append(reel.el)

@@ -9,8 +9,9 @@ const ASPECT = 16 / 9
 const KEEP = 0.3
 
 /**
- * The film & art tile opens in place into the reel: it grows rightwards from
- * its left edge into a 16:9 player, poster up and controls ready, and the map is
+ * The film & art tile opens in place into the reel: it grows into a 16:9
+ * player — rightwards from its left edge on a wide screen, about its own centre
+ * on a phone — poster up and controls ready, and the map is
  * brought to it at a zoom that shows the whole player. Panning away folds it.
  * Its link to the film site stays as the closed face, for opening in a new
  * tab and for when there is no script.
@@ -18,10 +19,28 @@ const KEEP = 0.3
  * `/reel/` is the address of the open player, so it can be linked and shared;
  * `onOpen` and `onClose` are how the caller keeps that address in step.
  */
-export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void, onClose: () => void = () => {}) {
+export function createReel(
+  face: HTMLAnchorElement,
+  onOpen: (at: Rect) => void,
+  onClose: () => void = () => {},
+  narrow: () => boolean = () => false,
+) {
   const box = h('div', { class: `${face.className} reel` })
   face.className = 'reel-face'
-  box.append(face)
+  // Above the player's top-right corner: the reel also folds by panning away or
+  // Escape, but neither is obvious with a video under the pointer.
+  const shut = h(
+    'button',
+    { class: 'reel-close', type: 'button', 'aria-label': 'Close the reel' },
+    h('i', { class: 'hn hn-times', 'aria-hidden': 'true' }),
+  )
+  shut.addEventListener('pointerdown', (e) => e.stopPropagation())
+  shut.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    close()
+  })
+  box.append(face, shut)
 
   let closed: Rect = { x: 0, y: 0, w: 0, h: 0 }
   let open: Rect | null = null
@@ -49,9 +68,12 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void, 
     box.append(video)
     box.classList.add('open')
     const w = closed.w * GROW
-    // Anchored on its left edge, not its centre: the tile sits due east of the
-    // wordmark, so growing both ways put the player over the name.
-    open = { x: closed.x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
+    // On a wide screen the tile sits due east of the wordmark, so a player that
+    // grew about its centre reached back over the name: there it opens
+    // rightwards from its left edge instead. The phone layout puts the tile
+    // elsewhere and looked right as it was.
+    const x = narrow() ? closed.x - (w - closed.w) / 2 : closed.x
+    open = { x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
     put(open)
     if (fly) onOpen(open)
     return open
