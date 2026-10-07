@@ -14,8 +14,11 @@ const KEEP = 0.3
  * brought to it at a zoom that shows the whole player. Panning away folds it.
  * Its link to the film site stays as the closed face, for opening in a new
  * tab and for when there is no script.
+ *
+ * `/reel/` is the address of the open player, so it can be linked and shared;
+ * `onOpen` and `onClose` are how the caller keeps that address in step.
  */
-export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) {
+export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void, onClose: () => void = () => {}) {
   const box = h('div', { class: `${face.className} reel` })
   face.className = 'reel-face'
   box.append(face)
@@ -35,11 +38,11 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) 
     armed = false
     box.classList.remove('open')
     put(closed)
+    onClose()
   }
 
-  face.addEventListener('click', (e) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey) return
-    e.preventDefault()
+  /** @param fly whether the map travels to it; false for a visitor who arrived at /reel/ */
+  function unfold(fly = true) {
     if (video) return
     // Nothing is fetched but the poster until play is pressed.
     video = h('video', { controls: true, playsinline: true, preload: 'none', poster: REEL.poster }, h('source', { src: REEL.src, type: 'video/mp4' }))
@@ -48,7 +51,14 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) 
     const w = closed.w * GROW
     open = { x: closed.x - (w - closed.w) / 2, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
     put(open)
-    onOpen(open)
+    if (fly) onOpen(open)
+    return open
+  }
+
+  face.addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return
+    e.preventDefault()
+    unfold()
   })
   // A drag that starts on the player is for its scrubber, not for the map.
   box.addEventListener('pointerdown', (e) => video && e.stopPropagation())
@@ -56,6 +66,10 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void) 
   return {
     el: box,
     close,
+    open: unfold,
+    get isOpen() {
+      return video !== null
+    },
     /** Folds the reel once `view` has mostly left it (called after every move) */
     check(v: Rect) {
       if (!open) return

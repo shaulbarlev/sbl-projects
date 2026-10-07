@@ -38,8 +38,24 @@ for (const a of links) {
 }
 document.querySelector('.links')?.remove()
 
-// One of them is more than a link: the film & art tile opens into the reel where it stands.
-const reel = createReel(tiles.get('film') as HTMLAnchorElement, (at) => map.fit(at))
+// One of them is more than a link: the film & art tile opens into the reel where it stands,
+// at /reel/ so that the open player can be linked.
+const REEL_SLUG = 'reel'
+const reel = createReel(
+  tiles.get('film') as HTMLAnchorElement,
+  (at) => {
+    if (slugNow() !== REEL_SLUG) {
+      history.replaceState(null, '', `/${REEL_SLUG}/`)
+      sync() // for the title; the player is already open, so this changes nothing else
+    }
+    map.fit(at)
+  },
+  () => {
+    if (slugNow() !== REEL_SLUG) return
+    history.replaceState(null, '', '/')
+    sync()
+  },
+)
 tiles.set('film', reel.el)
 plane.append(reel.el)
 
@@ -298,8 +314,14 @@ const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/
 
 function sync() {
   const project = findProject(slugNow())
+  const onReel = slugNow() === REEL_SLUG
   closeLightbox()
-  document.title = project ? `${project.title} — shaul bar-lev` : SITE_TITLE
+  document.title = project ? `${project.title} — shaul bar-lev` : onReel ? `Film & art — shaul bar-lev` : SITE_TITLE
+  // The reel answers to the address too, so back and forward fold and unfold it.
+  if (onReel && !reel.isOpen) {
+    const at = reel.open()
+    if (at) map.fit(at)
+  } else if (!onReel && reel.isOpen) reel.close()
   if (card && card.id !== project?.id) {
     card.close()
     card = null
@@ -482,6 +504,13 @@ if (linked && linkedTile && !calm) {
   if (at && !gone.has(anchored.id) && !calm) opening(at, () => {})
   else if (at && !gone.has(anchored.id)) map.focus(at, 0)
   else map.goHome(0)
+} else if (slug === REEL_SLUG) {
+  // Arrived at the reel's own address: the flight goes to the film tile, and the
+  // router unfolds the player once it lands.
+  void gated()
+  const at = world.links.find((t) => t.id === 'film')
+  if (at && !calm) opening(at, () => sync())
+  else sync()
 } else if (!calm && !sessionStorage.getItem('intro') && !linked) {
   sessionStorage.setItem('intro', '1')
   void gated()
