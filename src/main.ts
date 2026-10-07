@@ -237,8 +237,9 @@ for (const project of PROJECTS) {
     h('span', {}, h('b', {}, project.title)),
   )
   a.addEventListener('click', (e) => {
-    // Once open, the card's own links (previous / next, a call to action) are theirs.
-    if ((e.target as Element).closest('a') !== a) return
+    // Once open, the card's own links (previous / next, a call to action) and buttons are
+    // theirs: the close button's click has already folded the card by the time it gets here.
+    if ((e.target as Element).closest('a, button') !== a) return
     if (e.metaKey || e.ctrlKey || e.shiftKey) return
     e.preventDefault()
     if (card?.id === project.id) return

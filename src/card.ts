@@ -51,8 +51,12 @@ export function openCard(opts: {
   const { w: vw, h: vh } = map.viewport()
   // The card is laid out at 1:1, so its world size is its screen size at zoom 1.
   const w = Math.min(vw - 2 * MARGIN, WIDEST)
+  // The camera stops at the world's edges, so a tile near one opens where the camera can
+  // still centre the card, not where it stands; a world narrower than the view is centred whole.
+  const lo = vw / 2 - w / 2
+  const x = world.w > vw ? Math.max(lo, Math.min(at.x + at.w / 2 - w / 2, world.w - vw / 2 - w / 2)) : world.w / 2 - w / 2
   const rect: Rect = {
-    x: Math.round(Math.max(MARGIN, Math.min(at.x + at.w / 2 - w / 2, world.w - w - MARGIN))),
+    x: Math.round(x),
     y: at.y,
     w,
     h: narrow ? vh : vh - 2 * MARGIN,
@@ -88,6 +92,17 @@ export function openCard(opts: {
   view = content()
   if (!narrow) view.querySelector('.pv-body')?.classList.add('scrolls')
   tile.append(view)
+  // On a wide screen the wheel reads the card wherever the pointer is over it. Over the header
+  // the map would pan instead, carrying the card part way off the screen and leaving it there
+  // once the body has slid under the pointer.
+  const onWheel = (e: WheelEvent) => {
+    if (narrow || done || e.ctrlKey || e.metaKey || (e.target as Element).closest('.scrolls')) return
+    e.preventDefault()
+    e.stopPropagation()
+    const unit = e.deltaMode === 1 ? 16 : 1
+    view?.querySelector('.pv-body')?.scrollBy(e.deltaX * unit, e.deltaY * unit)
+  }
+  tile.addEventListener('wheel', onWheel, { passive: false })
   if (narrow) {
     // As tall as its page; the extra height is below the fold while the width grows.
     tile.style.height = 'auto'
@@ -118,6 +133,7 @@ export function openCard(opts: {
     plane.style.height = `${world.h}px`
     map.settle(at, instant ? 0 : MS)
     const finish = () => {
+      tile.removeEventListener('wheel', onWheel)
       view?.remove()
       view = null
       tile.classList.remove('card', 'folding')
