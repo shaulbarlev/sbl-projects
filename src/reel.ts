@@ -9,8 +9,8 @@ const ASPECT = 16 / 9
 const KEEP = 0.3
 
 /**
- * The film & art tile opens in place into the reel: it grows about its own
- * centre into a 16:9 player, poster up and controls ready, and the map is
+ * The film & art tile opens in place into the reel: it grows rightwards from
+ * its left edge into a 16:9 player, poster up and controls ready, and the map is
  * brought to it at a zoom that shows the whole player. Panning away folds it.
  * Its link to the film site stays as the closed face, for opening in a new
  * tab and for when there is no script.
@@ -49,7 +49,9 @@ export function createReel(face: HTMLAnchorElement, onOpen: (at: Rect) => void, 
     box.append(video)
     box.classList.add('open')
     const w = closed.w * GROW
-    open = { x: closed.x - (w - closed.w) / 2, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
+    // Anchored on its left edge, not its centre: the tile sits due east of the
+    // wordmark, so growing both ways put the player over the name.
+    open = { x: closed.x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
     put(open)
     if (fly) onOpen(open)
     return open
