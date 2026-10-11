@@ -49,6 +49,44 @@ export function createReel(
 
   const put = (r: Rect) => Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` })
 
+  /** Where the open player goes for the closed tile at `closed` */
+  function grown(): Rect {
+    const w = closed.w * GROW
+    // On a wide screen the tile sits due east of the wordmark, so a player that
+    // grew about its centre reached back over the name: there it opens
+    // rightwards from its left edge instead. The phone layout puts the tile
+    // elsewhere and looked right as it was.
+    const x = narrow() ? closed.x - (w - closed.w) / 2 : closed.x
+    return { x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
+  }
+
+  /**
+   * True while the player is full screen. Turning the phone then resizes the
+   * page behind it, which must neither fold the reel nor re-lay it out by
+   * removing the video: removing it ends full screen and the film with it.
+   * iPhone has only its own player (`webkitDisplayingFullscreen`); iPad and
+   * desktops use the Fullscreen API, prefixed in older Safari.
+   */
+  const fullscreen = () => {
+    if (!video) return false
+    const doc = document as Document & { webkitFullscreenElement?: Element | null }
+    const el = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null
+    return (video as HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }).webkitDisplayingFullscreen === true || (el !== null && (el === video || el.contains(video)))
+  }
+  // Back from full screen the page may have been turned and laid out anew, so
+  // the map is brought back to the player rather than left wherever it was.
+  let wasFull = false
+  function fullscreenChanged() {
+    const now = fullscreen()
+    if (wasFull && !now && open) {
+      armed = false
+      onOpen(open)
+    }
+    wasFull = now
+  }
+  document.addEventListener('fullscreenchange', fullscreenChanged)
+  document.addEventListener('webkitfullscreenchange', fullscreenChanged)
+
   function close() {
     if (!video) return
     video.remove()
@@ -65,15 +103,12 @@ export function createReel(
     if (video) return
     // Nothing is fetched but the poster until play is pressed.
     video = h('video', { controls: true, playsinline: true, preload: 'none', poster: REEL.poster }, h('source', { src: REEL.src, type: 'video/mp4' }))
+    // iPhone's own full-screen player fires these on the video, not the document.
+    video.addEventListener('webkitbeginfullscreen', fullscreenChanged)
+    video.addEventListener('webkitendfullscreen', fullscreenChanged)
     box.append(video)
     box.classList.add('open')
-    const w = closed.w * GROW
-    // On a wide screen the tile sits due east of the wordmark, so a player that
-    // grew about its centre reached back over the name: there it opens
-    // rightwards from its left edge instead. The phone layout puts the tile
-    // elsewhere and looked right as it was.
-    const x = narrow() ? closed.x - (w - closed.w) / 2 : closed.x
-    open = { x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
+    open = grown()
     put(open)
     if (fly) onOpen(open)
     return open
@@ -96,7 +131,7 @@ export function createReel(
     },
     /** Folds the reel once `view` has mostly left it (called after every move) */
     check(v: Rect) {
-      if (!open) return
+      if (!open || fullscreen()) return
       const ix = Math.max(0, Math.min(open.x + open.w, v.x + v.w) - Math.max(open.x, v.x))
       const iy = Math.max(0, Math.min(open.y + open.h, v.y + v.h) - Math.max(open.y, v.y))
       const shown = (ix * iy) / Math.min(open.w * open.h, v.w * v.h)
@@ -104,11 +139,21 @@ export function createReel(
       if (shown > 0.9) armed = true
       else if (armed && shown < KEEP) close()
     },
-    /** Where the closed tile sits; a new layout closes it */
-    place(at: Rect) {
-      close()
+    /**
+     * Where the closed tile sits. A new layout (a phone turned) moves an open
+     * player along with its tile and keeps the video playing; the caller
+     * brings the map to it with the returned rect.
+     */
+    place(at: Rect): Rect | null {
       closed = at
-      put(at)
+      if (!open) {
+        put(at)
+        return null
+      }
+      open = grown()
+      armed = false
+      put(open)
+      return open
     },
   }
 }

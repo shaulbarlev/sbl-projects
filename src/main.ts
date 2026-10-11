@@ -184,7 +184,7 @@ function place() {
     if (a && !a.classList.contains('card')) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
     placeNote(t)
   }
-  reel.place(world.links.find((t) => t.id === 'film')!)
+  return reel.place(world.links.find((t) => t.id === 'film')!)
 }
 
 const map = createMap({
@@ -217,9 +217,11 @@ narrow.addEventListener('change', () => {
   open?.close(true)
   world = layout()
   for (const id of [...shelved.keys()]) shelve(id)
-  place()
+  const player = place()
   map.setWorld(world)
   sync()
+  // The reel stays open across it, playing, so the map goes back to it.
+  if (player) map.fit(player)
 })
 
 // True while focus is moving by Tab, as opposed to a click or a restored focus.
