@@ -380,22 +380,6 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/white-matte.mp4', thumbnail: '/knock/white-matte.jpg', title: 'White matte', loop: true },
         ],
       },
-      {
-        type: 'row',
-        items: [
-          { type: 'video', kind: 'file', src: '/knock/v1-mockup.mp4', thumbnail: '/knock/v1-mockup.jpg', title: 'The first card, in a phone', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/v1.mp4', thumbnail: '/knock/v1.jpg', title: 'The first card', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/v2.mp4', thumbnail: '/knock/v2.jpg', title: 'A one-button card', loop: true },
-        ],
-      },
-      {
-        type: 'row',
-        items: [
-          { type: 'video', kind: 'file', src: '/knock/card-b.mp4', thumbnail: '/knock/card-b.jpg', title: 'Card arrival study', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/card-f.mp4', thumbnail: '/knock/card-f.jpg', title: 'Card arrival study', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
-        ],
-      },
       // Loaders, small: five across, three on a phone.
       {
         type: 'row',
@@ -412,6 +396,22 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-walkcycle-1.mp4', thumbnail: '/knock/loaders/v1-walkcycle-1.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-flippingclean.mp4', thumbnail: '/knock/loaders/v1-flippingclean.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-flipping.mp4', thumbnail: '/knock/loaders/batch2-flipping.jpg', title: 'Loader', orientation: 'square', loop: true },
+        ],
+      },
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/v1-mockup.mp4', thumbnail: '/knock/v1-mockup.jpg', title: 'The first card, in a phone', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/v1.mp4', thumbnail: '/knock/v1.jpg', title: 'The first card', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/v2.mp4', thumbnail: '/knock/v2.jpg', title: 'A one-button card', loop: true },
+        ],
+      },
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/card-b.mp4', thumbnail: '/knock/card-b.jpg', title: 'Card arrival study', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/card-f.mp4', thumbnail: '/knock/card-f.jpg', title: 'Card arrival study', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
         ],
       },
       { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
