@@ -1217,6 +1217,15 @@ body.has-project .card-dim {
 .cell.square {
   border-radius: 10px;
 }
+/* a mockup brings its own device frame */
+.cell.mockup,
+.cell.mockup video {
+  border-radius: 0;
+  box-shadow: none;
+}
+.cell.mockup video {
+  aspect-ratio: auto;
+}
 
 /* categories and titles: Pixelify Sans, a step larger than the text around them (its lowercase is short) */
 .tile > span,

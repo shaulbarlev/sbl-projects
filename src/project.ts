@@ -59,7 +59,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
       return h('figure', { class: `cell image${lone ? ' lone' : ''}${item.objectFit === 'contain' ? ' contain' : ''}` }, btn)
     }
 
-    const cls = `cell video ${item.orientation ?? 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}${item.size === 'medium' ? ' medium' : ''}`
+    const cls = `cell video ${item.orientation ?? 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}${item.size === 'medium' ? ' medium' : ''}${item.mockup ? ' mockup' : ''}`
     if (item.kind === 'embed') {
       return h(
         'div',

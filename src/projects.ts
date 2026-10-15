@@ -14,6 +14,8 @@ export type ProjectMediaVideo = {
   loop?: boolean
   /** A row of its own at a middling width, centred: the lead piece above smaller ones */
   size?: 'medium'
+  /** Already drawn in a device frame: shown bare, without the card's own frame */
+  mockup?: boolean
 }
 
 export type ProjectMediaImage = {
@@ -431,9 +433,9 @@ Then I implemented those assets as React components, and fine-tuned them for des
     subtitle: 'A social media app for close friends. Product lead, design and iOS.',
     tags: ['product', 'design', 'ios', 'swiftui'],
     thumbnail: { src: '/remy/tile.jpg', alt: 'The Remy invite card on an iPhone' },
-    // ponytail: interim media from the shipped app; swap in the mockups and the landing page video when they arrive.
+    // ponytail: the small loops are interim, from the shipped app; swap in mockups and the landing page video when they arrive.
     media: [
-      { type: 'video', kind: 'file', src: '/remy/onboarding.mp4', thumbnail: '/remy/onboarding.jpg', title: 'Gamified onboarding', loop: true, size: 'medium' },
+      { type: 'video', kind: 'file', src: '/remy/onboarding-mock.mp4', thumbnail: '/remy/onboarding-mock.jpg', title: 'Gamified onboarding', loop: true, size: 'medium', mockup: true },
       {
         type: 'row',
         items: [
