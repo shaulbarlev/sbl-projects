@@ -14,8 +14,8 @@ and electronics, on a 2D plane you explore like a map.
 - **Map**: drag, swipe or scroll to pan; pinch or ctrl+scroll to zoom; arrow
   keys, `+`/`-` and `0` (home) on a keyboard. The minimap in the bottom-left corner shows
   the whole space and the region in view; press or drag on it to move there.
-- **Contact links** (Instagram, LinkedIn, email, and "CV" in a pixel font) are
-  bare icons, no frame or label, around the wordmark. They are plain links in
+- **Contact links** (email, "CV" in a pixel font, LinkedIn, Instagram) are small
+  bare icons in a row above the wordmark, no frame or label. They are plain links in
   `index.html`; `main.ts` lifts them onto the map.
 - **The reel**: vfx's one tile, "watch my reel", opens where it stands into a 16:9
   player and the map fits it on screen; panning away folds it (`src/reel.ts`). The

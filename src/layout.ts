@@ -42,8 +42,8 @@ export type Profile = {
   aspect: number
   /** Islands: how far past the outermost project they start, their clearance, and their size relative to a wide screen's */
   island: { beyond: number; gap: number; scale: number }
-  /** The contact tiles: small, and let in closer to home and to each other than projects are */
-  link: { size: number; label: number; gap: number; /** directions from home, in degrees, clockwise from east */ angles: number[] }
+  /** The contact tiles: a small row centred above the wordmark, `above` its block */
+  link: { size: number; gap: number; above: number }
 }
 
 export const WIDE: Profile = {
@@ -54,7 +54,7 @@ export const WIDE: Profile = {
   margin: 300,
   aspect: 1.35,
   island: { beyond: 240, gap: 160, scale: 1 },
-  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315] },
+  link: { size: 48, gap: 20, above: 16 },
 }
 
 export const NARROW: Profile = {
@@ -65,8 +65,7 @@ export const NARROW: Profile = {
   margin: 120,
   aspect: 0.8,
   island: { beyond: 130, gap: 70, scale: 0.72 },
-  // two above the wordmark, and two below it fanned out either side of the column
-  link: { size: 72, label: 0, gap: 18, angles: [48, 132, 244, 296] },
+  link: { size: 40, gap: 16, above: 12 },
 }
 
 function mulberry32(seed: number) {
@@ -110,23 +109,12 @@ export function scatter(categories: { id: string; children: string[] }[], linkId
   })
   const columnEnd = Math.max(home.y + home.h, ...cats.map((t) => t.y + t.h))
 
-  // The contact tiles go nearest: each is pushed out from home along its own
-  // direction (a little off true, so they do not look ruled) until it clears
-  // what is already there, the column included.
+  // The contact tiles: one row, centred over the wordmark.
+  const rowW = linkIds.length * (link.size + link.gap) - link.gap
   const links = linkIds.map((id, i): Tile => {
-    const angle = ((link.angles[i % link.angles.length] + (rand() - 0.5) * 14) * Math.PI) / 180
-    for (let r = 0; ; r += 3) {
-      const rect: Rect = {
-        x: Math.round(Math.cos(angle) * r * aspect - link.size / 2),
-        y: Math.round(Math.sin(angle) * r - link.size / 2),
-        w: link.size,
-        h: link.size + link.label,
-      }
-      if (!taken.some((t) => overlaps(rect, t, link.gap))) {
-        taken.push(rect)
-        return { id, x: rect.x, y: rect.y, w: link.size, h: link.size }
-      }
-    }
+    const rect = { id, x: Math.round(-rowW / 2 + i * (link.size + link.gap)), y: Math.round(home.y - link.above - link.size), w: link.size, h: link.size }
+    taken.push(rect)
+    return rect
   })
 
   // Rows of `cols`, the last row centred; the label sits under each picture.
@@ -174,8 +162,8 @@ export function scatter(categories: { id: string; children: string[] }[], linkId
     w: right - left,
     h: bottom - top,
     home: shifted,
-    // Home is the wordmark with its column: both in view, the pair centred.
-    origin: { x: -left, y: (home.y + columnEnd) / 2 - top },
+    // Home is the link row, the wordmark and its column: all in view, centred together.
+    origin: { x: -left, y: (Math.min(home.y, ...links.map((t) => t.y)) + columnEnd) / 2 - top },
     links: links.map(shift),
     categories: categoriesShifted,
     children: Object.fromEntries(Object.entries(children).map(([id, list]) => [id, list.map(shift)])),
