@@ -57,7 +57,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
         img,
       )
       btn.addEventListener('click', () => openLightbox(slides, n))
-      return h('figure', { class: `cell image${lone ? ' lone' : ''}${item.objectFit === 'contain' ? ' contain' : ''}` }, btn)
+      return h('figure', { class: `cell image${lone ? ' lone' : ''}${item.objectFit === 'contain' ? ' contain' : ''}${item.square ? ' square' : ''}` }, btn)
     }
 
     const cls = `cell video ${item.orientation ?? 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}${item.size === 'medium' ? ' medium' : ''}${item.mockup ? ' mockup' : ''}`

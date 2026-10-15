@@ -24,6 +24,8 @@ export type ProjectMediaImage = {
   alt: string
   /** How the image fills its cell; default is cover (cropped). Use contain to show the full image letterboxed. */
   objectFit?: 'cover' | 'contain'
+  /** A square cell rather than the default 3:4 */
+  square?: boolean
 }
 
 /**
@@ -379,7 +381,7 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     thumbnail: { src: '/knock/tile.jpg', alt: 'A knock.cards business card in purple glass' },
     media: [
       // The demo first: making a card in the editor.
-      { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
+      { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal', loop: true },
       // The four materials, each playing forward and back, as one strip.
       {
         type: 'row',
@@ -453,6 +455,15 @@ These loaders were created using a mix of traditional and AI techniques. The cha
           { type: 'video', kind: 'file', src: '/remy/scroll-dark.mp4', thumbnail: '/remy/scroll-dark.jpg', title: 'The feed, dark', loop: true },
           { type: 'video', kind: 'file', src: '/remy/pause.mp4', thumbnail: '/remy/pause.jpg', title: 'Pause mode', loop: true },
           { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post', loop: true },
+        ],
+      },
+      // The logo: the app icon and the two lockups.
+      {
+        type: 'row',
+        items: [
+          { type: 'image', src: '/remy/logos/icon.jpg', alt: 'The Remy app icon', square: true },
+          { type: 'image', src: '/remy/logos/lockup-black.jpg', alt: 'The Remy logo, black', square: true },
+          { type: 'image', src: '/remy/logos/lockup-white.jpg', alt: 'The Remy logo, white on black', square: true },
         ],
       },
     ],

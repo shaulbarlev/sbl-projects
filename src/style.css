@@ -597,6 +597,9 @@ iframe {
 .cell.image:not(.lone) {
   aspect-ratio: 3 / 4;
 }
+.cell.image.square {
+  aspect-ratio: 1;
+}
 .cell.image button {
   display: block;
   width: 100%;
