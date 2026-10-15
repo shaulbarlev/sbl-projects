@@ -1090,8 +1090,7 @@ body.has-project .back-node {
     opacity calc(0.25s * var(--pace)) calc(var(--k, 0) * 50ms * var(--pace)),
     visibility 0s calc(var(--k, 0) * 50ms * var(--pace));
 }
-.front-layer.snap .tile.child,
-.front-layer.snap .threads path {
+.front-layer.snap .tile.child {
   transition: none !important;
 }
 
@@ -1105,7 +1104,8 @@ body.has-project .back-node {
 }
 .threads path {
   fill: none;
-  stroke: rgb(var(--ink) / 0.22);
+  /* behind the categories' dim (60% white), so drawn darker: about 0.2 where it shows */
+  stroke: rgb(var(--ink) / 0.5);
   stroke-width: 1;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;

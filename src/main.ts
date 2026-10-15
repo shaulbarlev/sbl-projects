@@ -32,9 +32,10 @@ const SVG = 'http://www.w3.org/2000/svg'
 const threads = document.createElementNS(SVG, 'svg')
 threads.setAttribute('class', 'threads')
 threads.setAttribute('aria-hidden', 'true')
-frontLayer.append(threads, h('div', { class: 'card-dim' }))
+frontLayer.append(h('div', { class: 'card-dim' }))
 rootLayer.append(homeEl, dim)
-plane.append(rootLayer, frontLayer)
+// The threads go under everything: behind the categories (and the dim over them) and behind the children.
+plane.append(threads, rootLayer, frontLayer)
 /** Notes that sit beside an island, keyed by the island; and where the island's content sits inside it */
 const notes = new Map<string, HTMLElement>()
 const boxes = new Map<string, { x: number; y: number; w: number; h: number }>()
@@ -511,6 +512,18 @@ function closeCategory() {
   }
 }
 backButton.addEventListener('click', closeCategory)
+// A click outside an open card folds it, and does nothing else: not open the tile it landed on.
+// A drag that ends in a click has already been marked by map.ts (defaultPrevented).
+$('map').addEventListener(
+  'click',
+  (e) => {
+    if (!card || e.defaultPrevented || (e.target as Element).closest('.tile.card')) return
+    e.preventDefault()
+    e.stopPropagation()
+    closeProject()
+  },
+  true,
+)
 // A tap on nothing in particular closes the open category (a drag that ends never gets here: map.ts swallows its click).
 $('map').addEventListener('click', (e) => {
   if (!openCat || card) return
