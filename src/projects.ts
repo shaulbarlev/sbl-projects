@@ -572,5 +572,5 @@ export const REEL = {
   /** The tile's picture: the reel's first seconds, 16:9, looping */
   loop: '/reel/start.mp4',
   /** Two lines under the tile */
-  note: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do.',
+  note: 'Compositing and design work, 2D and 3D, on commercials, music videos and short films.',
 }
