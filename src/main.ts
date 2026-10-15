@@ -309,7 +309,13 @@ for (const project of PROJECTS) {
   a.addEventListener('click', (e) => {
     // Once open, the card's own links (previous / next, a call to action) and buttons are
     // theirs: the close button's click has already folded the card by the time it gets here.
-    if ((e.target as Element).closest('a, button') !== a) return
+    // A button inside the card is still inside this link, though, and a click on it would
+    // follow the link (a reload: the view and the route start over), so that is stopped here.
+    const inner = (e.target as Element).closest('a, button')
+    if (inner !== a) {
+      if (inner?.tagName === 'BUTTON') e.preventDefault()
+      return
+    }
     if (e.metaKey || e.ctrlKey || e.shiftKey) return
     e.preventDefault()
     if (card?.id === project.id) return
