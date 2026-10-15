@@ -1155,6 +1155,9 @@ body.has-project .back-node {
   grid-template-columns: repeat(var(--n), minmax(0, 1fr));
   gap: 0.75rem;
 }
+.media > .row.tight {
+  gap: 0;
+}
 @media (max-width: 699px) {
   .media > .row {
     grid-template-columns: repeat(var(--n-narrow), minmax(0, 1fr));
@@ -1268,4 +1271,27 @@ body.has-project .card-dim {
 /* a child is solid, title and all, so the threads run behind it rather than through its title */
 .tile.child {
   background: var(--bg);
+}
+
+/* a phone, text partway down the media (textAfter): the media's items join the page's own column, the text between them */
+@media (max-width: 699px) {
+  /* one column: a full-row item must not open a second one now it is the page's own */
+  .pv-body.split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pv-body.split .cell.lone {
+    grid-column: 1 / -1;
+  }
+  .pv-body.split .media {
+    display: contents;
+  }
+  .pv-body.split .pv-text {
+    order: 1;
+  }
+  .pv-body.split .after-text {
+    order: 2;
+  }
+  .pv-body.split .pv-more {
+    order: 3;
+  }
 }

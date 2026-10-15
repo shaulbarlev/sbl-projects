@@ -30,7 +30,13 @@ export type ProjectMediaImage = {
  * Items side by side across the full width of the grid: as many columns as there
  * are items, or `cols` across (wrapping) on a wide screen and a phone.
  */
-export type ProjectMediaRow = { type: 'row'; items: (ProjectMediaVideo | ProjectMediaImage)[]; cols?: { wide: number; narrow: number } }
+export type ProjectMediaRow = {
+  type: 'row'
+  items: (ProjectMediaVideo | ProjectMediaImage)[]
+  cols?: { wide: number; narrow: number }
+  /** No gap between the items: one strip */
+  tight?: boolean
+}
 
 export type ProjectMediaItem = ProjectMediaVideo | ProjectMediaImage | ProjectMediaRow
 
@@ -55,6 +61,8 @@ export type Project = {
   cta?: { lead?: string; label: string; href: string; rtl?: boolean; icon?: 'whatsapp' }
   /** On narrow screens, put the text column above the media */
   textFirst?: boolean
+  /** On narrow screens, put the text after this many media items (rows count as one) */
+  textAfter?: number
   /** Mute every video, not only the autoplaying first one */
   muteAll?: boolean
 }
@@ -370,9 +378,10 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     tags: ['3d', 'blender', 'after-effects', 'react', 'web'],
     thumbnail: { src: '/knock/tile.jpg', alt: 'A knock.cards business card in purple glass' },
     media: [
-      // The four materials, each playing forward and back.
+      // The four materials, each playing forward and back, as one strip.
       {
         type: 'row',
+        tight: true,
         items: [
           { type: 'video', kind: 'file', src: '/knock/glass.mp4', thumbnail: '/knock/glass.jpg', title: 'Purple glass', loop: true },
           { type: 'video', kind: 'file', src: '/knock/black-matte.mp4', thumbnail: '/knock/black-matte.jpg', title: 'Black matte', loop: true },
@@ -423,6 +432,8 @@ I designed and implemented Knock Cards: a personal virtual business card. Custom
 
 These loaders were created using a mix of traditional and AI techniques. The character was designed entirely with AI, animated using AI tools, and fine-tuned in After Effects for precise looping.`,
     cta: { label: 'Create your Knock Card', href: 'https://knock.cards' },
+    // on a phone: the materials, the loaders, then the words, then the rest
+    textAfter: 2,
   },
   {
     id: 'remy',

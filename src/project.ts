@@ -94,9 +94,17 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
     return h('div', { class: cls }, video)
   }
 
-  const cells = media.map((item) => {
+  const cells = media.map((item, n) => {
+    const el = place(item)
+    if (project.textAfter !== undefined && n >= project.textAfter) el.classList.add('after-text')
+    return el
+  })
+
+  return h('div', { class: 'media' }, ...cells)
+
+  function place(item: ProjectMediaItem) {
     if (item.type === 'row') {
-      const row = h('div', { class: 'row' }, ...item.items.map((m) => cell(m, false)))
+      const row = h('div', { class: item.tight ? 'row tight' : 'row' }, ...item.items.map((m) => cell(m, false)))
       row.style.setProperty('--n', String(item.cols?.wide ?? item.items.length))
       row.style.setProperty('--n-narrow', String(item.cols?.narrow ?? item.items.length))
       return row
@@ -105,9 +113,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
     const i = loose.indexOf(item)
     const medium = item.type === 'video' && item.size === 'medium'
     return cell(item, !medium && (loose.length === 1 || (loose.length % 2 === 1 && i === loose.length - 1)))
-  })
-
-  return h('div', { class: 'media' }, ...cells)
+  }
 }
 
 /** The project view: a modal over the map on wide screens, a page of its own on narrow ones. */
@@ -190,7 +196,7 @@ export function renderProject(
       ),
       h(
         'div',
-        { class: `pv-body${project.textFirst ? ' text-first' : ''}` },
+        { class: `pv-body${project.textFirst ? ' text-first' : ''}${project.textAfter !== undefined ? ' split' : ''}` },
         project.media?.length ? mediaGrid(project, project.media) : null,
         text,
         more,
