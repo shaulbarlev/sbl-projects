@@ -49,3 +49,6 @@ node_modules/.vite/deps/_metadata.json
 .gitignore
 .DS_Store
 .DS_Store
+
+# wrangler dev state
+.wrangler/

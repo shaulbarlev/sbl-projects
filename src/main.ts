@@ -9,7 +9,7 @@ import { createMap } from './map'
 import { renderProject } from './project'
 import { CATEGORIES, ISLANDS, PROJECTS, REEL, categoryOf, categoryPath, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
-import { host as embedHost } from '../shared/embed.js'
+import { INSET, host as embedHost } from '../shared/embed.js'
 
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -160,17 +160,6 @@ for (const island of ISLANDS) {
         if (box) boxes.set(island.id, box)
         const at = world.islands.find((t) => t.id === island.id)
         if (!at) return
-        // The peeking island is placed by what is drawn in it, not by its frame, which is wider:
-        // the light's own left edge is what shows at the right of the home view. Once per
-        // layout, from the first report: the page widens when its name field appears, and
-        // the light must not move then.
-        if (box && island.id === PEEK_ID && peeked !== at) {
-          peeked = at
-          const p = peek()
-          at.x = Math.round(world.origin.x + p.view / 2 - p.px - box.x)
-          el.style.left = `${at.x}px`
-          map.redraw()
-        }
         // The page reports on every lamp change; only a new size moves anything.
         if (Math.abs(at.h - height) > 2) {
           at.h = height
@@ -219,10 +208,10 @@ function unshelve(id: string) {
 
 // The traffic light peeks in at the right of the landing view: its left edge, placed for
 // the window's width at load (and again when the layout changes).
+// Placed by the light itself, not its frame: the light's page lays the light out INSET px in from
+// the frame's left (shared/embed.js), so the frame goes that much further right, from the start.
 const PEEK_ID = 'traffic'
-/** The layout's tile for it once placed by its content, so that it is placed only once per layout */
-let peeked: Tile | null = null
-const peek = () => ({ id: PEEK_ID, view: $('map').clientWidth || innerWidth, px: narrow.matches ? 44 : 72 })
+const peek = () => ({ id: PEEK_ID, view: $('map').clientWidth || innerWidth, px: (narrow.matches ? 44 : 72) + INSET })
 const layout = () =>
   scatter(
     CATEGORIES,

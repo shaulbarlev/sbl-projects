@@ -98,7 +98,7 @@ function overlaps(a: Rect, b: Rect, gap: number) {
 /**
  * `peek`: an island placed so that only its left edge shows at the right of the
  * home view, a hint that there is more; `view` is the viewport's width (world px at
- * the home zoom of 1), `px` how much of it shows.
+ * the home zoom of 1), `px` how far in from the right its frame's left edge sits.
  */
 export function scatter(
   categories: { id: string; children: string[]; wide?: boolean }[],

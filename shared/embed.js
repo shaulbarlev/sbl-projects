@@ -15,11 +15,20 @@
  * The guest also reports its lamps (colour, lit or not, in page order), so the
  * host can draw the light small, on a minimap say.
  *
- * Messages:  guest → host  { type: 'skin:layout', height, box: {x,y,w,h}, fields: [{x,y,w,h}], lamps: [{color, on}], off }
+ * Messages:  guest → host  { type: 'skin:layout', height, box: {x,y,w,h}, fields: [{x,y,w,h}], buttons: [{x,y,w,h}], lamps: [{color, on}], off }
+ *                          (`buttons` are where a tap does something, so the host can show a hand there)
  *                          (`box` is where the content sits inside the page, for placing things beside it;
  *                          `off` when the page has hidden itself, e.g. the light's master switch is off)
  *            host → guest  { type: 'skin:tap', x, y }   (guest CSS px)
  */
+
+/**
+ * Where the guest's content starts, from the left of its frame (CSS px). The guest lays its
+ * content out at this inset (it sets --embed-inset on its root), and the host places the frame
+ * by it: both from this one number, so the host knows where the content is from the start,
+ * with nothing to correct once the guest has loaded.
+ */
+export const INSET = 48
 
 /** Which pages may relay a tap to the guest. Anyone can tap the public page anyway; this only keeps strangers' frames from driving it. */
 const TRUSTED = /^https:\/\/([a-z0-9-]+\.)*(sbl\.cx|shaulb\.com|shaulbarlev\.com|workers\.dev)$/
@@ -39,6 +48,18 @@ export function host(frame, cover, onLayout, onTap) {
   const origin = new URL(frame.src).origin
   /** @type {{ x: number, y: number, t: number } | null} */
   let down = null
+  /** Where in the guest a tap does something, reported by it: the cover shows a hand there. */
+  /** @type {{ x: number, y: number, w: number, h: number }[]} */
+  let buttons = []
+  cover.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return
+    const r = frame.getBoundingClientRect()
+    const scale = r.width / frame.offsetWidth
+    const x = (e.clientX - r.left) / scale
+    const y = (e.clientY - r.top) / scale
+    cover.style.cursor = buttons.some((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) ? 'pointer' : ''
+  })
+  cover.addEventListener('pointerleave', () => (cover.style.cursor = ''))
   cover.addEventListener('pointerdown', (e) => {
     down = { x: e.clientX, y: e.clientY, t: e.timeStamp }
   })
@@ -55,6 +76,7 @@ export function host(frame, cover, onLayout, onTap) {
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow || e.origin !== origin || !e.data || e.data.type !== 'skin:layout') return
     onLayout({ height: Math.round(e.data.height), box: e.data.box, lamps: e.data.lamps, off: e.data.off })
+    buttons = e.data.buttons ?? []
     /** @type {{ x: number, y: number, w: number, h: number }[]} */
     const fields = e.data.fields
     // The cover, with a hole for each field (evenodd: the inner rings are cut out).
@@ -69,6 +91,7 @@ export function host(frame, cover, onLayout, onTap) {
  */
 export function guest() {
   if (window.parent === window) return
+  document.documentElement.style.setProperty('--embed-inset', `${INSET}px`)
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let sending
   const tell = () => {
@@ -76,6 +99,12 @@ export function guest() {
     sending = setTimeout(() => {
       const fields = [...document.querySelectorAll('input')]
         .filter((el) => el.offsetParent !== null)
+        .map((el) => {
+          const r = el.getBoundingClientRect()
+          return { x: r.left, y: r.top, w: r.width, h: r.height }
+        })
+      const buttons = [...document.querySelectorAll('button')]
+        .filter((el) => el.offsetParent !== null && !el.disabled)
         .map((el) => {
           const r = el.getBoundingClientRect()
           return { x: r.left, y: r.top, w: r.width, h: r.height }
@@ -89,11 +118,11 @@ export function guest() {
       // The body's own height, not the document's: a root's scrollHeight is never
       // less than the frame's, so the frame could then only ever grow.
       const height = Math.ceil(document.body.getBoundingClientRect().bottom)
-      window.parent.postMessage({ type: 'skin:layout', height, box, fields, lamps, off: document.body.hidden }, '*')
+      window.parent.postMessage({ type: 'skin:layout', height, box, fields, buttons, lamps, off: document.body.hidden }, '*')
     }, 50)
   }
   new ResizeObserver(tell).observe(document.body)
-  new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style', 'aria-pressed'] })
+  new MutationObserver(tell).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'style', 'aria-pressed', 'disabled'] })
   window.addEventListener('load', tell)
   window.addEventListener('message', (e) => {
     if (!TRUSTED.test(e.origin) || !e.data || e.data.type !== 'skin:tap') return

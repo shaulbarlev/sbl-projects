@@ -138,6 +138,10 @@ export function renderTraffic(bare = false): string {
   ${bare ? 'html { height: auto; }' : ''}
   /* Room above the light for a lit lamp's glow, which the frame would otherwise cut flat. */
   body.bare { height: auto; min-height: 0; padding: 48px 0 8px; }
+  /* Embedded, the content starts at a fixed inset from the frame's left (shared/embed.js INSET,
+     set as --embed-inset), not centred: the page around it places the frame by the same number. */
+  body.bare { justify-items: start; padding-left: var(--embed-inset); }
+  body.bare main { justify-items: start; }
   /* No drop shadow: the site it sits on is white now, where it read as a grey smudge cut off at
      the frame's edges. The inner highlight stays. */
   body.bare .housing { box-shadow: inset 0 2px 0 rgba(255,255,255,.06); }
@@ -446,7 +450,9 @@ ${lamps}
     report(name);
     hide();
   };
-  if (returning && !me.name) { asked = true; show(); }
+  // A returning player with no name is asked for one, but on their first tap, not on load:
+  // until someone touches the light, nothing on it asks for anything.
+  var askOnTap = returning && !me.name;
   lamps.forEach(function (el) {
     // pointerdown, not click: a touch click waits for the finger to lift,
     // which is 50–100ms of nothing. The tick is so the finger feels it.
@@ -455,6 +461,7 @@ ${lamps}
       e.preventDefault();
       // Name first: until one is sent, a tap only points at the field.
       if (gated) { field.focus(); return; }
+      if (askOnTap) { askOnTap = false; asked = true; show(); field.focus(); return; }
       played();
       if (gated) { field.focus(); return; }       // that tap was the one that crossed two seconds
       var entity = el.dataset.entity;
