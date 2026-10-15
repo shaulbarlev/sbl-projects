@@ -454,6 +454,7 @@ These loaders were created using a mix of traditional and AI techniques. The cha
       { type: 'video', kind: 'file', src: '/remy/landing.mp4', thumbnail: '/remy/landing.jpg', title: 'The landing page', orientation: 'horizontal', loop: true },
       {
         type: 'row',
+        tight: true,
         items: [
           { type: 'video', kind: 'file', src: '/remy/scroll.mp4', thumbnail: '/remy/scroll.jpg', title: 'The feed', loop: true },
           { type: 'video', kind: 'file', src: '/remy/scroll-dark.mp4', thumbnail: '/remy/scroll-dark.jpg', title: 'The feed, dark', loop: true },
