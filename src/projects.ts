@@ -459,6 +459,8 @@ These loaders were created using a mix of traditional and AI techniques. The cha
     description: `Remy is a social media app for close friends.
 
 As product engineering lead on Remy, I focused on making Remy feel safe, easy to use, fun, and intuitive.`,
+    // Remy - Real Moments, AMY AI, Inc. (no country in the link: it opens in the visitor's own store)
+    cta: { label: 'Get Remy', href: 'https://apps.apple.com/app/id6768362016' },
   },
 ]
 
