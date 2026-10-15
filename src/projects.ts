@@ -462,14 +462,6 @@ These loaders were created using a mix of traditional and AI techniques. The cha
           { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post', loop: true },
         ],
       },
-      // The invite card's hologram shine, on a real phone.
-      {
-        type: 'row',
-        items: [
-          { type: 'video', kind: 'file', src: '/remy/hologram-9581.mp4', thumbnail: '/remy/hologram-9581.jpg', title: 'The invite card, hologram', loop: true },
-          { type: 'video', kind: 'file', src: '/remy/hologram-9582.mp4', thumbnail: '/remy/hologram-9582.jpg', title: 'The invite card, hologram', loop: true },
-        ],
-      },
       // The logo: the app icon and the two lockups.
       {
         type: 'row',
@@ -477,6 +469,14 @@ These loaders were created using a mix of traditional and AI techniques. The cha
           { type: 'image', src: '/remy/logos/icon.jpg', alt: 'The Remy app icon', square: true },
           { type: 'image', src: '/remy/logos/lockup-black.jpg', alt: 'The Remy logo, black', square: true },
           { type: 'image', src: '/remy/logos/lockup-white.jpg', alt: 'The Remy logo, white on black', square: true },
+        ],
+      },
+      // The invite card's hologram shine, on a real phone.
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/remy/hologram-9581.mp4', thumbnail: '/remy/hologram-9581.jpg', title: 'The invite card, hologram', loop: true },
+          { type: 'video', kind: 'file', src: '/remy/hologram-9582.mp4', thumbnail: '/remy/hologram-9582.jpg', title: 'The invite card, hologram', loop: true },
         ],
       },
     ],
