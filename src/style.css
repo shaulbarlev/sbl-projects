@@ -912,7 +912,9 @@ body.has-project .back-node {
   max-width: 100%;
   max-height: calc(100dvh - 2rem);
   object-fit: contain;
-  pointer-events: none;
+  /* the picture takes the pointer, so it can be right-clicked or long-pressed and saved
+     (the viewer closes only on a click on its backdrop, and a swipe still pages) */
+  -webkit-touch-callout: default;
 }
 .lb button {
   position: absolute;
@@ -1293,4 +1295,10 @@ body.has-project .card-dim {
   .pv-body.split .pv-more {
     order: 3;
   }
+}
+
+/* the map turns off the long-press menu (it would interrupt panning); an open card's pictures and videos get it back, to save them */
+.tile.card img,
+.tile.card video {
+  -webkit-touch-callout: default;
 }
