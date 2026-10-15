@@ -447,7 +447,7 @@ These loaders were created using a mix of traditional and AI techniques. The cha
     title: 'Remy',
     subtitle: 'A social media app for close friends. Product lead, design and iOS.',
     tags: ['product', 'design', 'ios', 'swiftui'],
-    thumbnail: { src: '/remy/tile.jpg', alt: 'The Remy invite card on an iPhone' },
+    thumbnail: { src: '/remy/tile.jpg', alt: 'The Remy app icon' },
     // ponytail: the small loops are interim, from the shipped app; swap in mockups when they arrive.
     media: [
       { type: 'video', kind: 'file', src: '/remy/onboarding-mock.mp4', thumbnail: '/remy/onboarding-mock.jpg', title: 'Gamified onboarding', loop: true, size: 'medium', mockup: true },
