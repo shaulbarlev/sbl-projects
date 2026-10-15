@@ -54,6 +54,8 @@ export type Project = {
    * public/thumbs/<id>.jpg, which is what the map actually loads.
    */
   thumbnail: { src: string; alt: string }
+  /** A short silent loop shown on the map tile instead of the still (which stays its poster) */
+  tileVideo?: string
   /** Detail view: videos and images in display order */
   media?: ProjectMediaItem[]
   /** Long-form description. `## ` starts a heading; Hebrew lines are split out and set RTL; a `{cta}` line places the call to action. */
@@ -379,7 +381,8 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     title: 'knock.cards',
     subtitle: 'Digital business cards, designed in 3D and built as React components.',
     tags: ['3d', 'blender', 'after-effects', 'react', 'web'],
-    thumbnail: { src: '/knock/tile.jpg', alt: 'A knock.cards business card in purple glass' },
+    thumbnail: { src: '/knock/tile.jpg', alt: 'The four Knock card materials side by side' },
+    tileVideo: '/knock/tile.mp4',
     media: [
       // The demo first: making a card in the editor.
       { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal', loop: true },

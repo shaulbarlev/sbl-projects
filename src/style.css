@@ -155,7 +155,9 @@ iframe {
     opacity calc(0.5s * var(--pace));
   transition-delay: calc(var(--i) * 55ms * var(--pace));
 }
-.tile img {
+.tile img,
+.tile > video.face {
+  display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 1;
@@ -163,7 +165,8 @@ iframe {
   background: var(--grey);
   transition: opacity calc(0.15s * var(--pace));
 }
-.tile:hover img {
+.tile:hover img,
+.tile:hover > video.face {
   opacity: 0.88;
 }
 .tile > span {
@@ -852,7 +855,8 @@ body.has-project .back-node {
   transition: opacity calc(0.25s * var(--pace));
 }
 /* the picture becomes the card's header */
-.tile.card > img {
+.tile.card > img,
+.tile.card > video.face {
   height: var(--hero);
   aspect-ratio: auto;
   filter: none;

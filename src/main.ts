@@ -289,12 +289,19 @@ let tabbing = false
 window.addEventListener('keydown', (e) => (tabbing = e.key === 'Tab'), true)
 window.addEventListener('pointerdown', () => (tabbing = false), true)
 
+/** A tile's picture as a silent loop, its still the poster until it plays */
+function tileLoop(project: Project) {
+  const v = h('video', { class: 'face', src: project.tileVideo, poster: thumbUrl(project), autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-label': project.thumbnail.alt })
+  v.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
+  return v
+}
+
 let opener: HTMLElement | null = null
 for (const project of PROJECTS) {
   const a = h(
     'a',
     { class: 'tile child', href: `/${project.id}/` },
-    h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
+    project.tileVideo ? tileLoop(project) : h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
     // The edge drawing lies over the photo and shows through while the card is open.
     h('img', { class: 'edges', src: edgesUrl(project), alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async', loading: 'lazy' }),
     h('span', {}, h('b', {}, project.title)),
