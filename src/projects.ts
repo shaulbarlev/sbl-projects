@@ -431,7 +431,7 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     ],
     description: `## Knock Card
 
-I designed and implemented Knock Cards: a personal virtual business card. Customizable and luxurious. I used Blender to design and render it in 3D, for that fine glassy feeling.
+I designed and implemented Knock Cards: a personal virtual business card. Customizable and luxurious. I used Blender to design and render it in 3D, for the glassy feeling.
 
 {cta}
 
