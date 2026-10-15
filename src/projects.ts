@@ -56,7 +56,7 @@ export type Project = {
   thumbnail: { src: string; alt: string }
   /** Detail view: videos and images in display order */
   media?: ProjectMediaItem[]
-  /** Long-form description. `## ` starts a heading; Hebrew lines are split out and set RTL. */
+  /** Long-form description. `## ` starts a heading; Hebrew lines are split out and set RTL; a `{cta}` line places the call to action. */
   description?: string
   /** Image shown at the top of the text column */
   asideImage?: { src: string; alt: string }
@@ -411,26 +411,29 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-flipping.mp4', thumbnail: '/knock/loaders/batch2-flipping.jpg', title: 'Loader', orientation: 'square', loop: true },
         ],
       },
-      {
-        type: 'row',
-        items: [
-          { type: 'video', kind: 'file', src: '/knock/v1-mockup.mp4', thumbnail: '/knock/v1-mockup.jpg', title: 'The first card, in a phone', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/v1.mp4', thumbnail: '/knock/v1.jpg', title: 'The first card', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/v2.mp4', thumbnail: '/knock/v2.jpg', title: 'A one-button card', loop: true },
-        ],
-      },
-      {
-        type: 'row',
-        items: [
-          { type: 'video', kind: 'file', src: '/knock/card-b.mp4', thumbnail: '/knock/card-b.jpg', title: 'Card arrival study', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/card-f.mp4', thumbnail: '/knock/card-f.jpg', title: 'Card arrival study', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
-        ],
-      },
+      // Hidden for now: the six card studies, two rows of three.
+      // {
+      //   type: 'row',
+      //   items: [
+      //     { type: 'video', kind: 'file', src: '/knock/v1-mockup.mp4', thumbnail: '/knock/v1-mockup.jpg', title: 'The first card, in a phone', loop: true },
+      //     { type: 'video', kind: 'file', src: '/knock/v1.mp4', thumbnail: '/knock/v1.jpg', title: 'The first card', loop: true },
+      //     { type: 'video', kind: 'file', src: '/knock/v2.mp4', thumbnail: '/knock/v2.jpg', title: 'A one-button card', loop: true },
+      //   ],
+      // },
+      // {
+      //   type: 'row',
+      //   items: [
+      //     { type: 'video', kind: 'file', src: '/knock/card-b.mp4', thumbnail: '/knock/card-b.jpg', title: 'Card arrival study', loop: true },
+      //     { type: 'video', kind: 'file', src: '/knock/card-f.mp4', thumbnail: '/knock/card-f.jpg', title: 'Card arrival study', loop: true },
+      //     { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
+      //   ],
+      // },
     ],
     description: `## Knock Card
 
 I designed and implemented Knock Cards: a personal virtual business card. Customizable and luxurious. I used Blender to design and render it in 3D, for that fine glassy feeling.
+
+{cta}
 
 ## Loaders for Knock AI
 

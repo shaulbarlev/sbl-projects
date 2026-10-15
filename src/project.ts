@@ -143,13 +143,18 @@ export function renderProject(
     cta = h('div', { class: 'box sans', dir: project.cta.rtl ? 'rtl' : undefined }, project.cta.lead && h('p', { class: 'cta-lead' }, project.cta.lead), link)
   }
 
+  // A `{cta}` line in the description puts the call to action there; otherwise it leads.
+  const [before, after] = en.split(/\n?\{cta\}\n?/)
+  const placed = after !== undefined
   const text = h(
     'aside',
     { class: 'pv-text' },
     project.asideImage && h('div', { class: 'box' }, h('img', { src: displayUrl(project.asideImage.src), alt: project.asideImage.alt, loading: 'lazy', decoding: 'async' })),
-    cta,
+    !placed && cta,
     he && h('div', { class: 'box sans prose', dir: 'rtl' }, ...prose(he)),
-    en && h('div', { class: 'box prose' }, ...prose(en)),
+    before && h('div', { class: 'box prose' }, ...prose(before)),
+    placed && cta,
+    placed && after.trim() && h('div', { class: 'box prose' }, ...prose(after)),
   )
 
   const step = (to: Project, cls: string, text: string) => {
