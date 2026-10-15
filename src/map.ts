@@ -41,8 +41,11 @@ export function createMap(opts: {
   onBreak?: () => void
   /** Called once, the first time the visitor moves the map themselves */
   onExplore: () => void
+  /** An element on the plane that draws the grid too, and is told where its lines fall (--gx, --gy) */
+  gridFollower?: HTMLElement
 }) {
   const { viewport, plane, minimap, readout, markers } = opts
+  const gridFollower = opts.gridFollower
   let world = opts.world
   let home = world.origin
   const cam: Camera = { ...home, z: 1 }
@@ -80,6 +83,15 @@ export function createMap(opts: {
   }
 
   // --- minimap dots and edge markers, one of each per tile
+  // The faint grid, a layer of its own under the plane, slid by transform (no repaint) and
+  // repainted only when the zoom changes its pitch. As the viewport's background it repainted
+  // the whole screen on every frame of every move.
+  const grid = document.createElement('div')
+  grid.className = 'grid'
+  grid.setAttribute('aria-hidden', 'true')
+  viewport.prepend(grid)
+  let gridPitch = 0
+
   const frame = document.createElement('div')
   frame.className = 'mm-view'
   const dots = new Map<string, HTMLElement>()
@@ -140,11 +152,19 @@ export function createMap(opts: {
     const tx = vw / 2 - cam.x * cam.z
     const ty = vh / 2 - cam.y * cam.z
     plane.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.z})`
-    viewport.style.backgroundSize = `${GRID * cam.z}px ${GRID * cam.z}px`
-    viewport.style.backgroundPosition = `${tx * GRID_DEPTH}px ${ty * GRID_DEPTH}px`
-    // Where those grid lines fall in the plane's own coordinates, for anything on it that draws them too (the wordmark)
-    plane.style.setProperty('--gx', `${(tx * GRID_DEPTH - tx) / cam.z}px`)
-    plane.style.setProperty('--gy', `${(ty * GRID_DEPTH - ty) / cam.z}px`)
+    // The grid slides slower than the tiles (it reads as further away): its lines at tx·D + k·pitch.
+    const pitch = GRID * cam.z
+    if (pitch !== gridPitch) {
+      gridPitch = pitch
+      Object.assign(grid.style, { backgroundSize: `${pitch}px ${pitch}px`, width: `${vw + 2 * pitch}px`, height: `${vh + 2 * pitch}px` })
+    }
+    const mod = (v: number) => ((v % pitch) + pitch) % pitch
+    grid.style.transform = `translate3d(${mod(tx * GRID_DEPTH) - pitch}px, ${mod(ty * GRID_DEPTH) - pitch}px, 0)`
+    // Where those grid lines fall in the plane's own coordinates, for the one thing on it that
+    // draws them too (the wordmark): set on it alone, as a custom property set on the plane
+    // would restyle every tile on it every frame.
+    gridFollower?.style.setProperty('--gx', `${(tx * GRID_DEPTH - tx) / cam.z}px`)
+    gridFollower?.style.setProperty('--gy', `${(ty * GRID_DEPTH - ty) / cam.z}px`)
 
     const w = vw / cam.z
     const h = vh / cam.z
@@ -154,7 +174,11 @@ export function createMap(opts: {
     frame.style.top = `${(top / world.h) * 100}%`
     frame.style.width = `${(w / world.w) * 100}%`
     frame.style.height = `${(h / world.h) * 100}%`
-    readout.textContent = `x ${Math.round(cam.x - home.x)}  y ${Math.round(cam.y - home.y)}  ${Math.round(cam.z * 100)}%`
+    // The same text node, its data replaced: textContent would swap in a new node every frame.
+    const text = `x ${Math.round(cam.x - home.x)}  y ${Math.round(cam.y - home.y)}  ${Math.round(cam.z * 100)}%`
+    if (readout.firstChild instanceof Text) {
+      if (readout.firstChild.data !== text) readout.firstChild.data = text
+    } else readout.textContent = text
 
     const inView = (r: Rect) => r.x + r.w > left && r.x < left + w && r.y + r.h > top && r.y < top + h
     opts.onHomeVisible(inView(world.home))
@@ -165,7 +189,8 @@ export function createMap(opts: {
       const m = pointersTo.get(t.id)
       if (!m) continue
       const hidden = inView(t) || vw === 0
-      m.hidden = hidden
+      // Only when it changes: setting the attribute restyles the marker even to the same value.
+      if (m.hidden !== hidden) m.hidden = hidden
       if (hidden) continue
       const c = centre(t)
       const dx = (c.x - cam.x) * cam.z
@@ -405,6 +430,7 @@ export function createMap(opts: {
     const b = viewport.getBoundingClientRect()
     vw = b.width
     vh = b.height
+    gridPitch = 0 // the grid layer is sized to the view: size it again
     render()
   }
   new ResizeObserver(resize).observe(viewport)

@@ -277,6 +277,7 @@ const map = createMap({
     reel.check(view)
   },
   onBreak: () => card?.close(),
+  gridFollower: $('logo'),
 })
 
 // A light's lamps show on the minimap dim until its page reports them lit or not.

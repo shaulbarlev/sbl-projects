@@ -84,7 +84,14 @@ iframe {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-  /* a faint grid, so empty space still reads as moving; map.ts slides it slower than the tiles */
+}
+/* a faint grid, so empty space still reads as moving; map.ts slides it, slower than the tiles, by transform */
+.grid {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
   background-image:
     linear-gradient(rgb(var(--ink) / 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgb(var(--ink) / 0.045) 1px, transparent 1px);
