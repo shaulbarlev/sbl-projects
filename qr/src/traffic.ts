@@ -143,6 +143,9 @@ export function renderTraffic(bare = false): string {
   body.bare .housing { box-shadow: inset 0 2px 0 rgba(255,255,255,.06); }
   body.bare main { gap: 16px; }
   body.bare .who { position: static; margin-top: 16px; }
+  /* Embedded, the field keeps its room while hidden: the page's height never changes, so the
+     frame never has to grow (and clip it meanwhile) and nothing around the light moves. */
+  body.bare .who[hidden] { display: flex; visibility: hidden; }
   .who .field { position: relative; display: flex; }
   .who input {
     width: min(58vw, 240px); padding: 10px 44px 10px 16px; /* room for the arrow */
