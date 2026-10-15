@@ -44,7 +44,8 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
   const images = flat.filter((m) => m.type === 'image')
   const slides = images.map((m) => ({ src: m.src, alt: m.alt }))
   const firstVideo = flat.find((m) => m.type === 'video' && !m.loop)
-  const loose = media.filter((m) => m.type !== 'row')
+  // the items that pair up two to a row: not rows, not the medium lead (a row of its own)
+  const loose = media.filter((m) => m.type !== 'row' && !(m.type === 'video' && m.size === 'medium'))
 
   const cell = (item: ProjectMediaVideo | ProjectMediaImage, lone: boolean) => {
     if (item.type === 'image') {
