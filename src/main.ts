@@ -27,7 +27,10 @@ const tiles = new Map<string, HTMLElement>()
 // category's children, and the threads that tie them to it, are in front.
 const rootLayer = h('div', { class: 'layer root-layer' })
 const dim = h('div', { class: 'dim' })
-const frontLayer = h('div', { class: 'layer front-layer' })
+// Children are made folded, and with no transitions until the first frame has drawn: made
+// visible and folded after, they played their fold on load (the reel's tile flew off screen).
+const frontLayer = h('div', { class: 'layer front-layer snap' })
+requestAnimationFrame(() => requestAnimationFrame(() => frontLayer.classList.remove('snap')))
 const SVG = 'http://www.w3.org/2000/svg'
 const threads = document.createElementNS(SVG, 'svg')
 threads.setAttribute('class', 'threads')
@@ -87,7 +90,7 @@ const reelLoop = h(
 reelLoop.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
 const reelFace = h(
   'a',
-  { class: 'tile child', href: REEL.src, target: '_blank', rel: 'noreferrer' },
+  { class: 'tile child folded', href: REEL.src, target: '_blank', rel: 'noreferrer' },
   reelLoop,
   h('span', {}, h('b', {}, REEL.title)),
   h('p', { class: 'reel-note' }, REEL.note),
@@ -324,7 +327,7 @@ let opener: HTMLElement | null = null
 for (const project of PROJECTS) {
   const a = h(
     'a',
-    { class: 'tile child', href: `/${project.id}/` },
+    { class: 'tile child folded', href: `/${project.id}/`, inert: true },
     project.tileVideo ? tileLoop(project) : h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
     // The edge drawing lies over the photo and shows through while the card is open.
     h('img', { class: 'edges', src: edgesUrl(project), alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async', loading: 'lazy' }),
