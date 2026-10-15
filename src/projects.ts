@@ -378,6 +378,8 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
     tags: ['3d', 'blender', 'after-effects', 'react', 'web'],
     thumbnail: { src: '/knock/tile.jpg', alt: 'A knock.cards business card in purple glass' },
     media: [
+      // The demo first: making a card in the editor.
+      { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
       // The four materials, each playing forward and back, as one strip.
       {
         type: 'row',
@@ -422,7 +424,6 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
         ],
       },
-      { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
     ],
     description: `## Knock Card
 
@@ -432,8 +433,8 @@ I designed and implemented Knock Cards: a personal virtual business card. Custom
 
 These loaders were created using a mix of traditional and AI techniques. The character was designed entirely with AI, animated using AI tools, and fine-tuned in After Effects for precise looping.`,
     cta: { label: 'Create your Knock Card', href: 'https://knock.cards' },
-    // on a phone: the materials, the loaders, then the words, then the rest
-    textAfter: 2,
+    // on a phone: the demo, then the words, then the materials, the loaders and the rest
+    textAfter: 1,
   },
   {
     id: 'remy',
