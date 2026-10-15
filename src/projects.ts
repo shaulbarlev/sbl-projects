@@ -456,7 +456,9 @@ These loaders were created using a mix of traditional and AI techniques. The cha
         ],
       },
     ],
-    description: `As product engineering lead on Remy, I focused on making Remy feel safe, easy to use, fun, and intuitive.`,
+    description: `Remy is a social media app for close friends.
+
+As product engineering lead on Remy, I focused on making Remy feel safe, easy to use, fun, and intuitive.`,
   },
 ]
 
