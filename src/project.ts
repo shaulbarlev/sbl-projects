@@ -59,7 +59,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
       return h('figure', { class: `cell image${lone ? ' lone' : ''}${item.objectFit === 'contain' ? ' contain' : ''}` }, btn)
     }
 
-    const cls = `cell video ${item.orientation === 'horizontal' ? 'horizontal' : 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}`
+    const cls = `cell video ${item.orientation ?? 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}${item.size === 'medium' ? ' medium' : ''}`
     if (item.kind === 'embed') {
       return h(
         'div',
@@ -97,12 +97,14 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
   const cells = media.map((item) => {
     if (item.type === 'row') {
       const row = h('div', { class: 'row' }, ...item.items.map((m) => cell(m, false)))
-      row.style.setProperty('--n', String(item.items.length))
+      row.style.setProperty('--n', String(item.cols?.wide ?? item.items.length))
+      row.style.setProperty('--n-narrow', String(item.cols?.narrow ?? item.items.length))
       return row
     }
-    // A single item, or the last of an odd count, gets the full row.
+    // A single item, or the last of an odd count, gets the full row; so does a medium one, centred in it.
     const i = loose.indexOf(item)
-    return cell(item, loose.length === 1 || (loose.length % 2 === 1 && i === loose.length - 1))
+    const medium = item.type === 'video' && item.size === 'medium'
+    return cell(item, !medium && (loose.length === 1 || (loose.length % 2 === 1 && i === loose.length - 1)))
   })
 
   return h('div', { class: 'media' }, ...cells)

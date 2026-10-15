@@ -77,11 +77,18 @@ for (const c of CATEGORIES) {
 // The vfx category's one child opens into the reel where it stands, at /reel/ so
 // that the open player can be linked.
 const REEL_SLUG = 'reel'
+// Its picture is the reel's own first seconds, looping; two lines of words under the title.
+const reelLoop = h(
+  'video',
+  { class: 'loop', src: REEL.loop, poster: '/thumbs/reel.jpg', autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+)
+reelLoop.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
 const reelFace = h(
   'a',
   { class: 'tile child', href: REEL.src, target: '_blank', rel: 'noreferrer' },
-  h('img', { src: '/thumbs/reel.jpg', alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async' }),
+  reelLoop,
   h('span', {}, h('b', {}, REEL.title)),
+  h('p', { class: 'reel-note' }, REEL.note),
 )
 const reel = createReel(
   reelFace,
@@ -91,9 +98,11 @@ const reel = createReel(
       sync() // for the title; the player is already open, so this changes nothing else
     }
     markSeen(REEL_SLUG)
+    reelLoop.pause()
     map.fit(at)
   },
   (panned) => {
+    void reelLoop.play().catch(() => {})
     if (slugNow() !== REEL_SLUG) return
     history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
     sync()

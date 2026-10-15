@@ -9,9 +9,11 @@ export type ProjectMediaVideo = {
   src: string
   title?: string
   thumbnail?: string
-  orientation?: 'vertical' | 'horizontal'
+  orientation?: 'vertical' | 'horizontal' | 'square'
   /** Plays by itself, silent and without controls, over and over: a short study rather than a film */
   loop?: boolean
+  /** A row of its own at a middling width, centred: the lead piece above smaller ones */
+  size?: 'medium'
 }
 
 export type ProjectMediaImage = {
@@ -22,8 +24,11 @@ export type ProjectMediaImage = {
   objectFit?: 'cover' | 'contain'
 }
 
-/** Items side by side across the full width of the grid, as many columns as there are items */
-export type ProjectMediaRow = { type: 'row'; items: (ProjectMediaVideo | ProjectMediaImage)[] }
+/**
+ * Items side by side across the full width of the grid: as many columns as there
+ * are items, or `cols` across (wrapping) on a wide screen and a phone.
+ */
+export type ProjectMediaRow = { type: 'row'; items: (ProjectMediaVideo | ProjectMediaImage)[]; cols?: { wide: number; narrow: number } }
 
 export type ProjectMediaItem = ProjectMediaVideo | ProjectMediaImage | ProjectMediaRow
 
@@ -389,6 +394,24 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
         ],
       },
+      // Loaders, small: five across, three on a phone.
+      {
+        type: 'row',
+        cols: { wide: 5, narrow: 3 },
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-rope-3.mp4', thumbnail: '/knock/loaders/v1-rope-3.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/batch2-golf.mp4', thumbnail: '/knock/loaders/batch2-golf.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-conductor-1.mp4', thumbnail: '/knock/loaders/v1-conductor-1.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/batch2-dizzy1.mp4', thumbnail: '/knock/loaders/batch2-dizzy1.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/batch2-magic-1.mp4', thumbnail: '/knock/loaders/batch2-magic-1.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-timberwalk-1.mp4', thumbnail: '/knock/loaders/v1-timberwalk-1.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/batch2-thumbs.mp4', thumbnail: '/knock/loaders/batch2-thumbs.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-cudedance-loop-2.mp4', thumbnail: '/knock/loaders/v1-cudedance-loop-2.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-walkcycle-1.mp4', thumbnail: '/knock/loaders/v1-walkcycle-1.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/v1-flippingclean.mp4', thumbnail: '/knock/loaders/v1-flippingclean.jpg', title: 'Loader', orientation: 'square', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/loaders/batch2-flipping.mp4', thumbnail: '/knock/loaders/batch2-flipping.jpg', title: 'Loader', orientation: 'square', loop: true },
+        ],
+      },
       { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
     ],
     description: `Knock does many things. I worked on knock.cards: a business card that is a link, with your face, your role and the buttons that start a conversation.
@@ -408,24 +431,30 @@ Then I implemented those assets as React components, and fine-tuned them for des
     subtitle: 'A social media app for close friends. Product lead, design and iOS.',
     tags: ['product', 'design', 'ios', 'swiftui'],
     thumbnail: { src: '/remy/tile.jpg', alt: 'The Remy invite card on an iPhone' },
-    // ponytail: interim media from the shipped app; swap in the mockups, the onboarding loops and the landing page video when they arrive.
+    // ponytail: interim media from the shipped app; swap in the mockups and the landing page video when they arrive.
     media: [
+      { type: 'video', kind: 'file', src: '/remy/onboarding.mp4', thumbnail: '/remy/onboarding.jpg', title: 'Gamified onboarding', loop: true, size: 'medium' },
       {
         type: 'row',
         items: [
           { type: 'video', kind: 'file', src: '/remy/scroll.mp4', thumbnail: '/remy/scroll.jpg', title: 'The feed', loop: true },
           { type: 'video', kind: 'file', src: '/remy/scroll-dark.mp4', thumbnail: '/remy/scroll-dark.jpg', title: 'The feed, dark', loop: true },
           { type: 'video', kind: 'file', src: '/remy/pause.mp4', thumbnail: '/remy/pause.jpg', title: 'Pause mode', loop: true },
+          { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post', loop: true },
         ],
       },
-      { type: 'video', kind: 'file', src: '/remy/onboarding.mp4', thumbnail: '/remy/onboarding.jpg', title: 'Onboarding' },
-      { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post' },
     ],
     description: `Remy is a social media app for close friends.
 
 ## My part
 
-I was the product lead and the designer, and I wrote iOS code.`,
+I was the product lead and the designer, and I wrote iOS code.
+
+## Lorem ipsum
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.`,
   },
 ]
 
@@ -437,7 +466,7 @@ I was the product lead and the designer, and I wrote iOS code.`,
  */
 export const CATEGORIES = [
   { id: 'ux', title: 'ux/ui', children: ['knock', 'remy'] },
-  { id: 'vfx', title: 'vfx', children: ['reel'] },
+  { id: 'vfx', title: 'visual effects & 3d', children: ['reel'] },
   { id: 'electronics', title: 'electronics', children: ORDER },
 ]
 export type Category = (typeof CATEGORIES)[number]
@@ -533,4 +562,12 @@ export const ISLANDS: Island[] = [
 ]
 
 /** The vfx reel, and its tile's title. At 70 MB it is over this host's 25 MiB limit per file, so it is a file of the QR Worker's (R2, served with ranges). */
-export const REEL = { src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4', poster: '/reel/poster.jpg', title: 'watch my reel' }
+export const REEL = {
+  src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4',
+  poster: '/reel/poster.jpg',
+  title: 'watch my reel',
+  /** The tile's picture: the reel's first seconds, square, looping */
+  loop: '/reel/start.mp4',
+  /** Two lines under the tile */
+  note: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do.',
+}

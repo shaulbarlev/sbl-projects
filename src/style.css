@@ -253,7 +253,7 @@ iframe {
   opacity: 0;
   pointer-events: none;
 }
-.tile.reel video {
+.tile.reel > video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1177,6 +1177,20 @@ body.has-project .back-node {
   grid-template-columns: repeat(var(--n), minmax(0, 1fr));
   gap: 0.75rem;
 }
+@media (max-width: 699px) {
+  .media > .row {
+    grid-template-columns: repeat(var(--n-narrow), minmax(0, 1fr));
+  }
+}
+/* the lead piece: a row of its own, middling, centred */
+.cell.medium {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 20rem);
+}
+.cell.square video {
+  aspect-ratio: 1;
+}
 .cell.loop video {
   pointer-events: none;
   object-fit: cover;
@@ -1195,4 +1209,34 @@ body.has-project .back-node {
 }
 body.has-project .card-dim {
   opacity: 0.18;
+}
+
+/* the reel's tile: its first seconds looping where a picture would be, and a note under the title */
+.reel-face video.loop {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--grey);
+}
+.reel-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+@media (max-width: 699px) {
+  .tile.category > span {
+    font-size: 15px;
+  }
+}
+/* white app screens on a white card: rounded, with a hairline, so they keep their edges */
+.cell.video {
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.cell.video video {
+  border-radius: inherit;
+}
+.cell.square {
+  border-radius: 10px;
 }
