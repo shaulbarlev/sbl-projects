@@ -415,16 +415,14 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
       },
       { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
     ],
-    description: `Knock does many things. I worked on knock.cards: a business card that is a link, with your face, your role and the buttons that start a conversation.
+    description: `## Knock Card
 
-## Designed in 3D
+I designed and implemented Knock Cards: a personal virtual business card. Customizable and luxurious. I used Blender to design and render it in 3D, for that fine glassy feeling.
 
-The card arrives as an object. It flies in, turns and settles, in glass, matte or paper. I designed and animated it in the traditional tools, Blender and After Effects.
+## Loaders for Knock AI
 
-## Built as code
-
-Then I implemented those assets as React components, and fine-tuned them for desktop and mobile with bandwidth in mind. A card is mostly opened on a phone, so it has to look right without costing much to load.`,
-    cta: { label: 'Create your own knock.cards', href: 'https://knock.cards' },
+These loaders were created using a mix of traditional and AI techniques. The character was designed entirely with AI, animated using AI tools, and fine-tuned in After Effects for precise looping.`,
+    cta: { label: 'Create your Knock Card', href: 'https://knock.cards' },
   },
   {
     id: 'remy',
