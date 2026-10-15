@@ -4,7 +4,7 @@ Source of [shaulb.com](https://shaulb.com): work in three categories, ux/ui, vfx
 and electronics, on a 2D plane you explore like a map.
 
 - **Categories**: the landing is the wordmark with three title-only tiles stacked
-  under it. Opening one (`/ux/`, `/vfx/`, `/electronics/`, a history entry of its
+  under it. Opening one (`/ux/`, `/reel/` for visual effects, `/electronics/`, a history entry of its
   own) sinks the rest of the map back and dims it, and shoots the category's
   children out of it into an even grid below the column (four across, two on a
   phone), tied to it by threads. A tap on nothing, the open category, the back

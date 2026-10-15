@@ -28,7 +28,7 @@ export type Island = { id: string; w: number; h: number }
 
 /** Sizes and spacing: phones get smaller tiles, two to a row. */
 export type Profile = {
-  /** A category: a title-only tile, and the gap between them in the column */
+  /** A category: a title-only tile, the gap between them in the column, and (`top`) the same gap under the wordmark */
   category: { w: number; h: number; gap: number; /** below the wordmark block */ top: number }
   /** A category's children: one size, `cols` across, starting `top` below the column */
   grid: { size: number; cols: number; gap: number; top: number }
@@ -48,7 +48,7 @@ export type Profile = {
 
 export const WIDE: Profile = {
   // as wide as the wordmark's block above them
-  category: { w: 286, h: 52, gap: 22, top: 36 },
+  category: { w: 286, h: 52, gap: 11, top: 11 },
   grid: { size: 240, cols: 4, gap: 36, top: 90 },
   home: { w: 286, h: 174, drop: 0 },
   label: 72,
@@ -59,7 +59,7 @@ export const WIDE: Profile = {
 }
 
 export const NARROW: Profile = {
-  category: { w: 207, h: 46, gap: 14, top: 26 },
+  category: { w: 207, h: 46, gap: 7, top: 7 },
   grid: { size: 160, cols: 2, gap: 16, top: 60 },
   home: { w: 207, h: 126, drop: 0 },
   label: 64,

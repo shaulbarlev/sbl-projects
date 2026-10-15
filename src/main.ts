@@ -7,7 +7,7 @@ import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
 import { renderProject } from './project'
-import { CATEGORIES, ISLANDS, PROJECTS, REEL, categoryOf, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
+import { CATEGORIES, ISLANDS, PROJECTS, REEL, categoryOf, categoryPath, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
 import { host as embedHost } from '../shared/embed.js'
 
@@ -60,7 +60,7 @@ for (const c of CATEGORIES) {
   // Liquid glass: a warped, blurred backdrop, a tint and a shine under the title (style.css).
   const a = h(
     'a',
-    { class: 'tile category glass', href: `/${c.id}/` },
+    { class: 'tile category glass', href: categoryPath(c) },
     h('i', { class: 'glass-effect' }),
     h('i', { class: 'glass-tint' }),
     h('i', { class: 'glass-shine' }),
@@ -75,8 +75,8 @@ for (const c of CATEGORIES) {
   rootLayer.append(a)
 }
 
-// The vfx category's one child opens into the reel where it stands, at /reel/ so
-// that the open player can be linked.
+// The vfx category's one child opens into the reel where it stands. The category itself
+// lives at /reel/; opening the player does not change the address.
 const REEL_SLUG = 'reel'
 // Its picture is the reel's own first seconds, looping; two lines of words under the title.
 const reelLoop = h(
@@ -94,18 +94,11 @@ const reelFace = h(
 const reel = createReel(
   reelFace,
   (at) => {
-    if (slugNow() !== REEL_SLUG) {
-      history.replaceState(history.state, '', `/${REEL_SLUG}/`)
-      sync() // for the title; the player is already open, so this changes nothing else
-    }
     reelLoop.pause()
     map.fit(at)
   },
   (panned) => {
     void reelLoop.play().catch(() => {})
-    if (slugNow() !== REEL_SLUG) return
-    history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
-    sync()
     // Shut on purpose, the map goes back to the category; panned away, it stays where it was taken.
     if (!panned && openCat) frameChildren(openCat)
   },
@@ -506,8 +499,9 @@ function frameChildren(id: string) {
 const CAT_STATE = { category: true }
 function goCategory(id: string) {
   if (openCat === id) return closeCategory()
-  if (history.state?.category) history.replaceState(CAT_STATE, '', `/${id}/`)
-  else history.pushState(CAT_STATE, '', `/${id}/`)
+  const path = categoryPath(CATEGORIES.find((c) => c.id === id)!)
+  if (history.state?.category) history.replaceState(CAT_STATE, '', path)
+  else history.pushState(CAT_STATE, '', path)
   sync()
 }
 function closeCategory() {
@@ -546,10 +540,11 @@ const later = (ms: number, fn: () => void) => (ms ? window.setTimeout(fn, ms) : 
 function sync() {
   const slug = slugNow()
   const project = findProject(slug)
-  const onReel = slug === REEL_SLUG
   const cat = categoryOf(project?.id ?? slug) ?? null
+  // A category reached by its id where it has an address of its own (/vfx/): the address it has.
+  if (cat && !project && location.pathname !== categoryPath(cat)) history.replaceState(history.state, '', categoryPath(cat))
   closeLightbox()
-  document.title = project ? `${project.title} — shaul bar-lev` : onReel ? `Reel — shaul bar-lev` : cat ? `${cat.title} — shaul bar-lev` : SITE_TITLE
+  document.title = project ? `${project.title} — shaul bar-lev` : cat ? `${cat.title} — shaul bar-lev` : SITE_TITLE
   let wait = 0
   if ((cat?.id ?? null) !== openCat) {
     // Whatever was open inside the old category goes with it, at once.
@@ -558,7 +553,7 @@ function sync() {
       card = null
       open.close(true)
     }
-    if (reel.isOpen && !onReel) reel.close()
+    if (reel.isOpen) reel.close()
     if (openCat) fold(openCat)
     if (cat) {
       unfold(cat.id)
@@ -572,14 +567,6 @@ function sync() {
     }
   }
   backButton.hidden = cat === null
-  // The reel answers to the address too, so back and forward fold and unfold it.
-  if (onReel && !reel.isOpen)
-    later(wait, () => {
-      if (slugNow() !== REEL_SLUG || reel.isOpen) return
-      const at = reel.open()
-      if (at) map.fit(at)
-    })
-  else if (!onReel && reel.isOpen) reel.close()
   later(wait, syncCard)
 }
 
@@ -643,7 +630,8 @@ function syncCard() {
 
 /** Back to the category the project is in, not out of it, and (shut on purpose) to the view of it */
 function closeProject(panned = false) {
-  history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
+  const open = CATEGORIES.find((c) => c.id === openCat)
+  history.replaceState(history.state, '', open ? categoryPath(open) : '/')
   sync()
   if (!panned && openCat) frameChildren(openCat)
 }

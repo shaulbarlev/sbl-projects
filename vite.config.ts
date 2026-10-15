@@ -23,7 +23,7 @@ function projectPages(): Plugin {
     },
     async closeBundle() {
       const template = await readFile(resolve(outDir, 'index.html'), 'utf8')
-      const categories = CATEGORIES.map((c) => ({ id: c.id, title: `${c.title} — shaul bar-lev`, subtitle: 'Design, film, electronics', image: `${SITE}/og-image.jpg`, w: '1200', h: '630', card: 'summary_large_image' }))
+      const categories = CATEGORIES.map((c) => ({ id: c.path ?? c.id, title: `${c.title} — shaul bar-lev`, subtitle: 'Design, film, electronics', image: `${SITE}/og-image.jpg`, w: '1200', h: '630', card: 'summary_large_image' }))
       const projects = PROJECTS.map((p) => ({ id: p.id, title: p.title, subtitle: p.subtitle ?? p.title, image: `${SITE}/thumbs/${p.id}.jpg`, w: '640', h: '640', card: 'summary' }))
       // shaulb.com/pikud: Pikud HaoLED with its own Hebrew share card, written as dist/pikud.html
       const pikud = {

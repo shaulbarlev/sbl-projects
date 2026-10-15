@@ -496,16 +496,26 @@ As product engineering lead on Remy, I focused on making Remy feel safe, easy to
  * `children` are project ids in map order (earlier = nearer the top), and
  * `reel` stands for the reel's own tile.
  */
-export const CATEGORIES = [
+export type Category = {
+  id: string
+  title: string
+  children: string[]
+  /** Its children are 16:9 and two columns wide */
+  wide?: boolean
+  /** Its address, when not its id (the id still finds it, and is rewritten to this) */
+  path?: string
+}
+export const CATEGORIES: Category[] = [
   { id: 'ux', title: 'ux/ui', children: ['knock', 'remy'] },
-  // the reel's tile is a film frame: 16:9, two columns wide
-  { id: 'vfx', title: 'visual effects & 3d', children: ['reel'], wide: true },
+  // the reel's tile is a film frame: 16:9, two columns wide; the category lives at /reel/
+  { id: 'vfx', title: 'visual effects & 3d', children: ['reel'], wide: true, path: 'reel' },
   { id: 'electronics', title: 'electronics', children: ORDER },
 ]
-export type Category = (typeof CATEGORIES)[number]
 
-/** The category a project, the reel or a category itself belongs to */
-export const categoryOf = (id: string): Category | undefined => CATEGORIES.find((c) => c.id === id || c.children.includes(id))
+/** The category a project, the reel, a category or a category's address belongs to */
+export const categoryOf = (id: string): Category | undefined => CATEGORIES.find((c) => c.id === id || c.path === id || c.children.includes(id))
+/** A category's address: /<path>/ */
+export const categoryPath = (c: Category) => `/${c.path ?? c.id}/`
 
 const rank = (p: Project) => {
   const i = ORDER.indexOf(p.id)
