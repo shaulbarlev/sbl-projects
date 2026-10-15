@@ -1191,7 +1191,7 @@ body.has-project .card-dim {
 /* the reel's tile: its first seconds looping where a picture would be, and a note under the title */
 .reel-face video.loop {
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   background: var(--grey);
 }
@@ -1252,5 +1252,23 @@ body.has-project .card-dim {
   }
   .tile.category > span {
     font-size: 16px;
+  }
+}
+/* the reel tile's title sits a level deeper (inside its face link) than other tiles' titles: the same look */
+.reel-face > span {
+  display: block;
+  padding: 0.6rem 0 0.25rem;
+  font-family: var(--pixel);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #000;
+}
+.reel-face > span b {
+  font-weight: inherit;
+}
+@media (max-width: 699px) {
+  .reel-face > span {
+    font-size: 14px;
   }
 }

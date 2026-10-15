@@ -80,7 +80,7 @@ const REEL_SLUG = 'reel'
 // Its picture is the reel's own first seconds, looping; two lines of words under the title.
 const reelLoop = h(
   'video',
-  { class: 'loop', src: REEL.loop, poster: '/thumbs/reel.jpg', autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+  { class: 'loop', src: REEL.loop, poster: '/reel/start.jpg', autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
 )
 reelLoop.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
 const reelFace = h(

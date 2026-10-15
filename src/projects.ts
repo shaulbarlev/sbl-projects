@@ -468,7 +468,8 @@ Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
  */
 export const CATEGORIES = [
   { id: 'ux', title: 'ux/ui', children: ['knock', 'remy'] },
-  { id: 'vfx', title: 'visual effects & 3d', children: ['reel'] },
+  // the reel's tile is a film frame: 16:9, two columns wide
+  { id: 'vfx', title: 'visual effects & 3d', children: ['reel'], wide: true },
   { id: 'electronics', title: 'electronics', children: ORDER },
 ]
 export type Category = (typeof CATEGORIES)[number]
@@ -568,7 +569,7 @@ export const REEL = {
   src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4',
   poster: '/reel/poster.jpg',
   title: 'watch my reel',
-  /** The tile's picture: the reel's first seconds, square, looping */
+  /** The tile's picture: the reel's first seconds, 16:9, looping */
   loop: '/reel/start.mp4',
   /** Two lines under the tile */
   note: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do.',

@@ -95,7 +95,7 @@ function overlaps(a: Rect, b: Rect, gap: number) {
  * world is sized for the largest of them from the start, so opening one moves
  * nothing.
  */
-export function scatter(categories: { id: string; children: string[] }[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
+export function scatter(categories: { id: string; children: string[]; wide?: boolean }[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
   const { label, margin, aspect, link, island, category, grid } = profile
   const rand = mulberry32(seed)
   // Placed around home at the origin; the world is fitted to the result below.
@@ -119,16 +119,18 @@ export function scatter(categories: { id: string; children: string[] }[], linkId
   })
 
   // Rows of `cols`, the last row centred; the label sits under each picture.
-  const pitch = grid.size + grid.gap
-  const rowPitch = grid.size + label + grid.gap
   const children: Record<string, Tile[]> = {}
   const gridRects: Rect[] = []
-  for (const { id, children: ids } of categories) {
+  for (const { id, children: ids, wide } of categories) {
+    // A wide category's tiles are 16:9 and two columns across, one to a row.
+    const w = wide ? grid.size * 2 + grid.gap : grid.size
+    const h = wide ? Math.round((w * 9) / 16) : grid.size
+    const cols = wide ? 1 : grid.cols
     children[id] = ids.map((child, i) => {
-      const row = Math.floor(i / grid.cols)
-      const inRow = Math.min(grid.cols, ids.length - row * grid.cols)
-      const x = -(inRow * pitch - grid.gap) / 2 + (i % grid.cols) * pitch
-      return { id: child, x: Math.round(x), y: Math.round(columnEnd + grid.top + row * rowPitch), w: grid.size, h: grid.size }
+      const row = Math.floor(i / cols)
+      const inRow = Math.min(cols, ids.length - row * cols)
+      const x = -(inRow * (w + grid.gap) - grid.gap) / 2 + (i % cols) * (w + grid.gap)
+      return { id: child, x: Math.round(x), y: Math.round(columnEnd + grid.top + row * (h + label + grid.gap)), w, h }
     })
     gridRects.push(...children[id].map((t) => ({ ...t, h: t.h + label })))
   }

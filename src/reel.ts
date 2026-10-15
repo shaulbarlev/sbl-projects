@@ -2,9 +2,9 @@ import { h } from './dom'
 import type { Rect } from './layout'
 import { REEL } from './projects'
 
-/** How many times wider the tile gets (less on a phone, whose tile is already a third of the screen), and the shape it takes: the reel's */
-const GROW = 4
-const GROW_NARROW = 2.4
+/** How many times wider the tile gets (on a phone it is already about the width of the screen), and the shape it takes: the reel's */
+const GROW = 2
+const GROW_NARROW = 1.1
 const ASPECT = 16 / 9
 /** How much of the open reel may leave the view before it folds */
 const KEEP = 0.3
