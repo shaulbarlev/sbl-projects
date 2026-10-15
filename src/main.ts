@@ -56,7 +56,15 @@ document.querySelector('.links')?.remove()
 // The categories: title-only tiles in a column under the wordmark. Each is a link to
 // its own address, so it can be opened in a new tab, shared, and stepped back from.
 for (const c of CATEGORIES) {
-  const a = h('a', { class: 'tile category', href: `/${c.id}/` }, h('span', {}, h('b', {}, c.title)))
+  // Liquid glass: a warped, blurred backdrop, a tint and a shine under the title (style.css).
+  const a = h(
+    'a',
+    { class: 'tile category glass', href: `/${c.id}/` },
+    h('i', { class: 'glass-effect' }),
+    h('i', { class: 'glass-tint' }),
+    h('i', { class: 'glass-shine' }),
+    h('span', {}, h('b', {}, c.title)),
+  )
   a.addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return
     e.preventDefault()

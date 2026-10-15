@@ -32,7 +32,7 @@ export type Profile = {
   category: { w: number; h: number; gap: number; /** below the wordmark block */ top: number }
   /** A category's children: one size, `cols` across, starting `top` below the column */
   grid: { size: number; cols: number; gap: number; top: number }
-  /** The wordmark block: its size, and how far its box sits below the logo's centre (half the hint line under it) */
+  /** The wordmark block: its size, and how far its box sits below the logo's centre */
   home: { w: number; h: number; drop: number }
   /** Room under each tile for its title, up to three lines */
   label: number
@@ -49,7 +49,7 @@ export type Profile = {
 export const WIDE: Profile = {
   category: { w: 240, h: 52, gap: 22, top: 36 },
   grid: { size: 240, cols: 4, gap: 36, top: 90 },
-  home: { w: 240, h: 184, drop: 21 },
+  home: { w: 240, h: 141, drop: 0 },
   label: 72,
   margin: 300,
   aspect: 1.35,
@@ -60,7 +60,7 @@ export const WIDE: Profile = {
 export const NARROW: Profile = {
   category: { w: 180, h: 46, gap: 14, top: 26 },
   grid: { size: 160, cols: 2, gap: 16, top: 60 },
-  home: { w: 176, h: 137, drop: 17 },
+  home: { w: 176, h: 102, drop: 0 },
   label: 64,
   margin: 120,
   aspect: 0.8,
