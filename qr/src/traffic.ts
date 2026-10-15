@@ -136,7 +136,11 @@ export function renderTraffic(bare = false): string {
   /* Embedded: sized by content (the page reports its height to the frame, so it must
      be the content's, not the frame's), the name field in the flow under the light. */
   ${bare ? 'html { height: auto; }' : ''}
-  body.bare { height: auto; min-height: 0; padding: 12px 0 8px; }
+  /* Room above the light for a lit lamp's glow, which the frame would otherwise cut flat. */
+  body.bare { height: auto; min-height: 0; padding: 48px 0 8px; }
+  /* No drop shadow: the site it sits on is white now, where it read as a grey smudge cut off at
+     the frame's edges. The inner highlight stays. */
+  body.bare .housing { box-shadow: inset 0 2px 0 rgba(255,255,255,.06); }
   body.bare main { gap: 16px; }
   body.bare .who { position: static; margin-top: 16px; }
   .who .field { position: relative; display: flex; }

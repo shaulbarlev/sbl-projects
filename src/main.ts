@@ -157,6 +157,17 @@ for (const island of ISLANDS) {
         if (box) boxes.set(island.id, box)
         const at = world.islands.find((t) => t.id === island.id)
         if (!at) return
+        // The peeking island is placed by what is drawn in it, not by its frame, which is wider:
+        // the light's own left edge is what shows at the right of the home view.
+        if (box && island.id === PEEK_ID) {
+          const p = peek()
+          const x = Math.round(world.origin.x + p.view / 2 - p.px - box.x)
+          if (x !== at.x) {
+            at.x = x
+            el.style.left = `${x}px`
+            map.redraw()
+          }
+        }
         // The page reports on every lamp change; only a new size moves anything.
         if (Math.abs(at.h - height) > 2) {
           at.h = height
@@ -205,13 +216,15 @@ function unshelve(id: string) {
 
 // The traffic light peeks in at the right of the landing view: its left edge, placed for
 // the window's width at load (and again when the layout changes).
+const PEEK_ID = 'traffic'
+const peek = () => ({ id: PEEK_ID, view: $('map').clientWidth || innerWidth, px: narrow.matches ? 44 : 72 })
 const layout = () =>
   scatter(
     CATEGORIES,
     links.map((a) => a.dataset.id!),
     ISLANDS,
     narrow.matches ? NARROW : WIDE,
-    { id: 'traffic', view: $('map').clientWidth || innerWidth, px: narrow.matches ? 44 : 72 },
+    peek(),
   )
 let world = layout()
 /** What is always on the map, and what only comes out with its category */
