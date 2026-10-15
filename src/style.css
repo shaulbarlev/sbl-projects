@@ -1265,3 +1265,7 @@ body.has-project .card-dim {
     font-size: 14px;
   }
 }
+/* a child is solid, title and all, so the threads run behind it rather than through its title */
+.tile.child {
+  background: var(--bg);
+}
