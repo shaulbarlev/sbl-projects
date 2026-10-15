@@ -150,8 +150,8 @@ export function scatter(
   // The outskirts: each island starts beyond everything else, in a direction of its own, and is pushed out until clear.
   const all = [...taken, ...gridRects]
   const reach = Math.max(0, ...all.map((t) => Math.hypot(t.x + t.w / 2, t.y + t.h / 2) + Math.max(t.w, t.h) / 2))
-  // Home's middle, as the camera will centre it (the origin below, before the shift).
-  const homeY = (Math.min(home.y, ...links.map((t) => t.y)) + columnEnd) / 2
+  // Home is the wordmark's middle: the camera centres it, and the opening zooms in on it.
+  const homeY = home.y + home.h / 2
   const islands = islandList.map(({ id, w, h }): Tile => {
     const angle = rand() * Math.PI * 2
     const size = { w: Math.round(w * island.scale), h: Math.round(h * island.scale) }
@@ -174,9 +174,12 @@ export function scatter(
   // Even either side of home: a view wider than the world centres the world, and home must be in that centre.
   const half = Math.max(-Math.min(...every.map((t) => t.x)), Math.max(...every.map((t) => t.x + t.w))) + margin
   const left = -half
-  const top = Math.min(...every.map((t) => t.y)) - margin
   const right = half
-  const bottom = Math.max(...every.map((t) => t.y + t.h)) + margin
+  // Even above and below home too: home is the world's middle, so the camera's edges never
+  // push it off home (at the landing, or anywhere in the opening's zoom).
+  const halfH = Math.max(homeY - Math.min(...every.map((t) => t.y)), Math.max(...every.map((t) => t.y + t.h)) - homeY) + margin
+  const top = homeY - halfH
+  const bottom = homeY + halfH
   const shift = <T extends Rect>(r: T): T => ({ ...r, x: r.x - left, y: r.y - top })
   const shifted = shift(home)
   const categoriesShifted = cats.map(shift)
@@ -185,7 +188,6 @@ export function scatter(
     w: right - left,
     h: bottom - top,
     home: shifted,
-    // Home is the link row, the wordmark and its column: all in view, centred together.
     origin: { x: -left, y: homeY - top },
     links: links.map(shift),
     categories: categoriesShifted,

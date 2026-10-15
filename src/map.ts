@@ -68,7 +68,11 @@ export function createMap(opts: {
   /** Every flight's duration is scaled by this: 1 normally, less while a deep link arrives */
   let pace = 1
 
-  /** The camera pulled back inside the world; where the world is the smaller one, centred on it. */
+  /**
+   * The camera pulled back inside the world. Where the world is the smaller one, it may sit
+   * anywhere that keeps all of it in view (not only on its middle): so the opening's wide shot
+   * can centre on home, and zoom in on it without sliding sideways.
+   */
   function bounded(c: Camera): Camera {
     const z = clamp(c.z, MIN_ZOOM, MAX_ZOOM)
     const halfW = vw / z / 2
@@ -76,8 +80,8 @@ export function createMap(opts: {
     const W = worldW()
     const H = worldH()
     return {
-      x: W > halfW * 2 ? clamp(c.x, halfW, W - halfW) : W / 2,
-      y: H > halfH * 2 ? clamp(c.y, halfH, H - halfH) : H / 2,
+      x: W > halfW * 2 ? clamp(c.x, halfW, W - halfW) : clamp(c.x, W - halfW, halfW),
+      y: H > halfH * 2 ? clamp(c.y, halfH, H - halfH) : clamp(c.y, H - halfH, halfH),
       z,
     }
   }
@@ -485,7 +489,9 @@ export function createMap(opts: {
     overview() {
       halt()
       Object.assign(cam, { ...home, z: Math.min(vw / world.w, vh / world.h, 1) })
-      render()
+      // Not pulled back inside the world: the shot is centred on home, the flight in from it
+      // keeps home there (it moves only the zoom), and the bounds apply again once it lands.
+      render(true)
     },
     goHome: (ms?: number) => flyTo({ ...home, z: 1 }, ms),
     /** `ms` 0 cuts straight there, for when the map is not on screen */
