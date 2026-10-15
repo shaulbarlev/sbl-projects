@@ -97,7 +97,6 @@ const reel = createReel(
       history.replaceState(history.state, '', `/${REEL_SLUG}/`)
       sync() // for the title; the player is already open, so this changes nothing else
     }
-    markSeen(REEL_SLUG)
     reelLoop.pause()
     map.fit(at)
   },
@@ -374,23 +373,6 @@ animateLogo($('logo'))
 // A tap on the wordmark centres the map on it again (and replays its flicker).
 $('logo').addEventListener('click', goHome)
 
-// --- what has been opened before: red marks the unexplored, on tiles, minimap and edge markers
-const SEEN_KEY = 'seen'
-const seen = new Set<string>(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]'))
-function markSeen(id: string) {
-  seen.add(id)
-  localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
-  tiles.get(id)?.classList.add('seen')
-  map.markSeen(id)
-  // A category is seen once everything in it is.
-  for (const c of CATEGORIES) {
-    if (!c.children.every((child) => seen.has(child))) continue
-    tiles.get(c.id)?.classList.add('seen')
-    map.markSeen(c.id)
-  }
-}
-seen.forEach(markSeen)
-
 // --- categories: one open at a time. Opening one sinks the root and shoots the
 // children out of the category; they fold back into it when it closes.
 let openCat: string | null = null
@@ -615,7 +597,6 @@ function syncCard() {
       },
     })
     card = opened
-    markSeen(project.id)
   }
   if (!project) {
     opener?.focus({ preventScroll: true })

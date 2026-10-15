@@ -26,10 +26,8 @@ and electronics, on a 2D plane you explore like a map.
   a live page from elsewhere in a frame: the traffic light at home is the very
   page sbl.cx/traffic serves, its bare copy (`?bare`, no background), so the
   lamps, socket, name field, party button and master switch are that page's own.
-- **Finding your way**: red marks what has not been opened yet (a category, until
-  everything in it has been), on the tiles, on
-  the minimap and on the small markers at the edge of the screen that point at
-  tiles out of view (tap one to fly there). Dragging past the edge of the world
+- **Finding your way**: the minimap, and small markers at the edge of the screen
+  that point at tiles out of view (tap one to fly there). Dragging past the edge of the world
   rubber-bands. Every visit opens on the whole field while the
   root's tiles scatter out from the logo.
 - **Projects** live in the map. Tapping a tile grows it, where it stands, into a
@@ -71,6 +69,6 @@ start, so the world is the size of the largest and opening one moves nothing.
 | `src/map.ts` | camera, drag / pinch / wheel input, inertia, rubber-band edges, minimap, edge markers |
 | `src/project.ts` | project view (modal or page), `src/lightbox.ts` image viewer |
 | `src/card.ts` | a tile growing into its page-shaped card in map space, and folding back |
-| `src/main.ts` | wiring, categories (sink, cascade, threads), routing, the opening sequence, seen state |
+| `src/main.ts` | wiring, categories (sink, cascade, threads), routing, the opening sequence |
 | `src/reel.ts` | the vfx tile opening into the reel |
 | `vite.config.ts` | also writes `dist/<id>/index.html` per project and per category, so their URLs work on any static host and share with their own title and image |

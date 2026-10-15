@@ -48,7 +48,6 @@ export function createMap(opts: {
   const cam: Camera = { ...home, z: 1 }
   let vw = 0
   let vh = 0
-  const seen = new Set<string>()
   // An island that is a light: its lamps, drawn on the minimap as circles.
   const lamps = new Map<string, { color: string; on: boolean }[]>()
   const lampDots = new Map<string, HTMLElement>()
@@ -106,7 +105,6 @@ export function createMap(opts: {
       m.addEventListener('click', () => flyTo(centre(t), 600))
       pointersTo.set(t.id, m)
     }
-    for (const id of seen) markSeen(id)
     minimap.style.aspectRatio = `${world.w} / ${world.h}`
     lampDots.clear()
     const islandDots = world.islands.map((t) => {
@@ -131,12 +129,6 @@ export function createMap(opts: {
         return i
       }),
     )
-  }
-
-  function markSeen(id: string) {
-    seen.add(id)
-    dots.get(id)?.classList.add('seen')
-    pointersTo.get(id)?.classList.add('seen')
   }
 
   /** `soft` leaves the camera where it is even if that is past the edge (mid-drag, or springing back). */
@@ -439,7 +431,6 @@ export function createMap(opts: {
       Object.assign(cam, home, { z: 1 })
       render()
     },
-    markSeen,
     viewport: () => ({ w: vw, h: vh }),
     /** Stretch the world to hold `r` (null to let go); the plane is the caller's to resize */
     reach(r: Rect | null) {
