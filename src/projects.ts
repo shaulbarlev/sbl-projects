@@ -389,10 +389,10 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/white-matte.mp4', thumbnail: '/knock/white-matte.jpg', title: 'White matte', loop: true },
         ],
       },
-      // Loaders, small: five across, three on a phone.
+      // Loaders, small: five across, four on a phone.
       {
         type: 'row',
-        cols: { wide: 5, narrow: 3 },
+        cols: { wide: 5, narrow: 4 },
         items: [
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-rope-3.mp4', thumbnail: '/knock/loaders/v1-rope-3.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-golf.mp4', thumbnail: '/knock/loaders/batch2-golf.jpg', title: 'Loader', orientation: 'square', loop: true },
