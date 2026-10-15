@@ -117,6 +117,7 @@ iframe {
   /* the wordmark as it was, white on black: a block of the old site on the new one */
   padding: 0.3em 0.45em;
   background: #000;
+  border-radius: 18px;
 }
 
 .tile[hidden],
@@ -404,6 +405,7 @@ iframe {
   color: #fff;
   background: #000;
   border: 0;
+  border-radius: 10px;
 }
 .home-button:hover {
   border-color: var(--line-strong);
