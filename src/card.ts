@@ -28,6 +28,8 @@ export type Card = {
   close(instant?: boolean): void
   /** Folds the card if `view` has mostly left it (called after every move) */
   check(view: Rect): void
+  /** True once it has started to fold */
+  readonly folding: boolean
 }
 
 export function openCard(opts: {
@@ -155,5 +157,12 @@ export function openCard(opts: {
     if (shown < KEEP) close()
   }
 
-  return { id, close, check }
+  return {
+    id,
+    close,
+    check,
+    get folding() {
+      return done
+    },
+  }
 }

@@ -1105,7 +1105,8 @@ body.has-project .back-node {
     opacity calc(0.2s * var(--pace)) calc(var(--k, 0) * 22ms * var(--pace) + 0.14s * var(--pace)),
     visibility 0s calc(var(--k, 0) * 22ms * var(--pace) + 0.34s * var(--pace));
 }
-.front-layer.unfolding .tile.child {
+/* not an open card or the open reel: they keep their own transitions, to grow in place */
+.front-layer.unfolding .tile.child:not(.card):not(.open) {
   transition:
     transform calc(0.8s * var(--pace)) cubic-bezier(0.18, 1.32, 0.32, 1) calc(var(--k, 0) * 50ms * var(--pace)),
     opacity calc(0.25s * var(--pace)) calc(var(--k, 0) * 50ms * var(--pace)),

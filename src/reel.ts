@@ -16,9 +16,9 @@ const KEEP = 0.3
  * Its link to the video file stays as the closed face, for opening in a new
  * tab and for when there is no script.
  *
- * `/reel/` is the address of the open player, so it can be linked and shared;
- * `onOpen` and `onClose` are how the caller keeps that address in step; `onClose`
- * is told whether the reel folded because the map was panned away from it.
+ * `onOpen` is told where the open player is (the caller brings the map to it);
+ * `onClose` is told whether the reel folded because the map was panned away from it.
+ * The player has no address of its own: it opens inside the category at /reel/.
  */
 export function createReel(
   face: HTMLAnchorElement,
@@ -103,8 +103,7 @@ export function createReel(
     onClose(panned)
   }
 
-  /** @param fly whether the map travels to it; false for a visitor who arrived at /reel/ */
-  function unfold(fly = true) {
+  function unfold() {
     if (video) return
     closedH = box.offsetHeight
     // Nothing is fetched but the poster until play is pressed.
@@ -116,7 +115,7 @@ export function createReel(
     box.classList.add('open')
     open = grown()
     put(open)
-    if (fly) onOpen(open)
+    onOpen(open)
     return open
   }
 
@@ -131,7 +130,6 @@ export function createReel(
   return {
     el: box,
     close: () => close(),
-    open: unfold,
     get isOpen() {
       return video !== null
     },

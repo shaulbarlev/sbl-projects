@@ -274,9 +274,10 @@ narrow.addEventListener('change', () => {
   for (const id of [...shelved.keys()]) shelve(id)
   const player = place()
   map.setWorld(world)
-  // A category open across it stays open, its grid and threads where the new layout puts them.
+  // A category open across it stays open, its grid and threads where the new layout puts them,
+  // and the camera goes back to the grid (setWorld left it at home), the root sinking about it.
   if (openCat) {
-    sinkAt = map.camera()
+    sinkAt = frameChildren(openCat)
     rootLayer.style.transformOrigin = `${sinkAt.x}px ${sinkAt.y}px`
     tie(openCat, false)
     map.setTiles(world.children[openCat])
@@ -388,7 +389,7 @@ let openCat: string | null = null
 /** How far back the root sinks (its scale), about the point at the centre of the view when it did */
 const SINK = 0.9
 let sinkAt = { x: 0, y: 0 }
-/** How long the children take to land: a card or the reel waits for them */
+/** How long the children take to land: a card opened by link waits for them */
 const UNFOLD_MS = 950
 
 /**
@@ -484,13 +485,16 @@ function unfold(id: string) {
 }
 
 function fold(id: string) {
+  // Cut short a cascade still running, so the fold uses its own timing, not the unfold's.
+  clearTimeout(unfoldingTimer)
+  frontLayer.classList.remove('unfolding')
   tiles.get(id)?.classList.remove('current')
   for (const t of aim(id, true)) fold1(tiles.get(t.id)!)
   untie()
   openCat = null
 }
 
-/** The camera to the open grid: all of it if it fits, else its top, read by panning down */
+/** The camera to the open grid: all of it if it fits, else its top, read by panning down. Returns where it flies to. */
 function frameChildren(id: string) {
   const parent = world.categories.find((c) => c.id === id)!
   const label = (narrow.matches ? NARROW : WIDE).label
@@ -503,11 +507,10 @@ function frameChildren(id: string) {
   const { w: vw, h: vh } = map.viewport()
   const m = 24
   const whole = Math.min(1, (vw - 2 * m) / w, (vh - 2 * m) / h)
-  if (whole >= 0.7) map.go({ x: x + w / 2, y: y + h / 2, z: whole }, 700)
-  else {
-    const z = Math.min(1, (vw - 2 * m) / w)
-    map.go({ x: x + w / 2, y: y + (vh / 2 - m) / z, z }, 700)
-  }
+  const z = whole >= 0.7 ? whole : Math.min(1, (vw - 2 * m) / w)
+  const to = whole >= 0.7 ? { x: x + w / 2, y: y + h / 2 } : { x: x + w / 2, y: y + (vh / 2 - m) / z }
+  map.go({ ...to, z }, 700)
+  return to
 }
 
 /** Opening a category is a step in history, so the back gesture closes it; switching between two replaces it. */
@@ -532,7 +535,8 @@ backButton.addEventListener('click', closeCategory)
 $('map').addEventListener(
   'click',
   (e) => {
-    if (!card || e.defaultPrevented || (e.target as Element).closest('.tile.card')) return
+    // (A card already folding, from a pan away, is left to finish: no flight back to the grid.)
+    if (!card || card.folding || e.defaultPrevented || (e.target as Element).closest('.tile.card')) return
     e.preventDefault()
     e.stopPropagation()
     closeProject()
@@ -547,7 +551,8 @@ $('map').addEventListener('click', (e) => {
 })
 
 // --- routing: "/" is the map, "/<category>/" opens a category, "/<project>/" opens
-// its category and that project's card, "/reel/" the vfx category and the player
+// its category and that project's card; visual effects is at "/reel/" ("/vfx/" is rewritten to it),
+// and its player, opened by a tap, has no address of its own
 let current: string | null = null
 const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
 const later = (ms: number, fn: () => void) => (ms ? window.setTimeout(fn, ms) : fn())
@@ -608,7 +613,8 @@ function syncCard() {
       narrow: narrow.matches,
       plane,
       world,
-      // Arrived by link: no growing from a tile the visitor has not seen.
+      // No tile to grow from (reached by history, forward onto a card's address): cut straight to it.
+      // A deep link sets `opener` to its tile, so it grows.
       cut: current === null && opener === null,
       pace: () => pace,
       content: () =>
@@ -628,7 +634,8 @@ function syncCard() {
         if (card !== opened) return
         card = null
         // Folded by panning away: the address follows, the camera stays where it was taken.
-        if (slugNow() === project.id) closeProject(true)
+        // (Compared by project, so an alias like /pikud counts.)
+        if (findProject(slugNow())?.id === project.id) closeProject(true)
       },
     })
     card = opened
@@ -656,7 +663,7 @@ window.addEventListener('popstate', () => sync())
 window.addEventListener('keydown', (e) => {
   // The image viewer has its own keys, and Esc there must not close the project too.
   if (lightboxOpen() || e.metaKey || e.ctrlKey || e.altKey) return
-  if (card) {
+  if (card && !card.folding) {
     if (e.key === 'Escape') closeProject()
     return
   }
@@ -723,10 +730,13 @@ function opening(at: Rect | null, then: () => void) {
     clearTimeout(arrive)
     inputs.forEach((type) => window.removeEventListener(type, skip, true))
   }
-  function skip() {
+  function skip(e: Event) {
     stop()
-    // After the event that skipped, so that a key (Escape) does not also act on what `then` opens.
-    setTimeout(then, 0)
+    // A key: after it, so that Escape does not also act on what `then` opens. A pointer or a wheel:
+    // now, before the map handles the same event, so the flights `then` starts are cut by it and
+    // the visitor's move wins.
+    if (e.type === 'keydown') setTimeout(then, 0)
+    else then()
   }
   inputs.forEach((type) => window.addEventListener(type, skip, { capture: true }))
 }
@@ -773,11 +783,11 @@ if (linkedCat) {
   const arrive = () => {
     opener = linked ? (tiles.get(linked.id) ?? null) : null
     sync()
-    // Back to normal speed once the children have landed and the card or the reel has grown.
+    // Back to normal speed once the children have landed and the card, if any, has grown.
     if (pace !== 1) setTimeout(() => setPace(1), (UNFOLD_MS + 600) * pace)
   }
-  // The field, the flight to its category, the children out of it, and then the card or
-  // the reel: at double speed, as the visitor came for what the link points at.
+  // The field, the flight to its category, the children out of it, and then the card if the
+  // link is to a project: at double speed, as the visitor came for what the link points at.
   if (!calm) {
     setPace(0.5)
     opening(at, arrive)
