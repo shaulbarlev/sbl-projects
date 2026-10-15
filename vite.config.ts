@@ -8,8 +8,9 @@ const SITE = 'https://shaulb.com'
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
 /**
- * Writes dist/<project>/index.html for every project, and dist/<category>/index.html
- * for every category: the same app, with its own title, description and share image. Project URLs then work on
+ * Writes dist/<project>/index.html for every project, dist/<category>/index.html
+ * for every category, and dist/pikud.html: the same app, with its own title,
+ * description and share image. Copies of index.html, so they never drift from it. Project URLs then work on
  * any static host without rewrite rules, and link previews show the project.
  */
 function projectPages(): Plugin {
@@ -24,13 +25,25 @@ function projectPages(): Plugin {
       const template = await readFile(resolve(outDir, 'index.html'), 'utf8')
       const categories = CATEGORIES.map((c) => ({ id: c.id, title: `${c.title} — shaul bar-lev`, subtitle: 'Design, film, electronics', image: `${SITE}/og-image.jpg`, w: '1200', h: '630', card: 'summary_large_image' }))
       const projects = PROJECTS.map((p) => ({ id: p.id, title: p.title, subtitle: p.subtitle ?? p.title, image: `${SITE}/thumbs/${p.id}.jpg`, w: '640', h: '640', card: 'summary' }))
-      for (const p of [...projects, ...categories]) {
+      // shaulb.com/pikud: Pikud HaoLED with its own Hebrew share card, written as dist/pikud.html
+      const pikud = {
+        id: 'pikud',
+        file: 'pikud.html',
+        url: `${SITE}/pikud`,
+        title: 'Pikud HaoLED',
+        subtitle: 'ערכת תאורה פשוטה שמגיבה ונדלקת בהתאם להתראות פיקוד העורף',
+        image: `${SITE}/pikudhaoled/pikudhaoled-0.jpg`,
+        w: '1200',
+        h: '630',
+        card: 'summary_large_image',
+      }
+      for (const p of [...projects, ...categories, pikud] as { id: string; file?: string; url?: string; title: string; subtitle: string; image: string; w: string; h: string; card: string }[]) {
         const meta: Record<string, string> = {
           description: p.subtitle,
           'og:title': p.title,
           'og:description': p.subtitle,
           'og:image': p.image,
-          'og:url': `${SITE}/${p.id}/`,
+          'og:url': p.url ?? `${SITE}/${p.id}/`,
           'og:image:width': p.w,
           'og:image:height': p.h,
           'twitter:card': p.card,
@@ -38,15 +51,18 @@ function projectPages(): Plugin {
           'twitter:description': p.subtitle,
           'twitter:image': p.image,
         }
-        const title = p.title.includes('shaul bar-lev') ? p.title : `${p.title} — shaul bar-lev`
+        const title = p.title.includes('shaul bar-lev') || p.file ? p.title : `${p.title} — shaul bar-lev`
         let html = template.replace(/<title>[^<]*<\/title>/, `<title>${escapeAttr(title)}</title>`)
         for (const [name, content] of Object.entries(meta)) {
           const tag = new RegExp(`(<meta\\s+(?:name|property)="${name}"\\s+content=")[^"]*(")`)
           if (!tag.test(html)) throw new Error(`project-pages: no <meta ${name}> in index.html`)
           html = html.replace(tag, (_, open, close) => open + escapeAttr(content) + close)
         }
-        await mkdir(resolve(outDir, p.id), { recursive: true })
-        await writeFile(resolve(outDir, p.id, 'index.html'), html)
+        if (p.file) await writeFile(resolve(outDir, p.file), html)
+        else {
+          await mkdir(resolve(outDir, p.id), { recursive: true })
+          await writeFile(resolve(outDir, p.id, 'index.html'), html)
+        }
       }
     },
   }
@@ -58,11 +74,7 @@ export default defineConfig({
   plugins: [projectPages()],
   build: {
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        // shaulb.com/pikud: the Pikud HaoLED project with its own Hebrew share card
-        pikud: resolve(__dirname, 'pikud.html'),
-      },
+      input: { main: resolve(__dirname, 'index.html') },
     },
   },
 })
