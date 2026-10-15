@@ -129,7 +129,7 @@ export function renderProject(
 
   let cta: HTMLElement | null = null
   if (project.cta) {
-    const link = h('a', { class: project.cta.icon ? 'cta' : 'cta plain', href: project.cta.href, target: '_blank', rel: 'noreferrer' })
+    const link = h('a', { class: 'cta', href: project.cta.href, target: '_blank', rel: 'noreferrer' })
     if (project.cta.icon === 'whatsapp') link.innerHTML = whatsappIcon
     link.append(h('span', {}, project.cta.label))
     cta = h('div', { class: 'box sans', dir: project.cta.rtl ? 'rtl' : undefined }, project.cta.lead && h('p', { class: 'cta-lead' }, project.cta.lead), link)

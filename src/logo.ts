@@ -42,8 +42,8 @@ export function animateLogo(el: HTMLElement) {
       ...shuffled().map((c, i) =>
         c.animate(
           [
-            { fontWeight: 800, color: '#fff' },
-            { fontWeight: 100, color: '#c97979' },
+            { fontWeight: 800, color: '#000' },
+            { fontWeight: 100, color: '#9a9a9a' },
           ],
           {
             duration: 2500,
