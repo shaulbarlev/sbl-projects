@@ -2,7 +2,7 @@ import type { Rect } from './layout'
 
 /**
  * A project opens where its tile stands: the tile grows into a page-shaped card
- * in the map's own space, its picture becoming the card's header. On a wide
+ * in the map's own space, its picture folding away as it does. On a wide
  * screen the card fills most of the view and its content scrolls inside it. On
  * a phone it takes its full height and is read by panning the map, its top in
  * view first. Either way, panning away from it folds it back into the tile.
@@ -61,8 +61,8 @@ export function openCard(opts: {
     w,
     h: narrow ? vh : vh - 2 * MARGIN,
   }
-  // 16:9 of the width, but on a wide screen the page must keep most of the height
-  const hero = Math.min(Math.round((w * 9) / 16), narrow ? Infinity : 280)
+  // The tile's picture shrinks away as the card grows: the card has no header picture.
+  const hero = 0
   const put = (r: Rect) => Object.assign(tile.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` })
   const stretch = (r: Rect) => {
     map.reach(r)

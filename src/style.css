@@ -6,6 +6,7 @@
   --red: 239 68 68;
   --line: rgb(var(--red) / 0.3);
   --line-strong: rgb(var(--red) / 0.6);
+  --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
@@ -171,7 +172,7 @@ iframe {
 .tile:focus-visible img {
   filter: contrast(1.25);
 }
-.tile span {
+.tile > span {
   display: block;
   position: relative;
   padding: 0.5rem 1.5rem 0.5rem 0.75rem;
@@ -369,14 +370,14 @@ iframe {
   content: none;
 }
 
-.tile span b {
+.tile > span b {
   font-weight: inherit;
   background: #000;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
 /* a filled mark is a project not opened yet, a hollow one is seen; the minimap and edge markers say the same in red */
-.tile span::after {
+.tile > span::after {
   content: '';
   position: absolute;
   top: 0.75rem;
@@ -385,7 +386,7 @@ iframe {
   height: 6px;
   background: #000;
 }
-.tile.seen span::after {
+.tile.seen > span::after {
   background: none;
   outline: 1px solid #000;
   outline-offset: -1px;
@@ -536,6 +537,9 @@ iframe {
   inset: 0;
   z-index: 50;
   padding: 1.5rem;
+  font-family: var(--sf);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
 }
 .pv-backdrop {
   position: absolute;
@@ -560,9 +564,7 @@ iframe {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
-  background: rgb(0 0 0 / 0.4);
-  border-bottom: 1px solid rgb(var(--red) / 0.4);
+  padding: 1.25rem 1.25rem 0.25rem;
 }
 .pv-title {
   flex: 1;
@@ -571,9 +573,9 @@ iframe {
 }
 .pv-title h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: 0.025em;
+  letter-spacing: -0.01em;
   color: #fff;
 }
 .pv-title p {
@@ -588,12 +590,10 @@ iframe {
   padding: 0.375rem;
   font-size: 1.25rem;
   line-height: 1;
-  color: rgb(var(--red));
-  background: rgb(0 0 0 / 0.6);
-  border: 1px solid rgb(var(--red) / 0.5);
+  color: rgb(var(--red) / 0.8);
 }
 .pv-close:hover {
-  background: #000;
+  color: rgb(var(--red));
 }
 .pv-close i {
   display: block;
@@ -627,11 +627,6 @@ iframe {
   margin: 0;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.3);
-}
-.cell.video {
-  border-color: rgb(var(--red) / 0.4);
 }
 .cell.lone {
   grid-column: span 2;
@@ -672,6 +667,8 @@ iframe {
 
 .pv-more {
   grid-column: 1 / -1;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
@@ -681,13 +678,11 @@ iframe {
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
-  padding: 0.5rem;
+  padding: 0.5rem 0;
   color: var(--fg);
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.3);
 }
 .pv-more a:hover {
-  border-color: var(--line-strong);
+  color: #fff;
   text-decoration: none;
 }
 .pv-more img {
@@ -725,17 +720,11 @@ iframe {
   align-content: start;
   min-width: 0;
 }
-.box {
-  padding: 0.75rem;
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.3);
-}
 .box > img {
   width: 100%;
-  border: 1px solid rgb(34 197 94 / 0.6);
 }
 .sans {
-  font-family: Arial, system-ui, sans-serif;
+  font-family: var(--sf);
 }
 .prose {
   color: rgb(255 255 255 / 0.75);
@@ -747,10 +736,8 @@ iframe {
 }
 .prose h3 {
   margin: 1.75rem 0 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
   color: #fff;
 }
 .prose > :first-child {
@@ -1019,18 +1006,6 @@ body.has-project .back-node {
   .tile.card .pv-body {
     overflow: visible;
   }
-  /* the way back sits on the cover picture, not under it */
-  .tile.card .pv-back {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
-    z-index: 1;
-    flex-basis: auto;
-    padding: 0.25rem 0.6rem;
-    font-size: 16px;
-    background: rgb(0 0 0 / 0.7);
-    border: 1px solid rgb(var(--red) / 0.5);
-  }
 }
 
 /* ---------- categories (main.ts) ---------- */
@@ -1183,14 +1158,17 @@ body.has-project .back-node {
 .cta.plain:hover {
   background: rgb(248 113 113);
 }
-/* the tile's title styling reaches every span inside a card; a link's label is plain text */
-.tile .cta span {
-  display: inline;
-  padding: 0;
-  background: none;
-  font-size: inherit;
-  letter-spacing: normal;
+
+/* an open card: the rest of the map dims a little behind it */
+.card-dim {
+  position: absolute;
+  inset: -4000px;
+  z-index: 4; /* under the card (5), over the other tiles and the threads */
+  background: #000;
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.42s;
 }
-.tile .cta span::after {
-  content: none;
+body.has-project .card-dim {
+  opacity: 0.45;
 }

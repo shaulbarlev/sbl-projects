@@ -32,7 +32,7 @@ const SVG = 'http://www.w3.org/2000/svg'
 const threads = document.createElementNS(SVG, 'svg')
 threads.setAttribute('class', 'threads')
 threads.setAttribute('aria-hidden', 'true')
-frontLayer.append(threads)
+frontLayer.append(threads, h('div', { class: 'card-dim' }))
 rootLayer.append(homeEl, dim)
 plane.append(rootLayer, frontLayer)
 /** Notes that sit beside an island, keyed by the island; and where the island's content sits inside it */
