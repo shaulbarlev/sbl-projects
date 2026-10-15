@@ -93,10 +93,12 @@ const reel = createReel(
     markSeen(REEL_SLUG)
     map.fit(at)
   },
-  () => {
+  (panned) => {
     if (slugNow() !== REEL_SLUG) return
     history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
     sync()
+    // Shut on purpose, the map goes back to the category; panned away, it stays where it was taken.
+    if (!panned && openCat) frameChildren(openCat)
   },
   () => narrow.matches,
 )
@@ -353,10 +355,15 @@ tiles.forEach((a, id) =>
 )
 place()
 
-homeButton.addEventListener('click', () => map.goHome())
+/** Home is the root: an open category closes on the way there. */
+function goHome() {
+  if (openCat) closeCategory()
+  else map.goHome()
+}
+homeButton.addEventListener('click', goHome)
 animateLogo($('logo'))
 // A tap on the wordmark centres the map on it again (and replays its flicker).
-$('logo').addEventListener('click', () => map.goHome())
+$('logo').addEventListener('click', goHome)
 
 // --- what has been opened before: red marks the unexplored, on tiles, minimap and edge markers
 const SEEN_KEY = 'seen'
@@ -537,6 +544,8 @@ function sync() {
     } else {
       rootLayer.classList.remove('sunk')
       map.setTiles(world.categories)
+      // Every way out of a category ends at home, as the landing showed it.
+      map.goHome(600)
     }
   }
   backButton.hidden = cat === null
@@ -592,8 +601,8 @@ function syncCard() {
       onClosed: () => {
         if (card !== opened) return
         card = null
-        // Folded by panning away: the address follows.
-        if (slugNow() === project.id) closeProject()
+        // Folded by panning away: the address follows, the camera stays where it was taken.
+        if (slugNow() === project.id) closeProject(true)
       },
     })
     card = opened
@@ -609,10 +618,11 @@ function syncCard() {
   current = project?.id ?? null
 }
 
-/** Back to the category the project is in, not out of it */
-function closeProject() {
+/** Back to the category the project is in, not out of it, and (shut on purpose) to the view of it */
+function closeProject(panned = false) {
   history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
   sync()
+  if (!panned && openCat) frameChildren(openCat)
 }
 
 window.addEventListener('popstate', () => sync())
@@ -634,8 +644,8 @@ window.addEventListener('keydown', (e) => {
     '+': () => map.zoomBy(1.25),
     '=': () => map.zoomBy(1.25),
     '-': () => map.zoomBy(0.8),
-    '0': () => map.goHome(),
-    Home: () => map.goHome(),
+    '0': goHome,
+    Home: goHome,
   }
   const action = keys[e.key]
   // Escape with nothing open is the browser's.

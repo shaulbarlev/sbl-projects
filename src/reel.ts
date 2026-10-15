@@ -17,12 +17,13 @@ const KEEP = 0.3
  * tab and for when there is no script.
  *
  * `/reel/` is the address of the open player, so it can be linked and shared;
- * `onOpen` and `onClose` are how the caller keeps that address in step.
+ * `onOpen` and `onClose` are how the caller keeps that address in step; `onClose`
+ * is told whether the reel folded because the map was panned away from it.
  */
 export function createReel(
   face: HTMLAnchorElement,
   onOpen: (at: Rect) => void,
-  onClose: () => void = () => {},
+  onClose: (panned: boolean) => void = () => {},
   narrow: () => boolean = () => false,
 ) {
   const box = h('div', { class: `${face.className} reel` })
@@ -90,7 +91,7 @@ export function createReel(
   document.addEventListener('fullscreenchange', fullscreenChanged)
   document.addEventListener('webkitfullscreenchange', fullscreenChanged)
 
-  function close() {
+  function close(panned = false) {
     if (!video) return
     video.remove()
     video = null
@@ -99,7 +100,7 @@ export function createReel(
     box.classList.remove('open')
     put({ ...closed, h: closedH })
     window.setTimeout(() => !video && putClosed(), 400)
-    onClose()
+    onClose(panned)
   }
 
   /** @param fly whether the map travels to it; false for a visitor who arrived at /reel/ */
@@ -129,7 +130,7 @@ export function createReel(
 
   return {
     el: box,
-    close,
+    close: () => close(),
     open: unfold,
     get isOpen() {
       return video !== null
@@ -142,7 +143,7 @@ export function createReel(
       const shown = (ix * iy) / Math.min(open.w * open.h, v.w * v.h)
       // Armed once the map has arrived on it; not while still flying there.
       if (shown > 0.9) armed = true
-      else if (armed && shown < KEEP) close()
+      else if (armed && shown < KEEP) close(true)
     },
     /**
      * Where the closed tile sits. A new layout (a phone turned) moves an open
