@@ -95,7 +95,19 @@ function overlaps(a: Rect, b: Rect, gap: number) {
  * world is sized for the largest of them from the start, so opening one moves
  * nothing.
  */
-export function scatter(categories: { id: string; children: string[]; wide?: boolean }[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
+/**
+ * `peek`: an island placed so that only its left edge shows at the right of the
+ * home view, a hint that there is more; `view` is the viewport's width (world px at
+ * the home zoom of 1), `px` how much of it shows.
+ */
+export function scatter(
+  categories: { id: string; children: string[]; wide?: boolean }[],
+  linkIds: string[],
+  islandList: Island[],
+  profile: Profile,
+  peek?: { id: string; view: number; px: number },
+  seed = 11,
+): World {
   const { label, margin, aspect, link, island, category, grid } = profile
   const rand = mulberry32(seed)
   // Placed around home at the origin; the world is fitted to the result below.
@@ -138,9 +150,17 @@ export function scatter(categories: { id: string; children: string[]; wide?: boo
   // The outskirts: each island starts beyond everything else, in a direction of its own, and is pushed out until clear.
   const all = [...taken, ...gridRects]
   const reach = Math.max(0, ...all.map((t) => Math.hypot(t.x + t.w / 2, t.y + t.h / 2) + Math.max(t.w, t.h) / 2))
+  // Home's middle, as the camera will centre it (the origin below, before the shift).
+  const homeY = (Math.min(home.y, ...links.map((t) => t.y)) + columnEnd) / 2
   const islands = islandList.map(({ id, w, h }): Tile => {
     const angle = rand() * Math.PI * 2
     const size = { w: Math.round(w * island.scale), h: Math.round(h * island.scale) }
+    if (peek?.id === id) {
+      // its left edge `px` in from the right of the home view, level with home
+      const rect: Rect = { x: Math.round(peek.view / 2 - peek.px), y: Math.round(homeY - size.h / 2), ...size }
+      taken.push(rect)
+      return { id, ...rect }
+    }
     for (let r = reach + island.beyond; ; r += 6) {
       const rect: Rect = { x: Math.round(Math.cos(angle) * r * aspect - size.w / 2), y: Math.round(Math.sin(angle) * r - size.h / 2), ...size }
       if (![...all, ...taken].some((t) => overlaps(rect, t, island.gap))) {
@@ -166,7 +186,7 @@ export function scatter(categories: { id: string; children: string[]; wide?: boo
     h: bottom - top,
     home: shifted,
     // Home is the link row, the wordmark and its column: all in view, centred together.
-    origin: { x: -left, y: (Math.min(home.y, ...links.map((t) => t.y)) + columnEnd) / 2 - top },
+    origin: { x: -left, y: homeY - top },
     links: links.map(shift),
     categories: categoriesShifted,
     children: Object.fromEntries(Object.entries(children).map(([id, list]) => [id, list.map(shift)])),

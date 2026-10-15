@@ -612,8 +612,8 @@ export const REEL = {
   src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4',
   poster: '/reel/poster.jpg',
   title: 'watch my reel',
-  /** The tile's picture: the reel's first seconds, 16:9, looping */
-  loop: '/reel/start.mp4',
+  /** The tile's picture: the whole reel at low resolution, 16:9, looping */
+  loop: '/reel/low.mp4',
   /** Two lines under the tile */
   note: 'Compositing and design work, 2D and 3D, on commercials, music videos and short films.',
 }

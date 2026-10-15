@@ -81,7 +81,8 @@ const REEL_SLUG = 'reel'
 // Its picture is the reel's own first seconds, looping; two lines of words under the title.
 const reelLoop = h(
   'video',
-  { class: 'loop', src: REEL.loop, poster: '/reel/start.jpg', autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+  // Not autoplay: it loads and plays only when its category opens (unfold), as it is the whole reel.
+  { class: 'loop', src: REEL.loop, poster: '/reel/start.jpg', loop: true, playsinline: true, preload: 'none', 'aria-hidden': 'true' },
 )
 reelLoop.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
 const reelFace = h(
@@ -202,12 +203,15 @@ function unshelve(id: string) {
   notes.get(id)?.removeAttribute('hidden')
 }
 
+// The traffic light peeks in at the right of the landing view: its left edge, placed for
+// the window's width at load (and again when the layout changes).
 const layout = () =>
   scatter(
     CATEGORIES,
     links.map((a) => a.dataset.id!),
     ISLANDS,
     narrow.matches ? NARROW : WIDE,
+    { id: 'traffic', view: $('map').clientWidth || innerWidth, px: narrow.matches ? 44 : 72 },
   )
 let world = layout()
 /** What is always on the map, and what only comes out with its category */
@@ -294,7 +298,8 @@ window.addEventListener('pointerdown', () => (tabbing = false), true)
 
 /** A tile's picture as a silent loop, its still the poster until it plays */
 function tileLoop(project: Project) {
-  const v = h('video', { class: 'face', src: project.tileVideo, poster: thumbUrl(project), autoplay: true, loop: true, playsinline: true, preload: 'auto', 'aria-label': project.thumbnail.alt })
+  // Not autoplay: it loads and plays only when its category opens (unfold); the still shows until then.
+  const v = h('video', { class: 'face', src: project.tileVideo, poster: thumbUrl(project), loop: true, playsinline: true, preload: 'none', 'aria-label': project.thumbnail.alt })
   v.muted = true // as a property: the attribute is ignored on script-made videos, and only silent ones play by themselves
   return v
 }
@@ -489,7 +494,11 @@ function fold(id: string) {
   clearTimeout(unfoldingTimer)
   frontLayer.classList.remove('unfolding')
   tiles.get(id)?.classList.remove('current')
-  for (const t of aim(id, true)) fold1(tiles.get(t.id)!)
+  for (const t of aim(id, true)) {
+    fold1(tiles.get(t.id)!)
+    // Tile loops stop with their category; they start over when it opens again.
+    tiles.get(t.id)!.querySelectorAll<HTMLVideoElement>('video.face, video.loop').forEach((v) => v.pause())
+  }
   untie()
   openCat = null
 }
