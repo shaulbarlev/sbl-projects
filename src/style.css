@@ -1011,6 +1011,9 @@ body.has-project .back-node {
   inset: 0;
 }
 .root-layer {
+  /* a layer of its own: sinking and rising (a scale) is then the compositor's alone, the live
+     light and the glass inside it not repainted on every frame of it */
+  will-change: transform;
   transition: transform calc(0.6s * var(--pace)) cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .root-layer.sunk {
@@ -1059,6 +1062,8 @@ body.has-project .back-node {
 }
 .glass-effect {
   z-index: 0;
+  /* (the warp filter is left out on touch screens, below: on a phone it is the costliest thing
+     on the map to redraw, and Safari there hardly shows it) */
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   filter: url(#glass-distortion);
@@ -1115,8 +1120,10 @@ body.has-project .back-node {
     opacity calc(0.2s * var(--pace)) calc(var(--k, 0) * 22ms * var(--pace) + 0.14s * var(--pace)),
     visibility 0s calc(var(--k, 0) * 22ms * var(--pace) + 0.34s * var(--pace));
 }
-/* not an open card or the open reel: they keep their own transitions, to grow in place */
+/* not an open card or the open reel: they keep their own transitions, to grow in place.
+   Each a layer of its own while it flies, so the cascade moves them without repainting them. */
 .front-layer.unfolding .tile.child:not(.card):not(.open) {
+  will-change: transform, opacity;
   transition:
     transform calc(0.8s * var(--pace)) cubic-bezier(0.18, 1.32, 0.32, 1) calc(var(--k, 0) * 50ms * var(--pace)),
     opacity calc(0.25s * var(--pace)) calc(var(--k, 0) * 50ms * var(--pace)),
@@ -1331,4 +1338,10 @@ body.has-project .card-dim {
 .tile.card img,
 .tile.card video {
   -webkit-touch-callout: default;
+}
+
+@media (hover: none) {
+  .glass-effect {
+    filter: none;
+  }
 }
