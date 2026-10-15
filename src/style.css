@@ -117,10 +117,9 @@ iframe {
   color: #fff;
   cursor: pointer;
   width: max-content;
-  /* the wordmark as it was, white on black: a block of the old site on the new one */
+  /* the wordmark as it was, white on black: a block of the old site on the new one, square-cornered */
   padding: 0.3em 0.45em;
   background: #000;
-  border-radius: 8px;
 }
 
 .tile[hidden],
@@ -408,7 +407,6 @@ iframe {
   color: #fff;
   background: #000;
   border: 0;
-  border-radius: 10px;
 }
 .home-button:hover {
   border-color: var(--line-strong);
@@ -1009,7 +1007,6 @@ body.has-project .back-node {
    a shine of inner highlights, with the title over them. */
 .tile.category {
   overflow: hidden;
-  border-radius: 8px;
   box-shadow:
     0 6px 6px rgb(0 0 0 / 0.12),
     0 0 20px rgb(0 0 0 / 0.06);

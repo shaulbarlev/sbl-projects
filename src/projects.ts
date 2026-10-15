@@ -445,6 +445,7 @@ These loaders were created using a mix of traditional and AI techniques. The cha
     // ponytail: the small loops are interim, from the shipped app; swap in mockups when they arrive.
     media: [
       { type: 'video', kind: 'file', src: '/remy/onboarding-mock.mp4', thumbnail: '/remy/onboarding-mock.jpg', title: 'Gamified onboarding', loop: true, size: 'medium', mockup: true },
+      { type: 'video', kind: 'file', src: '/remy/landing.mp4', thumbnail: '/remy/landing.jpg', title: 'The landing page', orientation: 'horizontal', loop: true },
       {
         type: 'row',
         items: [
@@ -454,7 +455,6 @@ These loaders were created using a mix of traditional and AI techniques. The cha
           { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post', loop: true },
         ],
       },
-      { type: 'video', kind: 'file', src: '/remy/landing.mp4', thumbnail: '/remy/landing.jpg', title: 'The landing page', orientation: 'horizontal', loop: true },
     ],
     description: `Remy is a social media app for close friends.
 
