@@ -188,7 +188,7 @@ iframe {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  font-size: 58cqw;
+  font-size: 40cqw;
 }
 /* passive islands: pictures to come across, not to press. No frame, nothing on hover. */
 .tile.island {
@@ -339,7 +339,7 @@ iframe {
 /* letters standing in for an icon, in a pixel font to sit with the pixel icons */
 .tile.link i.px {
   font-family: 'Silkscreen', var(--mono);
-  font-size: 46cqw;
+  font-size: 32cqw;
   font-style: normal;
   font-weight: 700;
   line-height: 1;
