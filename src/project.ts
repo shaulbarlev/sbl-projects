@@ -175,8 +175,9 @@ export function renderProject(
   const more = h(
     'nav',
     { class: 'pv-more', 'aria-label': 'More projects' },
-    step(around.prev, 'pv-prev', '← previous'),
-    step(around.next, 'pv-next', 'next →'),
+    // Two projects: one way to the other. One: none.
+    around.prev !== project && around.prev !== around.next && step(around.prev, 'pv-prev', '← previous'),
+    around.next !== project && step(around.next, 'pv-next', 'next →'),
     backAgain,
   )
 

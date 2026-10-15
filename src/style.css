@@ -1171,12 +1171,14 @@ body.has-project .back-node {
   justify-self: center;
   width: min(100%, 13.5rem);
 }
-.cell.square video {
+.cell.video.square video {
   aspect-ratio: 1;
 }
 .cell.loop video {
   pointer-events: none;
-  object-fit: cover;
+  /* a loop is shown whole, at its own shape; until it has loaded, a phone screen's */
+  aspect-ratio: auto 9 / 19.5;
+  object-fit: contain;
 }
 
 /* an open card: the rest of the map dims a little behind it */
