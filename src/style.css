@@ -111,9 +111,12 @@ iframe {
   font-size: 4em;
   font-weight: 100;
   line-height: 1.25;
-  color: #000;
+  color: #fff;
   cursor: pointer;
   width: max-content;
+  /* the wordmark as it was, white on black: a block of the old site on the new one */
+  padding: 0.3em 0.45em;
+  background: #000;
 }
 
 .tile[hidden],
@@ -398,9 +401,9 @@ iframe {
   font-size: 1.25rem;
   font-weight: 800;
   line-height: 1.2;
-  color: #000;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  color: #fff;
+  background: #000;
+  border: 0;
 }
 .home-button:hover {
   border-color: var(--line-strong);
