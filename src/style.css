@@ -1163,7 +1163,7 @@ body.has-project .back-node {
 .cell.medium {
   grid-column: 1 / -1;
   justify-self: center;
-  width: min(100%, 20rem);
+  width: min(100%, 13.5rem);
 }
 .cell.square video {
   aspect-ratio: 1;
