@@ -118,8 +118,23 @@ iframe {
   cursor: pointer;
   width: max-content;
   /* the wordmark as it was, white on black: a block of the old site on the new one, square-cornered */
+  position: relative;
+  isolation: isolate;
   padding: 0.3em 0.45em;
   background: #000;
+}
+/* the site's grid carries on over the block, in white, lined up with the page's (map.ts sets --gx/--gy, main.ts --hx/--hy) */
+.logo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.1) 1px, transparent 1px);
+  background-size: 120px 120px;
+  background-position: calc(var(--gx, 0px) - var(--hx, 0px)) calc(var(--gy, 0px) - var(--hy, 0px));
 }
 
 .tile[hidden],

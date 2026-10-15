@@ -142,6 +142,9 @@ export function createMap(opts: {
     plane.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.z})`
     viewport.style.backgroundSize = `${GRID * cam.z}px ${GRID * cam.z}px`
     viewport.style.backgroundPosition = `${tx * GRID_DEPTH}px ${ty * GRID_DEPTH}px`
+    // Where those grid lines fall in the plane's own coordinates, for anything on it that draws them too (the wordmark)
+    plane.style.setProperty('--gx', `${(tx * GRID_DEPTH - tx) / cam.z}px`)
+    plane.style.setProperty('--gy', `${(ty * GRID_DEPTH - ty) / cam.z}px`)
 
     const w = vw / cam.z
     const h = vh / cam.z

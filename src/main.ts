@@ -227,6 +227,8 @@ function place() {
   plane.style.width = `${world.w}px`
   plane.style.height = `${world.h}px`
   homeEl.style.left = `${world.home.x}px`
+  homeEl.style.setProperty('--hx', `${world.home.x}px`)
+  homeEl.style.setProperty('--hy', `${world.home.y}px`)
   homeEl.style.top = `${world.home.y}px`
   homeEl.style.width = `${world.home.w}px`
   threads.setAttribute('width', String(world.w))
@@ -457,6 +459,12 @@ function unfold(id: string) {
   rootLayer.classList.add('sunk')
   tiles.get(id)?.classList.add('current')
   const kids = aim(id, false)
+  // Tile loops start over each time their category opens.
+  for (const t of kids)
+    for (const v of tiles.get(t.id)!.querySelectorAll<HTMLVideoElement>('video.face, video.loop')) {
+      v.currentTime = 0
+      void v.play().catch(() => {})
+    }
   // Start from the mouth with no transition, then let go: the cascade runs from there.
   frontLayer.classList.add('snap')
   for (const t of kids) tiles.get(t.id)!.classList.add('folded')
