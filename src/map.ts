@@ -62,6 +62,8 @@ export function createMap(opts: {
   let flight: { from: Camera; to: Camera; t0: number; ms: number } | null = null
   let raf = 0
   let last = 0
+  /** Every flight's duration is scaled by this: 1 normally, less while a deep link arrives */
+  let pace = 1
 
   /** The camera pulled back inside the world; where the world is the smaller one, centred on it. */
   function bounded(c: Camera): Camera {
@@ -222,6 +224,7 @@ export function createMap(opts: {
 
   function flyTo(to: Partial<Camera>, ms = 450) {
     halt()
+    ms *= pace
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) ms = 0
     flight = { from: { ...cam }, to: bounded({ ...cam, ...to }), t0: performance.now(), ms: Math.max(1, ms) }
     run()
@@ -419,6 +422,9 @@ export function createMap(opts: {
       world = { ...world, tiles }
       drawOverlays()
       render()
+    },
+    setPace(p: number) {
+      pace = p
     },
     /** Where the camera is now, in world px */
     camera: () => ({ ...cam }),

@@ -2,6 +2,8 @@
   color-scheme: light;
   /* black, white and greys: ink is black, used at strengths */
   --ink: 0 0 0;
+  /* every transition and animation is scaled by this: 1 normally, less while a deep link arrives (main.ts) */
+  --pace: 1;
   --bg: #fff;
   --fg: rgb(var(--ink) / 0.88);
   --dim: rgb(var(--ink) / 0.55);
@@ -134,7 +136,7 @@ iframe {
   text-decoration: none;
 }
 .tile {
-  transition: transform 0.15s;
+  transition: transform calc(0.15s * var(--pace));
 }
 .tile:active {
   transform: scale(0.97);
@@ -150,9 +152,9 @@ iframe {
 }
 .plane.intro-run .root-layer .tile {
   transition:
-    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.5s;
-  transition-delay: calc(var(--i) * 55ms);
+    transform calc(0.9s * var(--pace)) cubic-bezier(0.16, 1, 0.3, 1),
+    opacity calc(0.5s * var(--pace));
+  transition-delay: calc(var(--i) * 55ms * var(--pace));
 }
 .tile img {
   width: 100%;
@@ -160,7 +162,7 @@ iframe {
   aspect-ratio: 1;
   object-fit: cover;
   background: var(--grey);
-  transition: opacity 0.15s;
+  transition: opacity calc(0.15s * var(--pace));
 }
 .tile:hover img {
   opacity: 0.88;
@@ -206,16 +208,16 @@ iframe {
 .tile.reel {
   overflow: hidden;
   transition:
-    left 0.4s cubic-bezier(0.3, 0, 0.1, 1),
-    top 0.4s cubic-bezier(0.3, 0, 0.1, 1),
-    width 0.4s cubic-bezier(0.3, 0, 0.1, 1),
-    height 0.4s cubic-bezier(0.3, 0, 0.1, 1);
+    left calc(0.4s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    top calc(0.4s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    width calc(0.4s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    height calc(0.4s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1);
 }
 .reel-face {
   display: block;
   height: 100%;
   color: inherit;
-  transition: opacity 0.2s;
+  transition: opacity calc(0.2s * var(--pace));
 }
 .reel-face:hover {
   text-decoration: none;
@@ -264,7 +266,7 @@ iframe {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  animation: reel-in 0.3s 0.2s both;
+  animation: reel-in calc(0.3s * var(--pace)) calc(0.2s * var(--pace)) both;
 }
 @keyframes reel-in {
   from {
@@ -280,7 +282,7 @@ iframe {
   height: 100%;
   background: transparent;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity calc(0.3s * var(--pace));
 }
 .tile.island.frame iframe.drawn {
   opacity: 1;
@@ -306,8 +308,8 @@ iframe {
   transform: translateY(-50%) scale(0.6);
   transform-origin: left center;
   transition:
-    opacity 0.15s,
-    transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    opacity calc(0.15s * var(--pace)),
+    transform calc(0.2s * var(--pace)) cubic-bezier(0.2, 0.9, 0.3, 1.2);
   pointer-events: none;
 }
 .note.shown {
@@ -328,7 +330,7 @@ iframe {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: opacity 0.3s;
+  transition: opacity calc(0.3s * var(--pace));
 }
 @media (max-width: 699px) {
   .note {
@@ -424,7 +426,7 @@ iframe {
 }
 .explored .locator {
   visibility: visible;
-  animation: snap-in 0.18s steps(3, end);
+  animation: snap-in calc(0.18s * var(--pace)) steps(3, end);
 }
 @keyframes snap-in {
   from {
@@ -807,10 +809,10 @@ body.has-project .back-node {
   overflow: hidden;
   background: var(--bg);
   transition:
-    left 0.42s cubic-bezier(0.3, 0, 0.1, 1),
-    top 0.42s cubic-bezier(0.3, 0, 0.1, 1),
-    width 0.42s cubic-bezier(0.3, 0, 0.1, 1),
-    height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+    left calc(0.42s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    top calc(0.42s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    width calc(0.42s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1),
+    height calc(0.42s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1);
 }
 .tile.card.cut {
   transition: none;
@@ -835,7 +837,7 @@ body.has-project .back-node {
   top: 0;
   left: 0;
   opacity: 0;
-  transition: opacity 0.42s;
+  transition: opacity calc(0.42s * var(--pace));
 }
 .tile.card > img.edges {
   opacity: 1;
@@ -846,14 +848,14 @@ body.has-project .back-node {
 .tile.card.folding .pv {
   animation: none;
   opacity: 0;
-  transition: opacity 0.25s;
+  transition: opacity calc(0.25s * var(--pace));
 }
 /* the picture becomes the card's header */
 .tile.card > img {
   height: var(--hero);
   aspect-ratio: auto;
   filter: none;
-  transition: height 0.42s cubic-bezier(0.3, 0, 0.1, 1);
+  transition: height calc(0.42s * var(--pace)) cubic-bezier(0.3, 0, 0.1, 1);
 }
 .tile.card > span {
   /* kept at the foot of the box, unseen, so that it can fade back in with the fold rather than after it */
@@ -863,7 +865,7 @@ body.has-project .back-node {
   bottom: 0;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.42s;
+  transition: opacity calc(0.42s * var(--pace));
 }
 .tile.card.folding > span {
   opacity: 1;
@@ -874,7 +876,7 @@ body.has-project .back-node {
   width: var(--card-w);
   padding: 0;
   /* in view as the box grows, not after it */
-  animation: reel-in 0.3s both;
+  animation: reel-in calc(0.3s * var(--pace)) both;
 }
 .tile.card.cut .pv {
   animation: none;
@@ -977,7 +979,7 @@ body.has-project .back-node {
   inset: 0;
 }
 .root-layer {
-  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform calc(0.6s * var(--pace)) cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .root-layer.sunk {
   transform: scale(0.9);
@@ -989,7 +991,7 @@ body.has-project .back-node {
   background: var(--bg);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.6s;
+  transition: opacity calc(0.6s * var(--pace));
 }
 .sunk > .dim {
   opacity: 0.6;
@@ -1011,7 +1013,7 @@ body.has-project .back-node {
   box-shadow:
     0 6px 6px rgb(0 0 0 / 0.12),
     0 0 20px rgb(0 0 0 / 0.06);
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 2.2);
+  transition: transform calc(0.4s * var(--pace)) cubic-bezier(0.175, 0.885, 0.32, 2.2);
 }
 .tile.category:hover {
   transform: scale(1.03);
@@ -1078,15 +1080,15 @@ body.has-project .back-node {
   pointer-events: none;
   transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.12);
   transition:
-    transform 0.34s cubic-bezier(0.55, 0, 0.8, 0.25) calc(var(--k, 0) * 22ms),
-    opacity 0.2s calc(var(--k, 0) * 22ms + 0.14s),
-    visibility 0s calc(var(--k, 0) * 22ms + 0.34s);
+    transform calc(0.34s * var(--pace)) cubic-bezier(0.55, 0, 0.8, 0.25) calc(var(--k, 0) * 22ms * var(--pace)),
+    opacity calc(0.2s * var(--pace)) calc(var(--k, 0) * 22ms * var(--pace) + 0.14s * var(--pace)),
+    visibility 0s calc(var(--k, 0) * 22ms * var(--pace) + 0.34s * var(--pace));
 }
 .front-layer.unfolding .tile.child {
   transition:
-    transform 0.8s cubic-bezier(0.18, 1.32, 0.32, 1) calc(var(--k, 0) * 50ms),
-    opacity 0.25s calc(var(--k, 0) * 50ms),
-    visibility 0s calc(var(--k, 0) * 50ms);
+    transform calc(0.8s * var(--pace)) cubic-bezier(0.18, 1.32, 0.32, 1) calc(var(--k, 0) * 50ms * var(--pace)),
+    opacity calc(0.25s * var(--pace)) calc(var(--k, 0) * 50ms * var(--pace)),
+    visibility 0s calc(var(--k, 0) * 50ms * var(--pace));
 }
 .front-layer.snap .tile.child,
 .front-layer.snap .threads path {
@@ -1107,11 +1109,11 @@ body.has-project .back-node {
   stroke-width: 1;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: stroke-dashoffset 0.3s cubic-bezier(0.55, 0, 0.8, 0.25) calc(var(--k, 0) * 22ms);
+  transition: stroke-dashoffset calc(0.3s * var(--pace)) cubic-bezier(0.55, 0, 0.8, 0.25) calc(var(--k, 0) * 22ms * var(--pace));
 }
 .threads path.on {
   stroke-dashoffset: 0;
-  transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 1, 0.35, 1) calc(var(--k, 0) * 50ms);
+  transition: stroke-dashoffset calc(0.7s * var(--pace)) cubic-bezier(0.2, 1, 0.35, 1) calc(var(--k, 0) * 50ms * var(--pace));
 }
 
 /* the way back out of a category, fixed at the top of the screen */
@@ -1186,7 +1188,7 @@ body.has-project .back-node {
   /* slight: the map greys behind the card rather than going dark */
   opacity: 0;
   pointer-events: none !important;
-  transition: opacity 0.42s;
+  transition: opacity calc(0.42s * var(--pace));
 }
 body.has-project .card-dim {
   opacity: 0.18;

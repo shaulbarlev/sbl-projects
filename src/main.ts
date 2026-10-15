@@ -381,6 +381,18 @@ const SINK = 0.9
 let sinkAt = { x: 0, y: 0 }
 /** How long the children take to land: a card or the reel waits for them */
 const UNFOLD_MS = 950
+
+/**
+ * How fast everything moves: 1 normally, 0.5 while a deep link arrives, so the
+ * opening, the unfold and the card that a link plays through take half as long.
+ * Scales the CSS (--pace), the map's flights and every timer here and in card.ts.
+ */
+let pace = 1
+function setPace(p: number) {
+  pace = p
+  map.setPace(p)
+  document.documentElement.style.setProperty('--pace', String(p))
+}
 let unfoldingTimer = 0
 /** A category's tile as it looks with the root sunk: the middle of its foot, where its children come out of */
 function mouth(id: string) {
@@ -450,7 +462,7 @@ function unfold(id: string) {
     el.inert = false
   }
   clearTimeout(unfoldingTimer)
-  unfoldingTimer = window.setTimeout(() => frontLayer.classList.remove('unfolding'), UNFOLD_MS + 300)
+  unfoldingTimer = window.setTimeout(() => frontLayer.classList.remove('unfolding'), (UNFOLD_MS + 300) * pace)
   tie(id, true)
   map.setTiles(kids)
   frameChildren(id)
@@ -531,7 +543,7 @@ function sync() {
     if (openCat) fold(openCat)
     if (cat) {
       unfold(cat.id)
-      wait = UNFOLD_MS
+      wait = UNFOLD_MS * pace
     } else {
       rootLayer.classList.remove('sunk')
       map.setTiles(world.categories)
@@ -576,6 +588,7 @@ function syncCard() {
       world,
       // Arrived by link: no growing from a tile the visitor has not seen.
       cut: current === null && opener === null,
+      pace: () => pace,
       content: () =>
         renderProject(project, around, closeProject, (to) => {
           // Moving between projects replaces the entry, so back still returns to the map.
@@ -673,13 +686,14 @@ function opening(at: Rect | null, then: () => void) {
   void plane.offsetWidth // commit the gathered state before it is released with a transition
   plane.classList.add('intro-run')
   plane.classList.remove('intro')
-  const pushIn = setTimeout(() => (at ? map.go({ x: at.x + at.w / 2, y: at.y + at.h / 2, z: 1 }, 1100) : map.goHome(1100)), 700)
+  // (the map paces its own flights; the waits here are paced by hand)
+  const pushIn = setTimeout(() => (at ? map.go({ x: at.x + at.w / 2, y: at.y + at.h / 2, z: 1 }, 1100) : map.goHome(1100)), 700 * pace)
   // A linked project starts growing while the camera is still settling on it.
   const arrive = setTimeout(() => {
     stop()
     then()
-  }, at ? 1400 : 1900)
-  setTimeout(() => plane.classList.remove('intro-run'), 1800)
+  }, (at ? 1400 : 1900) * pace)
+  setTimeout(() => plane.classList.remove('intro-run'), 1800 * pace)
   const inputs = ['pointerdown', 'wheel', 'keydown'] as const
   function stop() {
     clearTimeout(pushIn)
@@ -736,9 +750,15 @@ if (linkedCat) {
   const arrive = () => {
     opener = linked ? (tiles.get(linked.id) ?? null) : null
     sync()
+    // Back to normal speed once the children have landed and the card or the reel has grown.
+    if (pace !== 1) setTimeout(() => setPace(1), (UNFOLD_MS + 600) * pace)
   }
-  // The field, the flight to its category, the children out of it, and then the card or the reel.
-  if (!calm) opening(at, arrive)
+  // The field, the flight to its category, the children out of it, and then the card or
+  // the reel: at double speed, as the visitor came for what the link points at.
+  if (!calm) {
+    setPace(0.5)
+    opening(at, arrive)
+  }
   else {
     map.focus(at, 0)
     arrive()
@@ -748,7 +768,11 @@ if (linkedCat) {
   // off, the link is just the map.
   const gone = await gated()
   const at = world.islands.find((t) => t.id === anchored.id)
-  if (at && !gone.has(anchored.id) && !calm) opening(at, () => {})
+  if (at && !gone.has(anchored.id) && !calm) {
+    setPace(0.5)
+    // the flight to the island ends after the opening hands over; normal speed once it lands
+    opening(at, () => setTimeout(() => setPace(1), 1100 * pace))
+  }
   else if (at && !gone.has(anchored.id)) map.focus(at, 0)
   else map.goHome(0)
 } else if (!calm) {

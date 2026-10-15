@@ -10,7 +10,7 @@ import type { Rect } from './layout'
 
 /** Screen px kept clear around the card, and how long it takes to grow or fold */
 const MARGIN = 16
-const MS = 420
+const MS_BASE = 420
 /** How much of the card may leave the view before it folds */
 const KEEP = 0.3
 const WIDEST = 1100
@@ -46,8 +46,11 @@ export function openCard(opts: {
   /** Called after the fold */
   onClosed: () => void
   cut?: boolean
+  /** Scales the card's own timers, as --pace scales its transitions; read when they start */
+  pace?: () => number
 }): Card {
   const { id, tile, at, map, narrow, plane, world, content } = opts
+  const ms = () => MS_BASE * (opts.pace?.() ?? 1)
   const { w: vw, h: vh } = map.viewport()
   // The card is laid out at 1:1, so its world size is its screen size at zoom 1.
   const w = Math.min(vw - 2 * MARGIN, WIDEST)
@@ -112,7 +115,7 @@ export function openCard(opts: {
   later(() => {
     view?.querySelector<HTMLElement>('.pv-panel')?.focus({ preventScroll: true })
     armed = true
-  }, opts.cut ? 0 : MS)
+  }, opts.cut ? 0 : ms())
 
   function close(instant = false) {
     if (done) return
@@ -131,7 +134,7 @@ export function openCard(opts: {
     map.reach(null)
     plane.style.width = `${world.w}px`
     plane.style.height = `${world.h}px`
-    map.settle(at, instant ? 0 : MS)
+    map.settle(at, instant ? 0 : MS_BASE) // the map applies the pace to its own flights
     const finish = () => {
       tile.removeEventListener('wheel', onWheel)
       view?.remove()
@@ -141,7 +144,7 @@ export function openCard(opts: {
       opts.onClosed()
     }
     if (instant) finish()
-    else window.setTimeout(finish, MS)
+    else window.setTimeout(finish, ms())
   }
 
   function check(v: Rect) {
