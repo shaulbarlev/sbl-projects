@@ -394,7 +394,6 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-thumbs.mp4', thumbnail: '/knock/loaders/batch2-thumbs.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-cudedance-loop-2.mp4', thumbnail: '/knock/loaders/v1-cudedance-loop-2.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-walkcycle-1.mp4', thumbnail: '/knock/loaders/v1-walkcycle-1.jpg', title: 'Loader', orientation: 'square', loop: true },
-          { type: 'video', kind: 'file', src: '/knock/loaders/v1-flippingclean.mp4', thumbnail: '/knock/loaders/v1-flippingclean.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-flipping.mp4', thumbnail: '/knock/loaders/batch2-flipping.jpg', title: 'Loader', orientation: 'square', loop: true },
         ],
       },
