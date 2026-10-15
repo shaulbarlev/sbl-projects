@@ -376,7 +376,7 @@ function goHome() {
   else map.goHome()
 }
 homeButton.addEventListener('click', goHome)
-animateLogo($('logo'))
+const replayLogo = animateLogo($('logo'))
 // A tap on the wordmark centres the map on it again (and replays its flicker).
 $('logo').addEventListener('click', goHome)
 
@@ -566,8 +566,9 @@ function sync() {
     } else {
       rootLayer.classList.remove('sunk')
       map.setTiles(world.categories)
-      // Every way out of a category ends at home, as the landing showed it.
+      // Every way out of a category ends at home, as the landing showed it, the name flickering as it does there.
       map.goHome(600)
+      replayLogo()
     }
   }
   backButton.hidden = cat === null

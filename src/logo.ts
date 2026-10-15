@@ -1,9 +1,9 @@
 /**
  * The name flickers between thin and bold letter by letter, then settles into
- * slow red waves. Click to replay.
+ * slow red waves. Click to replay; the returned function replays it too.
  */
-export function animateLogo(el: HTMLElement) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+export function animateLogo(el: HTMLElement): () => void {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {}
 
   // One span per letter; the <br> stays where it is.
   const chars: HTMLElement[] = []
@@ -61,4 +61,5 @@ export function animateLogo(el: HTMLElement) {
 
   el.addEventListener('click', play)
   play()
+  return play
 }
