@@ -12,7 +12,7 @@ import sharp from 'sharp'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const { code } = await transform(await readFile(join(root, 'src/projects.ts'), 'utf8'), { loader: 'ts', format: 'esm' })
-const { PROJECTS } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
+const { PROJECTS, REEL } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
 
 /** Sobel edge magnitude, thresholded at a share of the strongest edge, painted red on black. */
 async function edges(src) {
@@ -50,9 +50,12 @@ for (const p of PROJECTS) {
   console.log(`${p.id}  ${(size / 1024).toFixed(0)} KB, edges ${(lines.size / 1024).toFixed(0)} KB`)
 }
 
+// The reel's tile, from its poster
+await sharp(join(root, 'public', REEL.poster)).resize(640, 640, { fit: 'cover' }).jpeg({ quality: 82, mozjpeg: true }).toFile(join(root, 'public/thumbs/reel.jpg'))
+
 const shown = new Set()
 for (const p of PROJECTS) {
-  for (const m of p.media ?? []) shown.add(m.type === 'image' ? m.src : m.thumbnail)
+  for (const m of (p.media ?? []).flatMap((m) => (m.type === 'row' ? m.items : [m]))) shown.add(m.type === 'image' ? m.src : m.thumbnail)
   shown.add(p.asideImage?.src)
 }
 shown.delete(undefined)

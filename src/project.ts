@@ -1,6 +1,6 @@
 import { h } from './dom'
 import { openLightbox } from './lightbox'
-import { displayUrl, thumbUrl, type Project, type ProjectMediaItem } from './projects'
+import { displayUrl, thumbUrl, type Project, type ProjectMediaImage, type ProjectMediaItem, type ProjectMediaVideo } from './projects'
 // simple-icons (CC0)
 import whatsappIcon from './icons/whatsapp.svg?raw'
 
@@ -40,14 +40,13 @@ function prose(text: string): HTMLElement[] {
 }
 
 function mediaGrid(project: Project, media: ProjectMediaItem[]) {
-  const images = media.filter((m) => m.type === 'image')
+  const flat = media.flatMap((m) => (m.type === 'row' ? m.items : [m]))
+  const images = flat.filter((m) => m.type === 'image')
   const slides = images.map((m) => ({ src: m.src, alt: m.alt }))
-  const firstVideo = media.find((m) => m.type === 'video')
+  const firstVideo = flat.find((m) => m.type === 'video' && !m.loop)
+  const loose = media.filter((m) => m.type !== 'row')
 
-  const cells = media.map((item, i) => {
-    // A single item, or the last of an odd count, gets the full row.
-    const lone = media.length === 1 || (media.length % 2 === 1 && i === media.length - 1)
-
+  const cell = (item: ProjectMediaVideo | ProjectMediaImage, lone: boolean) => {
     if (item.type === 'image') {
       const n = images.indexOf(item)
       const img = h('img', { src: displayUrl(item.src), alt: item.alt, loading: 'lazy', decoding: 'async' })
@@ -60,7 +59,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
       return h('figure', { class: `cell image${lone ? ' lone' : ''}${item.objectFit === 'contain' ? ' contain' : ''}` }, btn)
     }
 
-    const cls = `cell video ${item.orientation === 'horizontal' ? 'horizontal' : 'vertical'}${lone ? ' lone' : ''}`
+    const cls = `cell video ${item.orientation === 'horizontal' ? 'horizontal' : 'vertical'}${lone ? ' lone' : ''}${item.loop ? ' loop' : ''}`
     if (item.kind === 'embed') {
       return h(
         'div',
@@ -74,16 +73,36 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
         }),
       )
     }
+    if (item.loop) {
+      const video = h(
+        'video',
+        { autoplay: true, loop: true, playsinline: true, preload: 'auto', poster: item.thumbnail && displayUrl(item.thumbnail), 'aria-label': item.title ?? `${project.title} video` },
+        h('source', { src: item.src, type: 'video/mp4' }),
+      )
+      // Set as a property: the muted attribute is ignored on script-created videos, and only silent ones may play by themselves.
+      video.muted = true
+      return h('div', { class: cls }, video)
+    }
     const video = h(
       'video',
       // With a poster to show, nothing is fetched until play: this is mostly read on phones.
       { controls: true, preload: item === firstVideo || !item.thumbnail ? 'metadata' : 'none', playsinline: true, poster: item.thumbnail && displayUrl(item.thumbnail) },
       h('source', { src: item.src, type: 'video/mp4' }),
     )
-    // Set as a property: the muted attribute is ignored on script-created videos.
     // The first video is the one main.ts starts by itself, so it has to be silent.
     video.muted = item === firstVideo || project.muteAll === true
     return h('div', { class: cls }, video)
+  }
+
+  const cells = media.map((item) => {
+    if (item.type === 'row') {
+      const row = h('div', { class: 'row' }, ...item.items.map((m) => cell(m, false)))
+      row.style.setProperty('--n', String(item.items.length))
+      return row
+    }
+    // A single item, or the last of an odd count, gets the full row.
+    const i = loose.indexOf(item)
+    return cell(item, loose.length === 1 || (loose.length % 2 === 1 && i === loose.length - 1))
   })
 
   return h('div', { class: 'media' }, ...cells)
@@ -110,10 +129,10 @@ export function renderProject(
 
   let cta: HTMLElement | null = null
   if (project.cta) {
-    const link = h('a', { class: 'cta', href: project.cta.href, target: '_blank', rel: 'noreferrer' })
-    link.innerHTML = whatsappIcon
+    const link = h('a', { class: project.cta.icon ? 'cta' : 'cta plain', href: project.cta.href, target: '_blank', rel: 'noreferrer' })
+    if (project.cta.icon === 'whatsapp') link.innerHTML = whatsappIcon
     link.append(h('span', {}, project.cta.label))
-    cta = h('div', { class: 'box sans', dir: project.cta.rtl ? 'rtl' : undefined }, h('p', { class: 'cta-lead' }, project.cta.lead), link)
+    cta = h('div', { class: 'box sans', dir: project.cta.rtl ? 'rtl' : undefined }, project.cta.lead && h('p', { class: 'cta-lead' }, project.cta.lead), link)
   }
 
   const text = h(

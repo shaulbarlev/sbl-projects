@@ -7,7 +7,7 @@ import { closeLightbox, lightboxOpen } from './lightbox'
 import { animateLogo } from './logo'
 import { createMap } from './map'
 import { renderProject } from './project'
-import { ISLANDS, PROJECTS, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
+import { CATEGORIES, ISLANDS, PROJECTS, REEL, categoryOf, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
 import { host as embedHost } from '../shared/embed.js'
 
@@ -19,7 +19,22 @@ const narrow = matchMedia('(max-width: 699px)')
 const plane = $('plane')
 const homeEl = $('home')
 const homeButton = $('home-button')
+const backButton = $('back-node')
 const tiles = new Map<string, HTMLElement>()
+
+// Two layers on the one plane, panned together. The root (wordmark, categories,
+// contact links, islands) sinks back and dims while a category is open; the open
+// category's children, and the threads that tie them to it, are in front.
+const rootLayer = h('div', { class: 'layer root-layer' })
+const dim = h('div', { class: 'dim' })
+const frontLayer = h('div', { class: 'layer front-layer' })
+const SVG = 'http://www.w3.org/2000/svg'
+const threads = document.createElementNS(SVG, 'svg')
+threads.setAttribute('class', 'threads')
+threads.setAttribute('aria-hidden', 'true')
+frontLayer.append(threads)
+rootLayer.append(homeEl, dim)
+plane.append(rootLayer, frontLayer)
 /** Notes that sit beside an island, keyed by the island; and where the island's content sits inside it */
 const notes = new Map<string, HTMLElement>()
 const boxes = new Map<string, { x: number; y: number; w: number; h: number }>()
@@ -34,31 +49,51 @@ const links = [...document.querySelectorAll<HTMLAnchorElement>('.links a')]
 for (const a of links) {
   a.classList.add('tile', 'link')
   tiles.set(a.dataset.id!, a)
-  plane.append(a)
+  rootLayer.append(a)
 }
 document.querySelector('.links')?.remove()
 
-// One of them is more than a link: the film & art tile opens into the reel where it stands,
-// at /reel/ so that the open player can be linked.
+// The categories: title-only tiles in a column under the wordmark. Each is a link to
+// its own address, so it can be opened in a new tab, shared, and stepped back from.
+for (const c of CATEGORIES) {
+  const a = h('a', { class: 'tile category', href: `/${c.id}/` }, h('span', {}, h('b', {}, c.title)))
+  a.addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return
+    e.preventDefault()
+    goCategory(c.id)
+  })
+  tiles.set(c.id, a)
+  rootLayer.append(a)
+}
+
+// The vfx category's one child opens into the reel where it stands, at /reel/ so
+// that the open player can be linked.
 const REEL_SLUG = 'reel'
+const reelFace = h(
+  'a',
+  { class: 'tile child', href: REEL.src, target: '_blank', rel: 'noreferrer' },
+  h('img', { src: '/thumbs/reel.jpg', alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async' }),
+  h('span', {}, h('b', {}, REEL.title)),
+)
 const reel = createReel(
-  tiles.get('film') as HTMLAnchorElement,
+  reelFace,
   (at) => {
     if (slugNow() !== REEL_SLUG) {
-      history.replaceState(null, '', `/${REEL_SLUG}/`)
+      history.replaceState(history.state, '', `/${REEL_SLUG}/`)
       sync() // for the title; the player is already open, so this changes nothing else
     }
+    markSeen(REEL_SLUG)
     map.fit(at)
   },
   () => {
     if (slugNow() !== REEL_SLUG) return
-    history.replaceState(null, '', '/')
+    history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
     sync()
   },
   () => narrow.matches,
 )
-tiles.set('film', reel.el)
-plane.append(reel.el)
+tiles.set(REEL_SLUG, reel.el)
+frontLayer.append(reel.el)
 
 // Passive islands, out past the projects: a tap only brings one into view.
 for (const island of ISLANDS) {
@@ -88,7 +123,7 @@ for (const island of ISLANDS) {
     }
     if (note) {
       notes.set(island.id, note)
-      plane.append(note)
+      rootLayer.append(note)
       showState([])
     }
     // The note appears three seconds after the first tap on the light.
@@ -135,7 +170,7 @@ for (const island of ISLANDS) {
     })
   }
   tiles.set(island.id, el)
-  plane.append(el)
+  rootLayer.append(el)
 }
 
 /** Takes an island off the map, its place kept; the element stays, hidden, so its page can still report */
@@ -157,13 +192,16 @@ function unshelve(id: string) {
 
 const layout = () =>
   scatter(
-    PROJECTS.map((p) => p.id),
+    CATEGORIES,
     links.map((a) => a.dataset.id!),
     ISLANDS,
     narrow.matches ? NARROW : WIDE,
   )
 let world = layout()
-const placed = () => [...world.links, ...world.tiles, ...world.islands]
+/** What is always on the map, and what only comes out with its category */
+const placed = () => [...world.links, ...world.categories, ...world.islands]
+const children = () => Object.values(world.children).flat()
+const childRect = (id: string) => children().find((t) => t.id === id)
 
 /** A note sits just right of what is drawn in its island, its middle on that content's middle */
 function placeNote(t: Rect & { id: string }) {
@@ -179,12 +217,15 @@ function place() {
   homeEl.style.left = `${world.home.x}px`
   homeEl.style.top = `${world.home.y}px`
   homeEl.style.width = `${world.home.w}px`
-  for (const t of placed()) {
+  threads.setAttribute('width', String(world.w))
+  threads.setAttribute('height', String(world.h))
+  for (const t of [...placed(), ...children()]) {
     const a = tiles.get(t.id)
+    if (t.id === REEL_SLUG) continue
     if (a && !a.classList.contains('card')) Object.assign(a.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.w}px`, height: t.w === t.h ? '' : `${t.h}px` })
     placeNote(t)
   }
-  return reel.place(world.links.find((t) => t.id === 'film')!)
+  return reel.place(childRect(REEL_SLUG)!)
 }
 
 const map = createMap({
@@ -194,7 +235,7 @@ const map = createMap({
   readout: $('readout'),
   markers: $('markers'),
   world,
-  label: (id) => findProject(id)?.title ?? id,
+  label: (id) => findProject(id)?.title ?? CATEGORIES.find((c) => c.id === id)?.title ?? (id === REEL_SLUG ? REEL.title : id),
   onHomeVisible: (visible) => (homeButton.hidden = visible),
   // The minimap stays out of the way until there is somewhere to have been.
   onExplore: () => document.body.classList.add('explored'),
@@ -219,6 +260,13 @@ narrow.addEventListener('change', () => {
   for (const id of [...shelved.keys()]) shelve(id)
   const player = place()
   map.setWorld(world)
+  // A category open across it stays open, its grid and threads where the new layout puts them.
+  if (openCat) {
+    sinkAt = map.camera()
+    rootLayer.style.transformOrigin = `${sinkAt.x}px ${sinkAt.y}px`
+    tie(openCat, false)
+    map.setTiles(world.children[openCat])
+  }
   sync()
   // The reel stays open across it, playing, so the map goes back to it.
   if (player) map.fit(player)
@@ -233,7 +281,7 @@ let opener: HTMLElement | null = null
 for (const project of PROJECTS) {
   const a = h(
     'a',
-    { class: 'tile', href: `/${project.id}/` },
+    { class: 'tile child', href: `/${project.id}/` },
     h('img', { src: thumbUrl(project), alt: project.thumbnail.alt, width: 640, height: 640, draggable: 'false', decoding: 'async' }),
     // The edge drawing lies over the photo and shows through while the card is open.
     h('img', { class: 'edges', src: edgesUrl(project), alt: '', width: 640, height: 640, draggable: 'false', decoding: 'async', loading: 'lazy' }),
@@ -248,7 +296,7 @@ for (const project of PROJECTS) {
     if (card?.id === project.id) return
     opener = a
     // Cards come and go by panning, so they leave no history entries behind.
-    history.replaceState(null, '', a.href)
+    history.replaceState(history.state, '', a.href)
     sync()
   })
   // The map must not pan under a finger on a video's control bar (the bottom strip, where
@@ -260,8 +308,9 @@ for (const project of PROJECTS) {
     if (target.closest('.scrolls') || (video && e.clientY > video.getBoundingClientRect().bottom - 56)) e.stopPropagation()
   })
   tiles.set(project.id, a)
-  plane.append(a)
+  frontLayer.append(a)
 }
+for (const t of children()) fold1(tiles.get(t.id)!)
 // --- warming up: a project's pictures are fetched before it is opened, so the
 // page arrives with them. The first screenful when its tile scrolls into view,
 // the rest the moment a finger lands on the tile.
@@ -290,7 +339,7 @@ setTimeout(() => tiles.forEach((a) => a.dataset.project && onScreen.observe(a)),
 // Tabbing to a tile that is off screen brings it into view.
 tiles.forEach((a, id) =>
   a.addEventListener('focusin', () => {
-    const tile = placed().find((t) => t.id === id)
+    const tile = [...placed(), ...children()].find((t) => t.id === id)
     if (tabbing && tile) map.focus(tile)
   }),
 )
@@ -309,33 +358,205 @@ function markSeen(id: string) {
   localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
   tiles.get(id)?.classList.add('seen')
   map.markSeen(id)
+  // A category is seen once everything in it is.
+  for (const c of CATEGORIES) {
+    if (!c.children.every((child) => seen.has(child))) continue
+    tiles.get(c.id)?.classList.add('seen')
+    map.markSeen(c.id)
+  }
 }
 seen.forEach(markSeen)
 
-// --- routing: "/" is the map, "/<project>/" opens that project's card on it
+// --- categories: one open at a time. Opening one sinks the root and shoots the
+// children out of the category; they fold back into it when it closes.
+let openCat: string | null = null
+/** How far back the root sinks (its scale), about the point at the centre of the view when it did */
+const SINK = 0.9
+let sinkAt = { x: 0, y: 0 }
+/** How long the children take to land: a card or the reel waits for them */
+const UNFOLD_MS = 950
+let unfoldingTimer = 0
+/** A category's tile as it looks with the root sunk: the middle of its foot, where its children come out of */
+function mouth(id: string) {
+  const t = world.categories.find((c) => c.id === id)!
+  return { x: sinkAt.x + (t.x + t.w / 2 - sinkAt.x) * SINK, y: sinkAt.y + (t.y + t.h - sinkAt.y) * SINK }
+}
+
+/** A child put away at once, without animation: hidden, untabbable */
+function fold1(el: HTMLElement) {
+  el.classList.add('folded')
+  el.inert = true
+}
+
+/** Each child's way back into (or out of) the category's mouth, and its place in the cascade */
+function aim(id: string, reverse: boolean) {
+  const from = mouth(id)
+  const kids = world.children[id]
+  kids.forEach((t, i) => {
+    const el = tiles.get(t.id)!
+    el.style.setProperty('--dx', `${from.x - (t.x + t.w / 2)}px`)
+    el.style.setProperty('--dy', `${from.y - (t.y + t.h / 2)}px`)
+    el.style.setProperty('--k', String(reverse ? kids.length - 1 - i : i))
+  })
+  return kids
+}
+
+/** The threads from the category to each child, drawn out with the cascade (or at once) */
+function tie(id: string, animate: boolean) {
+  const from = mouth(id)
+  const paths = world.children[id].map((t, i) => {
+    const p = document.createElementNS(SVG, 'path')
+    p.setAttribute('d', `M${from.x} ${from.y}L${t.x + t.w / 2} ${t.y}`)
+    p.setAttribute('pathLength', '1')
+    p.style.setProperty('--k', String(i))
+    return p
+  })
+  threads.replaceChildren(...paths)
+  if (animate) void threads.getBoundingClientRect()
+  paths.forEach((p) => p.classList.add('on'))
+}
+function untie() {
+  const paths = [...threads.children] as SVGPathElement[]
+  paths.forEach((p, i) => {
+    p.style.setProperty('--k', String(paths.length - 1 - i))
+    p.classList.remove('on')
+  })
+}
+
+function unfold(id: string) {
+  if (!openCat) {
+    sinkAt = map.camera()
+    rootLayer.style.transformOrigin = `${sinkAt.x}px ${sinkAt.y}px`
+  }
+  openCat = id
+  rootLayer.classList.add('sunk')
+  tiles.get(id)?.classList.add('current')
+  const kids = aim(id, false)
+  // Start from the mouth with no transition, then let go: the cascade runs from there.
+  frontLayer.classList.add('snap')
+  for (const t of kids) tiles.get(t.id)!.classList.add('folded')
+  void frontLayer.offsetWidth
+  frontLayer.classList.remove('snap')
+  frontLayer.classList.add('unfolding')
+  for (const t of kids) {
+    const el = tiles.get(t.id)!
+    el.classList.remove('folded')
+    el.inert = false
+  }
+  clearTimeout(unfoldingTimer)
+  unfoldingTimer = window.setTimeout(() => frontLayer.classList.remove('unfolding'), UNFOLD_MS + 300)
+  tie(id, true)
+  map.setTiles(kids)
+  frameChildren(id)
+}
+
+function fold(id: string) {
+  tiles.get(id)?.classList.remove('current')
+  for (const t of aim(id, true)) fold1(tiles.get(t.id)!)
+  untie()
+  openCat = null
+}
+
+/** The camera to the open grid: all of it if it fits, else its top, read by panning down */
+function frameChildren(id: string) {
+  const parent = world.categories.find((c) => c.id === id)!
+  const label = (narrow.matches ? NARROW : WIDE).label
+  // Room above the category for the back node, fixed at the top of the screen.
+  const rects = [{ ...parent, y: parent.y - 56 }, ...world.children[id].map((t) => ({ ...t, h: t.h + label }))]
+  const x = Math.min(...rects.map((r) => r.x))
+  const y = Math.min(...rects.map((r) => r.y))
+  const w = Math.max(...rects.map((r) => r.x + r.w)) - x
+  const h = Math.max(...rects.map((r) => r.y + r.h)) - y
+  const { w: vw, h: vh } = map.viewport()
+  const m = 24
+  const whole = Math.min(1, (vw - 2 * m) / w, (vh - 2 * m) / h)
+  if (whole >= 0.7) map.go({ x: x + w / 2, y: y + h / 2, z: whole }, 700)
+  else {
+    const z = Math.min(1, (vw - 2 * m) / w)
+    map.go({ x: x + w / 2, y: y + (vh / 2 - m) / z, z }, 700)
+  }
+}
+
+/** Opening a category is a step in history, so the back gesture closes it; switching between two replaces it. */
+const CAT_STATE = { category: true }
+function goCategory(id: string) {
+  if (openCat === id) return closeCategory()
+  if (history.state?.category) history.replaceState(CAT_STATE, '', `/${id}/`)
+  else history.pushState(CAT_STATE, '', `/${id}/`)
+  sync()
+}
+function closeCategory() {
+  if (history.state?.category) history.back()
+  else {
+    history.replaceState(null, '', '/')
+    sync()
+  }
+}
+backButton.addEventListener('click', closeCategory)
+// A tap on nothing in particular closes the open category (a drag that ends never gets here: map.ts swallows its click).
+$('map').addEventListener('click', (e) => {
+  if (!openCat || card) return
+  if ((e.target as Element).closest('a, button, .tile, .note, .home, iframe')) return
+  closeCategory()
+})
+
+// --- routing: "/" is the map, "/<category>/" opens a category, "/<project>/" opens
+// its category and that project's card, "/reel/" the vfx category and the player
 let current: string | null = null
 const slugNow = () => location.pathname.split('/').filter(Boolean)[0]?.replace(/\.html$/, '') ?? ''
+const later = (ms: number, fn: () => void) => (ms ? window.setTimeout(fn, ms) : fn())
 
 function sync() {
-  const project = findProject(slugNow())
-  const onReel = slugNow() === REEL_SLUG
+  const slug = slugNow()
+  const project = findProject(slug)
+  const onReel = slug === REEL_SLUG
+  const cat = categoryOf(project?.id ?? slug) ?? null
   closeLightbox()
-  document.title = project ? `${project.title} — shaul bar-lev` : onReel ? `Film & art — shaul bar-lev` : SITE_TITLE
+  document.title = project ? `${project.title} — shaul bar-lev` : onReel ? `Reel — shaul bar-lev` : cat ? `${cat.title} — shaul bar-lev` : SITE_TITLE
+  let wait = 0
+  if ((cat?.id ?? null) !== openCat) {
+    // Whatever was open inside the old category goes with it, at once.
+    if (card) {
+      const open = card
+      card = null
+      open.close(true)
+    }
+    if (reel.isOpen && !onReel) reel.close()
+    if (openCat) fold(openCat)
+    if (cat) {
+      unfold(cat.id)
+      wait = UNFOLD_MS
+    } else {
+      rootLayer.classList.remove('sunk')
+      map.setTiles(world.categories)
+    }
+  }
+  backButton.hidden = cat === null
   // The reel answers to the address too, so back and forward fold and unfold it.
-  if (onReel && !reel.isOpen) {
-    const at = reel.open()
-    if (at) map.fit(at)
-  } else if (!onReel && reel.isOpen) reel.close()
+  if (onReel && !reel.isOpen)
+    later(wait, () => {
+      if (slugNow() !== REEL_SLUG || reel.isOpen) return
+      const at = reel.open()
+      if (at) map.fit(at)
+    })
+  else if (!onReel && reel.isOpen) reel.close()
+  later(wait, syncCard)
+}
+
+/** The project card follows the address; it waits for its category's children to land. */
+function syncCard() {
+  const project = findProject(slugNow())
   if (card && card.id !== project?.id) {
     card.close()
     card = null
   }
-  const at = project && world.tiles.find((t) => t.id === project.id)
+  const at = project && childRect(project.id)
   if (project && at && !card) {
-    const i = PROJECTS.indexOf(project)
+    const siblings = (categoryOf(project.id)?.children ?? []).map((id) => findProject(id)).filter((p): p is Project => p !== undefined)
+    const i = siblings.indexOf(project)
     const around = {
-      prev: PROJECTS[(i - 1 + PROJECTS.length) % PROJECTS.length],
-      next: PROJECTS[(i + 1) % PROJECTS.length],
+      prev: siblings[(i - 1 + siblings.length) % siblings.length],
+      next: siblings[(i + 1) % siblings.length],
     }
     const opened = openCard({
       id: project.id,
@@ -380,8 +601,9 @@ function sync() {
   current = project?.id ?? null
 }
 
+/** Back to the category the project is in, not out of it */
 function closeProject() {
-  history.replaceState(null, '', '/')
+  history.replaceState(history.state, '', openCat ? `/${openCat}/` : '/')
   sync()
 }
 
@@ -396,7 +618,7 @@ window.addEventListener('keydown', (e) => {
   }
   const step = 180
   const keys: Record<string, () => void> = {
-    Escape: () => reel.close(),
+    Escape: () => (reel.isOpen ? reel.close() : openCat && closeCategory()),
     ArrowLeft: () => map.panBy(-step, 0),
     ArrowRight: () => map.panBy(step, 0),
     ArrowUp: () => map.panBy(0, -step),
@@ -408,6 +630,8 @@ window.addEventListener('keydown', (e) => {
     Home: () => map.goHome(),
   }
   const action = keys[e.key]
+  // Escape with nothing open is the browser's.
+  if (e.key === 'Escape' && !reel.isOpen && !openCat) return
   if (!action) return
   e.preventDefault()
   action()
@@ -429,6 +653,7 @@ if (legacy) history.replaceState(null, '', `/${legacy.id}/`)
  * over the choreography and skips to the end.
  */
 function opening(at: Rect | null, then: () => void) {
+  // The children are folded away; only what is always there takes part.
   placed().forEach((t, i) => {
     const a = tiles.get(t.id)!
     a.style.setProperty('--dx', `${world.home.x + world.home.w / 2 - (t.x + t.w / 2)}px`)
@@ -491,15 +716,25 @@ async function gated(): Promise<Set<string>> {
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
 const slug = slugNow()
 const linked = findProject(slug)
-const linkedTile = linked && world.tiles.find((t) => t.id === linked.id)
+const linkedCat = categoryOf(linked?.id ?? slug)
 const anchored = ISLANDS.find((i) => i.kind === 'frame' && i.path === slug)
-if (linked && linkedTile && !calm) {
-  // Arrived by a link to a project: the field, the flight to its tile, and the card growing from it.
+if (linkedCat) {
+  // Arrived inside a category: the map goes under it in history, so back lands on the map, not off the site.
+  const path = location.pathname
+  history.replaceState(null, '', '/')
+  history.pushState(CAT_STATE, '', path)
   void gated()
-  opening(linkedTile, () => {
-    opener = tiles.get(linked.id) ?? null
+  const at = world.categories.find((t) => t.id === linkedCat.id)!
+  const arrive = () => {
+    opener = linked ? (tiles.get(linked.id) ?? null) : null
     sync()
-  })
+  }
+  // The field, the flight to its category, the children out of it, and then the card or the reel.
+  if (!calm) opening(at, arrive)
+  else {
+    map.focus(at, 0)
+    arrive()
+  }
 } else if (anchored) {
   // Arrived by a link to an island: the field, then the flight to it. Switched
   // off, the link is just the map.
@@ -508,19 +743,12 @@ if (linked && linkedTile && !calm) {
   if (at && !gone.has(anchored.id) && !calm) opening(at, () => {})
   else if (at && !gone.has(anchored.id)) map.focus(at, 0)
   else map.goHome(0)
-} else if (slug === REEL_SLUG) {
-  // Arrived at the reel's own address: the flight goes to the film tile, and the
-  // router unfolds the player once it lands.
-  void gated()
-  const at = world.links.find((t) => t.id === 'film')
-  if (at && !calm) opening(at, () => sync())
-  else sync()
-} else if (!calm && !sessionStorage.getItem('intro') && !linked) {
-  sessionStorage.setItem('intro', '1')
+} else if (!calm) {
+  // The opening plays on every visit.
   void gated()
   opening(null, () => {})
 } else {
   void gated()
-  if (!linked) map.goHome(0)
+  map.goHome(0)
   sync()
 }

@@ -5,26 +5,40 @@
 
 export type Rect = { x: number; y: number; w: number; h: number }
 export type Tile = Rect & { id: string }
-/** `links` are the small tiles that hug home, `tiles` the projects, `islands` the passive pictures out past them. */
-/** `origin` is the wordmark's centre: what the camera calls home and the readout counts from. */
-export type World = { w: number; h: number; home: Rect; origin: { x: number; y: number }; links: Tile[]; tiles: Tile[]; islands: Tile[] }
+/**
+ * `links` are the small tiles that hug home, `categories` the column under it,
+ * `children` each category's grid (all laid out at once, shown one at a time),
+ * `islands` the passive pictures out past everything. `tiles` is what the map's
+ * minimap and edge markers point at right now: the categories, or the open grid.
+ * `origin` is the middle of the wordmark and its column: what the camera calls home.
+ */
+export type World = {
+  w: number
+  h: number
+  home: Rect
+  origin: { x: number; y: number }
+  links: Tile[]
+  categories: Tile[]
+  children: Record<string, Tile[]>
+  tiles: Tile[]
+  islands: Tile[]
+}
 /** A passive picture and its size on a wide screen */
 export type Island = { id: string; w: number; h: number }
 
-/** How loosely to scatter: phones get small tiles packed close, so several fill the screen. */
+/** Sizes and spacing: phones get smaller tiles, two to a row. */
 export type Profile = {
-  sizes: number[]
+  /** A category: a title-only tile, and the gap between them in the column */
+  category: { w: number; h: number; gap: number; /** below the wordmark block */ top: number }
+  /** A category's children: one size, `cols` across, starting `top` below the column */
+  grid: { size: number; cols: number; gap: number; top: number }
   /** The wordmark block: its size, and how far its box sits below the logo's centre (half the hint line under it) */
   home: { w: number; h: number; drop: number }
-  /** Room under each tile for its title */
+  /** Room under each tile for its title, up to three lines */
   label: number
-  gap: number
   /** Empty border around everything */
   margin: number
-  /** Radius of the first ring, and how fast the rings widen */
-  ring: number
-  spread: number
-  /** Horizontal stretch of the rings */
+  /** Horizontal stretch of the directions links and islands are pushed along */
   aspect: number
   /** Islands: how far past the outermost project they start, their clearance, and their size relative to a wide screen's */
   island: { beyond: number; gap: number; scale: number }
@@ -33,31 +47,26 @@ export type Profile = {
 }
 
 export const WIDE: Profile = {
-  sizes: [300, 220, 260, 200, 280, 240],
+  category: { w: 240, h: 52, gap: 22, top: 36 },
+  grid: { size: 240, cols: 4, gap: 36, top: 90 },
   home: { w: 240, h: 184, drop: 21 },
-  label: 56,
-  gap: 100,
+  label: 72,
   margin: 300,
-  ring: 250,
-  spread: 190,
   aspect: 1.35,
   island: { beyond: 240, gap: 160, scale: 1 },
-  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315, 0] },
+  link: { size: 96, label: 0, gap: 40, angles: [45, 135, 225, 315] },
 }
 
 export const NARROW: Profile = {
-  sizes: [240, 180, 210, 170, 230, 190],
+  category: { w: 180, h: 46, gap: 14, top: 26 },
+  grid: { size: 160, cols: 2, gap: 16, top: 60 },
   home: { w: 176, h: 137, drop: 17 },
-  label: 44,
-  gap: 24,
+  label: 64,
   margin: 120,
-  ring: 170,
-  spread: 150,
   aspect: 0.8,
   island: { beyond: 130, gap: 70, scale: 0.72 },
-  // chosen so that all five fit across a phone with the wordmark: two above, and
-  // below it two fanned out wide with the fifth between them, straight down
-  link: { size: 72, label: 0, gap: 18, angles: [48, 132, 244, 296, 90] },
+  // two above the wordmark, and two below it fanned out either side of the column
+  link: { size: 72, label: 0, gap: 18, angles: [48, 132, 244, 296] },
 }
 
 function mulberry32(seed: number) {
@@ -78,17 +87,32 @@ function overlaps(a: Rect, b: Rect, gap: number) {
   )
 }
 
-export function scatter(ids: string[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
-  const { sizes, label, gap, margin, ring, spread, aspect, link, island } = profile
+/**
+ * Lays the map out. Root: the wordmark, the categories stacked under it, the
+ * contact tiles around it, and the islands far out. Every category's grid sits
+ * below the column, centred on it, so a grid never hides the other categories;
+ * the grids overlap each other, which is fine as only one is ever open. The
+ * world is sized for the largest of them from the start, so opening one moves
+ * nothing.
+ */
+export function scatter(categories: { id: string; children: string[] }[], linkIds: string[], islandList: Island[], profile: Profile, seed = 11): World {
+  const { label, margin, aspect, link, island, category, grid } = profile
   const rand = mulberry32(seed)
   // Placed around home at the origin; the world is fitted to the result below.
   const { w: hw, h: hh, drop } = profile.home
   const home: Rect = { x: -hw / 2, y: -hh / 2 + drop, w: hw, h: hh }
   const taken: Rect[] = [home]
 
-  // The contact tiles go first and nearest: each is pushed out from home along
-  // its own direction (a little off true, so they do not look ruled) until it
-  // clears what is already there.
+  const cats = categories.map(({ id }, i): Tile => {
+    const rect = { id, x: -category.w / 2, y: home.y + home.h + category.top + i * (category.h + category.gap), w: category.w, h: category.h }
+    taken.push(rect)
+    return rect
+  })
+  const columnEnd = Math.max(home.y + home.h, ...cats.map((t) => t.y + t.h))
+
+  // The contact tiles go nearest: each is pushed out from home along its own
+  // direction (a little off true, so they do not look ruled) until it clears
+  // what is already there, the column included.
   const links = linkIds.map((id, i): Tile => {
     const angle = ((link.angles[i % link.angles.length] + (rand() - 0.5) * 14) * Math.PI) / 180
     for (let r = 0; ; r += 3) {
@@ -105,47 +129,57 @@ export function scatter(ids: string[], linkIds: string[], islandList: Island[], 
     }
   })
 
-  const tiles = ids.map((id, i): Tile => {
-    const size = sizes[i % sizes.length]
-    // Golden-angle steps spread the tiles around home; the ring widens with
-    // every project (by sqrt, so density stays even) and every failed try, so
-    // list order is roughly distance order.
-    let angle = i * 2.39996 + rand() * 0.9
-    for (let attempt = 0; ; attempt++) {
-      const r = ring + Math.sqrt(i) * spread + attempt * 3
-      const rect: Rect = {
-        x: Math.round(Math.cos(angle) * r * aspect - size / 2),
-        y: Math.round(Math.sin(angle) * r - size / 2),
-        w: size,
-        h: size + label,
-      }
-      if (!taken.some((t) => overlaps(rect, t, gap))) {
-        taken.push(rect)
-        return { id, x: rect.x, y: rect.y, w: size, h: size }
-      }
-      angle = rand() * Math.PI * 2
-    }
-  })
+  // Rows of `cols`, the last row centred; the label sits under each picture.
+  const pitch = grid.size + grid.gap
+  const rowPitch = grid.size + label + grid.gap
+  const children: Record<string, Tile[]> = {}
+  const gridRects: Rect[] = []
+  for (const { id, children: ids } of categories) {
+    children[id] = ids.map((child, i) => {
+      const row = Math.floor(i / grid.cols)
+      const inRow = Math.min(grid.cols, ids.length - row * grid.cols)
+      const x = -(inRow * pitch - grid.gap) / 2 + (i % grid.cols) * pitch
+      return { id: child, x: Math.round(x), y: Math.round(columnEnd + grid.top + row * rowPitch), w: grid.size, h: grid.size }
+    })
+    gridRects.push(...children[id].map((t) => ({ ...t, h: t.h + label })))
+  }
 
-  // The outskirts: each island starts beyond the outermost project, in a direction of its own, and is pushed out until clear.
-  const reach = Math.max(0, ...tiles.map((t) => Math.hypot(t.x + t.w / 2, t.y + t.h / 2) + t.w / 2))
+  // The outskirts: each island starts beyond everything else, in a direction of its own, and is pushed out until clear.
+  const all = [...taken, ...gridRects]
+  const reach = Math.max(0, ...all.map((t) => Math.hypot(t.x + t.w / 2, t.y + t.h / 2) + Math.max(t.w, t.h) / 2))
   const islands = islandList.map(({ id, w, h }): Tile => {
     const angle = rand() * Math.PI * 2
     const size = { w: Math.round(w * island.scale), h: Math.round(h * island.scale) }
     for (let r = reach + island.beyond; ; r += 6) {
       const rect: Rect = { x: Math.round(Math.cos(angle) * r * aspect - size.w / 2), y: Math.round(Math.sin(angle) * r - size.h / 2), ...size }
-      if (!taken.some((t) => overlaps(rect, t, island.gap))) {
+      if (![...all, ...taken].some((t) => overlaps(rect, t, island.gap))) {
         taken.push(rect)
         return { id, ...rect }
       }
     }
   })
 
-  const left = Math.min(...taken.map((t) => t.x)) - margin
-  const top = Math.min(...taken.map((t) => t.y)) - margin
-  const right = Math.max(...taken.map((t) => t.x + t.w)) + margin
-  const bottom = Math.max(...taken.map((t) => t.y + t.h)) + margin
+  const every = [...taken, ...gridRects]
+  // Even either side of home: a view wider than the world centres the world, and home must be in that centre.
+  const half = Math.max(-Math.min(...every.map((t) => t.x)), Math.max(...every.map((t) => t.x + t.w))) + margin
+  const left = -half
+  const top = Math.min(...every.map((t) => t.y)) - margin
+  const right = half
+  const bottom = Math.max(...every.map((t) => t.y + t.h)) + margin
   const shift = <T extends Rect>(r: T): T => ({ ...r, x: r.x - left, y: r.y - top })
+  const shifted = shift(home)
+  const categoriesShifted = cats.map(shift)
 
-  return { w: right - left, h: bottom - top, home: shift(home), origin: { x: -left, y: -top }, links: links.map(shift), tiles: tiles.map(shift), islands: islands.map(shift) }
+  return {
+    w: right - left,
+    h: bottom - top,
+    home: shifted,
+    // Home is the wordmark with its column: both in view, the pair centred.
+    origin: { x: -left, y: (home.y + columnEnd) / 2 - top },
+    links: links.map(shift),
+    categories: categoriesShifted,
+    children: Object.fromEntries(Object.entries(children).map(([id, list]) => [id, list.map(shift)])),
+    tiles: categoriesShifted,
+    islands: islands.map(shift),
+  }
 }

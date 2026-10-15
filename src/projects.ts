@@ -10,6 +10,8 @@ export type ProjectMediaVideo = {
   title?: string
   thumbnail?: string
   orientation?: 'vertical' | 'horizontal'
+  /** Plays by itself, silent and without controls, over and over: a short study rather than a film */
+  loop?: boolean
 }
 
 export type ProjectMediaImage = {
@@ -20,7 +22,10 @@ export type ProjectMediaImage = {
   objectFit?: 'cover' | 'contain'
 }
 
-export type ProjectMediaItem = ProjectMediaVideo | ProjectMediaImage
+/** Items side by side across the full width of the grid, as many columns as there are items */
+export type ProjectMediaRow = { type: 'row'; items: (ProjectMediaVideo | ProjectMediaImage)[] }
+
+export type ProjectMediaItem = ProjectMediaVideo | ProjectMediaImage | ProjectMediaRow
 
 export type Project = {
   id: string
@@ -40,7 +45,7 @@ export type Project = {
   /** Image shown at the top of the text column */
   asideImage?: { src: string; alt: string }
   /** Call-to-action box at the top of the text column */
-  cta?: { lead: string; label: string; href: string; rtl?: boolean }
+  cta?: { lead?: string; label: string; href: string; rtl?: boolean; icon?: 'whatsapp' }
   /** On narrow screens, put the text column above the media */
   textFirst?: boolean
   /** Mute every video, not only the autoplaying first one */
@@ -52,10 +57,7 @@ export const ALIASES: Record<string, string> = {
   pikud: 'pikud-haoled',
 }
 
-/**
- * Map order: earlier projects land closer to the centre of the map.
- * Projects not listed here follow in their order below.
- */
+/** Electronics, in grid order: the first is top-left, the strongest. */
 const ORDER = [
   'doorlock',
   'pikud-haoled',
@@ -349,11 +351,99 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
       label: 'הצטרפו לקבוצת העדכונים',
       href: 'https://chat.whatsapp.com/BhLWAVLMEVcLHHAkfKGeqp?mode=hq1tcli',
       rtl: true,
+      icon: 'whatsapp',
     },
     textFirst: true,
     muteAll: true,
   },
+  {
+    id: 'knock',
+    title: 'knock.cards',
+    subtitle: 'Digital business cards, designed in 3D and built as React components.',
+    tags: ['3d', 'blender', 'after-effects', 'react', 'web'],
+    thumbnail: { src: '/knock/tile.jpg', alt: 'A knock.cards business card in purple glass' },
+    media: [
+      // The four materials, each playing forward and back.
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/glass.mp4', thumbnail: '/knock/glass.jpg', title: 'Purple glass', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/black-matte.mp4', thumbnail: '/knock/black-matte.jpg', title: 'Black matte', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/grey-paper.mp4', thumbnail: '/knock/grey-paper.jpg', title: 'Grey paper', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/white-matte.mp4', thumbnail: '/knock/white-matte.jpg', title: 'White matte', loop: true },
+        ],
+      },
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/v1-mockup.mp4', thumbnail: '/knock/v1-mockup.jpg', title: 'The first card, in a phone', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/v1.mp4', thumbnail: '/knock/v1.jpg', title: 'The first card', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/v2.mp4', thumbnail: '/knock/v2.jpg', title: 'A one-button card', loop: true },
+        ],
+      },
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/knock/card-b.mp4', thumbnail: '/knock/card-b.jpg', title: 'Card arrival study', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/card-f.mp4', thumbnail: '/knock/card-f.jpg', title: 'Card arrival study', loop: true },
+          { type: 'video', kind: 'file', src: '/knock/live.mp4', thumbnail: '/knock/live.jpg', title: 'A card live in the browser', loop: true },
+        ],
+      },
+      { type: 'video', kind: 'file', src: '/knock/editor.mp4', thumbnail: '/knock/editor.jpg', title: 'Making a card in the knock.cards editor', orientation: 'horizontal' },
+    ],
+    description: `Knock does many things. I worked on knock.cards: a business card that is a link, with your face, your role and the buttons that start a conversation.
+
+## Designed in 3D
+
+The card arrives as an object. It flies in, turns and settles, in glass, matte or paper. I designed and animated it in the traditional tools, Blender and After Effects.
+
+## Built as code
+
+Then I implemented those assets as React components, and fine-tuned them for desktop and mobile with bandwidth in mind. A card is mostly opened on a phone, so it has to look right without costing much to load.`,
+    cta: { label: 'Create your own knock.cards', href: 'https://knock.cards' },
+  },
+  {
+    id: 'remy',
+    title: 'Remy',
+    subtitle: 'A social media app for close friends. Product lead, design and iOS.',
+    tags: ['product', 'design', 'ios', 'swiftui'],
+    thumbnail: { src: '/remy/tile.jpg', alt: 'The Remy invite card on an iPhone' },
+    // ponytail: interim media from the shipped app; swap in the mockups, the onboarding loops and the landing page video when they arrive.
+    media: [
+      {
+        type: 'row',
+        items: [
+          { type: 'video', kind: 'file', src: '/remy/scroll.mp4', thumbnail: '/remy/scroll.jpg', title: 'The feed', loop: true },
+          { type: 'video', kind: 'file', src: '/remy/scroll-dark.mp4', thumbnail: '/remy/scroll-dark.jpg', title: 'The feed, dark', loop: true },
+          { type: 'video', kind: 'file', src: '/remy/pause.mp4', thumbnail: '/remy/pause.jpg', title: 'Pause mode', loop: true },
+        ],
+      },
+      { type: 'video', kind: 'file', src: '/remy/onboarding.mp4', thumbnail: '/remy/onboarding.jpg', title: 'Onboarding' },
+      { type: 'video', kind: 'file', src: '/remy/first-post.mp4', thumbnail: '/remy/first-post.jpg', title: 'The first post' },
+    ],
+    description: `Remy is a social media app for close friends.
+
+## My part
+
+I was the product lead and the designer, and I wrote iOS code.`,
+  },
 ]
+
+/**
+ * The map's three doors. The landing shows only these, stacked under the
+ * wordmark; opening one shoots its children out below the column.
+ * `children` are project ids in map order (earlier = nearer the top), and
+ * `reel` stands for the reel's own tile.
+ */
+export const CATEGORIES = [
+  { id: 'ux', title: 'ux/ui', children: ['knock', 'remy'] },
+  { id: 'vfx', title: 'vfx', children: ['reel'] },
+  { id: 'electronics', title: 'electronics', children: ORDER },
+]
+export type Category = (typeof CATEGORIES)[number]
+
+/** The category a project, the reel or a category itself belongs to */
+export const categoryOf = (id: string): Category | undefined => CATEGORIES.find((c) => c.id === id || c.children.includes(id))
 
 const rank = (p: Project) => {
   const i = ORDER.indexOf(p.id)
@@ -380,7 +470,7 @@ export const displayUrl = (src: string) => `/m${src}.jpg`
 
 /** The pictures a project page shows, in page order: what is worth fetching before it opens. */
 export function displayPictures(p: Project): string[] {
-  const shown = (p.media ?? []).map((m) => (m.type === 'image' ? m.src : m.thumbnail))
+  const shown = (p.media ?? []).flatMap((m) => (m.type === 'row' ? m.items : [m])).map((m) => (m.type === 'image' ? m.src : m.thumbnail))
   const all = p.textFirst ? [p.asideImage?.src, ...shown] : [...shown, p.asideImage?.src]
   return all.filter((src): src is string => src !== undefined).map(displayUrl)
 }
@@ -442,5 +532,5 @@ export const ISLANDS: Island[] = [
   },
 ]
 
-/** The film & art reel. At 70 MB it is over this host's 25 MiB limit per file, so it is a file of the QR Worker's (R2, served with ranges). */
-export const REEL = { src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4', poster: '/reel/poster.jpg' }
+/** The vfx reel, and its tile's title. At 70 MB it is over this host's 25 MiB limit per file, so it is a file of the QR Worker's (R2, served with ranges). */
+export const REEL = { src: 'https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4', poster: '/reel/poster.jpg', title: 'watch my reel' }

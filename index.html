@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#070707" />
     <title>Shaul Bar Lev</title>
-    <meta name="description" content="Shaul Bar Lev: electronics, IoT, film and art projects, laid out as a map. Smart door lock, levitating bulb, Pac-Man controller, Comfy keyboard, ZigBee bell, WiFi shades, MIDI controller, the showreel." />
+    <meta name="description" content="Shaul Bar Lev: design, film and electronics, laid out as a map. UX/UI for knock.cards and Remy, a VFX reel, and electronics builds: a smart door lock, a levitating bulb, a Pac-Man controller, Pikud HaoLED and more." />
     <!-- Open Graph / WhatsApp / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Shaul builds things" />
-    <meta property="og:description" content="I take things and add wifi to them" />
+    <meta property="og:title" content="Shaul Bar Lev" />
+    <meta property="og:description" content="Design, film, electronics" />
     <meta property="og:image" content="https://shaulb.com/og-image.jpg" />
     <meta property="og:url" content="https://shaulb.com/" />
     <meta property="og:image:width" content="1200" />
@@ -17,8 +17,8 @@
     <meta property="og:locale" content="en_US" />
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shaul builds things" />
-    <meta name="twitter:description" content="I take things and add wifi to them" />
+    <meta name="twitter:title" content="Shaul Bar Lev" />
+    <meta name="twitter:description" content="Design, film, electronics" />
     <meta name="twitter:image" content="https://shaulb.com/og-image.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@700&text=CV&display=swap" />
   </head>
   <body>
-    <main id="map" class="viewport" aria-label="Map of projects. Drag to explore.">
+    <main id="map" class="viewport" aria-label="Map of work in three categories. Drag to explore.">
       <div id="plane" class="plane">
         <section id="home" class="home">
           <h1 id="logo" class="logo">shaul<br />bar-lev</h1>
@@ -37,15 +37,15 @@
             <a data-id="linkedin" href="https://www.linkedin.com/in/shaul-bar-lev/" target="_blank" rel="noreferrer"><i class="hn hn-linkedin" aria-hidden="true"></i><span>linkedin</span></a>
             <a data-id="email" href="mailto:shaulbarlev1@gmail.com"><i class="hn hn-envelope" aria-hidden="true"></i><span>email</span></a>
             <a data-id="cv" href="/shaul-bar-lev-cv.pdf" target="_blank" rel="noreferrer"><i class="px" aria-hidden="true">CV</i><span>my cv</span></a>
-            <a data-id="film" class="words" href="https://sbl.cx/f/f420d75d7af66811d0381f1386d70448/reel.mp4" target="_blank" rel="noreferrer"><b>film<br />&amp; art<br />projects</b></a>
           </nav>
-          <p class="hint">drag in any direction to explore</p>
+          <p class="hint">pick one</p>
         </section>
       </div>
       <div id="markers" class="markers" aria-hidden="true"></div>
     </main>
 
     <button id="home-button" class="hud home-button" type="button" hidden>shaul bar-lev</button>
+    <button id="back-node" class="hud back-node" type="button" hidden>&larr; back</button>
     <div class="hud locator">
       <div id="minimap" class="minimap" aria-hidden="true"></div>
       <div id="readout" class="readout" aria-hidden="true"></div>

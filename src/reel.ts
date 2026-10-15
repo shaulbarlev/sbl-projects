@@ -2,18 +2,18 @@ import { h } from './dom'
 import type { Rect } from './layout'
 import { REEL } from './projects'
 
-/** How many times wider the tile gets, and the shape it takes: the reel's */
+/** How many times wider the tile gets (less on a phone, whose tile is already a third of the screen), and the shape it takes: the reel's */
 const GROW = 4
+const GROW_NARROW = 2.4
 const ASPECT = 16 / 9
 /** How much of the open reel may leave the view before it folds */
 const KEEP = 0.3
 
 /**
- * The film & art tile opens in place into the reel: it grows into a 16:9
- * player — rightwards from its left edge on a wide screen, about its own centre
- * on a phone — poster up and controls ready, and the map is
+ * The vfx category's one tile opens in place into the reel: it grows about its
+ * own centre into a 16:9 player, poster up and controls ready, and the map is
  * brought to it at a zoom that shows the whole player. Panning away folds it.
- * Its link to the film site stays as the closed face, for opening in a new
+ * Its link to the video file stays as the closed face, for opening in a new
  * tab and for when there is no script.
  *
  * `/reel/` is the address of the open player, so it can be linked and shared;
@@ -43,21 +43,24 @@ export function createReel(
   box.append(face, shut)
 
   let closed: Rect = { x: 0, y: 0, w: 0, h: 0 }
+  /** The closed tile's height on screen, picture and label: what the fold ends at */
+  let closedH = 0
   let open: Rect | null = null
   let video: HTMLVideoElement | null = null
   let armed = false
 
   const put = (r: Rect) => Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` })
+  /** Closed, the box is as tall as its picture and label; the fold's end height is set until it lands */
+  const putClosed = () => {
+    put(closed)
+    box.style.height = ''
+  }
 
   /** Where the open player goes for the closed tile at `closed` */
   function grown(): Rect {
-    const w = closed.w * GROW
-    // On a wide screen the tile sits due east of the wordmark, so a player that
-    // grew about its centre reached back over the name: there it opens
-    // rightwards from its left edge instead. The phone layout puts the tile
-    // elsewhere and looked right as it was.
-    const x = narrow() ? closed.x - (w - closed.w) / 2 : closed.x
-    return { x, y: closed.y - (w / ASPECT - closed.h) / 2, w, h: w / ASPECT }
+    const w = closed.w * (narrow() ? GROW_NARROW : GROW)
+    const h = closedH || closed.h
+    return { x: closed.x - (w - closed.w) / 2, y: closed.y - (w / ASPECT - h) / 2, w, h: w / ASPECT }
   }
 
   /**
@@ -94,13 +97,15 @@ export function createReel(
     open = null
     armed = false
     box.classList.remove('open')
-    put(closed)
+    put({ ...closed, h: closedH })
+    window.setTimeout(() => !video && putClosed(), 400)
     onClose()
   }
 
   /** @param fly whether the map travels to it; false for a visitor who arrived at /reel/ */
   function unfold(fly = true) {
     if (video) return
+    closedH = box.offsetHeight
     // Nothing is fetched but the poster until play is pressed.
     video = h('video', { controls: true, playsinline: true, preload: 'none', poster: REEL.poster }, h('source', { src: REEL.src, type: 'video/mp4' }))
     // iPhone's own full-screen player fires these on the video, not the document.
@@ -147,7 +152,7 @@ export function createReel(
     place(at: Rect): Rect | null {
       closed = at
       if (!open) {
-        put(at)
+        putClosed()
         return null
       }
       open = grown()

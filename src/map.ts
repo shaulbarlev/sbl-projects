@@ -422,6 +422,14 @@ export function createMap(opts: {
       if (lampDots.has(id)) paintLamps(id)
       else drawOverlays()
     },
+    /** Point the minimap and edge markers at `tiles`: the categories, or the grid that is open */
+    setTiles(tiles: World['tiles']) {
+      world = { ...world, tiles }
+      drawOverlays()
+      render()
+    },
+    /** Where the camera is now, in world px */
+    camera: () => ({ ...cam }),
     /** Swap in a new layout and start again from home */
     setWorld(next: World) {
       world = next
@@ -447,10 +455,10 @@ export function createMap(opts: {
     lock(on: boolean) {
       locked = on
     },
-    /** Cut to a view of the whole world, as far as the zoom range allows */
+    /** Cut to a view of the whole world, as far as the zoom range allows, centred on home so the push-in that follows is straight in */
     overview() {
       halt()
-      Object.assign(cam, { x: world.w / 2, y: world.h / 2, z: Math.min(vw / world.w, vh / world.h, 1) })
+      Object.assign(cam, { ...home, z: Math.min(vw / world.w, vh / world.h, 1) })
       render()
     },
     goHome: (ms?: number) => flyTo({ ...home, z: 1 }, ms),
