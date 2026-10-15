@@ -1160,11 +1160,6 @@ body.has-project .back-node {
 .media > .row.tight {
   gap: 0;
 }
-@media (max-width: 699px) {
-  .media > .row {
-    grid-template-columns: repeat(var(--n-narrow), minmax(0, 1fr));
-  }
-}
 /* the lead piece: a row of its own, middling, centred */
 .cell.medium {
   grid-column: 1 / -1;

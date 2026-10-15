@@ -106,8 +106,7 @@ function mediaGrid(project: Project, media: ProjectMediaItem[]) {
   function place(item: ProjectMediaItem) {
     if (item.type === 'row') {
       const row = h('div', { class: item.tight ? 'row tight' : 'row' }, ...item.items.map((m) => cell(m, false)))
-      row.style.setProperty('--n', String(item.cols?.wide ?? item.items.length))
-      row.style.setProperty('--n-narrow', String(item.cols?.narrow ?? item.items.length))
+      row.style.setProperty('--n', String(item.cols ?? item.items.length))
       return row
     }
     // A single item, or the last of an odd count, gets the full row; so does a medium one, centred in it.

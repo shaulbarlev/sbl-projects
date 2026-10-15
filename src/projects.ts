@@ -30,12 +30,13 @@ export type ProjectMediaImage = {
 
 /**
  * Items side by side across the full width of the grid: as many columns as there
- * are items, or `cols` across (wrapping) on a wide screen and a phone.
+ * are items, or `cols` across, wrapping.
  */
 export type ProjectMediaRow = {
   type: 'row'
   items: (ProjectMediaVideo | ProjectMediaImage)[]
-  cols?: { wide: number; narrow: number }
+  /** Columns across, wrapping; otherwise one per item */
+  cols?: number
   /** No gap between the items: one strip */
   tight?: boolean
 }
@@ -393,10 +394,10 @@ I’d love to share more as it develops. If this sounds interesting, join our ne
           { type: 'video', kind: 'file', src: '/knock/white-matte.mp4', thumbnail: '/knock/white-matte.jpg', title: 'White matte', loop: true },
         ],
       },
-      // Loaders, small: five across, four on a phone.
+      // Loaders, small: five across.
       {
         type: 'row',
-        cols: { wide: 5, narrow: 4 },
+        cols: 5,
         items: [
           { type: 'video', kind: 'file', src: '/knock/loaders/v1-rope-3.mp4', thumbnail: '/knock/loaders/v1-rope-3.jpg', title: 'Loader', orientation: 'square', loop: true },
           { type: 'video', kind: 'file', src: '/knock/loaders/batch2-golf.mp4', thumbnail: '/knock/loaders/batch2-golf.jpg', title: 'Loader', orientation: 'square', loop: true },
