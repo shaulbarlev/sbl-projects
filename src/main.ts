@@ -119,21 +119,20 @@ for (const island of ISLANDS) {
   if (island.kind === 'light') {
     // Beside it, a few seconds after the first tap: a word about what they are driving, and a
     // photo of the light as it is right now, named by the lamps that are lit.
-    const photo = h('img', { alt: '', loading: 'lazy' })
-    const note = h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
-    // 300ms behind the lamps, counted from when the state changed (a report of the same state does
-    // not restart it), and only once the photo is decoded, so it changes in one frame.
+    // Every state's photo is in the note from the start, stacked and drawn: switching is only
+    // which one shows, so it lands on time, with nothing to load or decode then.
+    const shots = Object.entries(island.note.photos).map(([key, p]) => ({ key, img: h('img', { src: p.src, alt: p.alt }) }))
+    const note = h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, ...shots.map((s) => s.img)))
+    // 300ms behind the lamps, counted from when the state changed (a report of the same state
+    // does not restart it).
     let target = ''
     let swap: ReturnType<typeof setTimeout> | undefined
     const showState = (lit: boolean[], delay = 300) => {
-      const p = island.note.photos[lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off']
-      if (p.src === target) return
-      target = p.src
+      const key = lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off'
+      if (key === target) return
+      target = key
       clearTimeout(swap)
-      const ready = new Image()
-      ready.src = p.src
-      const shown = Promise.all([ready.decode().catch(() => {}), new Promise((r) => (swap = setTimeout(r, delay)))])
-      void shown.then(() => target === p.src && Object.assign(photo, { src: p.src, alt: p.alt }))
+      swap = setTimeout(() => shots.forEach((s) => s.img.classList.toggle('on', s.key === key)), delay)
     }
     showState([], 0)
     notes.set(island.id, note)
@@ -153,8 +152,6 @@ for (const island of ISLANDS) {
       onTap: () => {
         if (tapped) return
         tapped = true
-        // every state's photo, ready before it is needed
-        for (const p of Object.values(island.note.photos)) new Image().src = p.src
         setTimeout(() => note.classList.add('shown'), 2000)
       },
     }).el
