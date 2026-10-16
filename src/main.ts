@@ -379,8 +379,11 @@ let openCat: string | null = null
 /** How far back the root sinks (its scale), about the point at the centre of the view when it did */
 const SINK = 0.9
 let sinkAt = { x: 0, y: 0 }
-/** How long the children take to land: a card opened by link waits for them */
+/** How long the children take to land */
 const UNFOLD_MS = 950
+/** A card opened with its category grows this long after the category opens: once its tile has
+ * landed, while the camera is still settling on the grid, so one motion runs into the next */
+const CARD_AFTER_MS = 600
 
 /**
  * How fast everything moves: 1 normally, 0.5 while a deep link arrives, so the
@@ -571,7 +574,7 @@ function sync() {
     if (openCat) fold(openCat)
     if (cat) {
       unfold(cat.id)
-      wait = UNFOLD_MS * pace
+      wait = CARD_AFTER_MS * pace
     } else {
       rootLayer.classList.remove('sunk')
       map.setTiles(world.categories)
