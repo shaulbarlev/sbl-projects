@@ -99,8 +99,11 @@ const reel = createReel(
   (at) => {
     reelLoop.pause()
     map.fit(at)
+    // the reel is a project too: no minimap over it
+    document.body.classList.add('reel-open')
   },
   (panned) => {
+    document.body.classList.remove('reel-open')
     void reelLoop.play().catch(() => {})
     // Shut on purpose, the map goes back to the category; panned away, it stays where it was taken.
     if (!panned && openCat) frameChildren(openCat)
