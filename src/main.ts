@@ -9,7 +9,7 @@ import { createMap } from './map'
 import { renderProject } from './project'
 import { CATEGORIES, ISLANDS, PROJECTS, REEL, categoryOf, categoryPath, displayPictures, edgesUrl, findProject, thumbUrl, type Project } from './projects'
 import { createReel } from './reel'
-import { INSET, host as embedHost } from '../shared/embed.js'
+import { LAMPS, STATE_URL, createLight } from './traffic'
 
 const SITE_TITLE = document.title
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -39,9 +39,8 @@ frontLayer.append(h('div', { class: 'card-dim' }))
 rootLayer.append(homeEl, dim)
 // The threads go under everything: behind the categories (and the dim over them) and behind the children.
 plane.append(threads, rootLayer, frontLayer)
-/** Notes that sit beside an island, keyed by the island; and where the island's content sits inside it */
+/** Notes that sit beside an island, keyed by the island */
 const notes = new Map<string, HTMLElement>()
-const boxes = new Map<string, { x: number; y: number; w: number; h: number }>()
 /** The project card open on the map, if any */
 let card: Card | null = null
 /** Islands taken off the map for now (the light's master switch is off), with their place kept */
@@ -114,66 +113,36 @@ frontLayer.append(reel.el)
 // Passive islands, out past the projects: a tap only brings one into view.
 for (const island of ISLANDS) {
   let el: HTMLElement
-  if (island.kind === 'frame') {
-    // Loaded only once scrolled near: each open copy is a live socket to the light.
-    const frame = h('iframe', { src: island.src, title: island.title, loading: 'lazy' })
-    // Unseen until the page has drawn: a loading frame paints opaque for a moment.
-    frame.addEventListener('load', () => frame.classList.add('drawn'))
-    // The cover over the frame (shared/embed.js): a drag on it pans the map, a tap
-    // reaches the page, and the page's reported height sizes the island.
-    const cover = h('div', { class: 'cover' })
-    el = h('div', { class: 'tile island frame' }, frame, cover)
-    // Beside it, once the visitor has played for a few seconds: a word about what they are driving.
-    const photo = island.note && h('img', { alt: '', loading: 'lazy' })
-    const note = island.note && photo && h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
-    // The photo of the light as it is right now: named by the lamps that are lit, in page order.
-    const showState = (lamps: { on: boolean }[]) => {
-      if (!island.note || !photo) return
-      const lit = lamps.map((l) => l.on)
-      const state = lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off'
-      const p = island.note.photos[state]
-      if (p && photo.getAttribute('src') !== p.src) {
-        photo.src = p.src
-        photo.alt = p.alt
-      }
+  if (island.kind === 'light') {
+    // Beside it, a few seconds after the first tap: a word about what they are driving, and a
+    // photo of the light as it is right now, named by the lamps that are lit.
+    const photo = h('img', { alt: '', loading: 'lazy' })
+    const note = h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
+    const showState = (lit: boolean[]) => {
+      const p = island.note.photos[lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off']
+      if (photo.getAttribute('src') !== p.src) Object.assign(photo, { src: p.src, alt: p.alt })
     }
-    if (note) {
-      notes.set(island.id, note)
-      rootLayer.append(note)
-      showState([])
-    }
-    // The note appears three seconds after the first tap on the light.
+    showState([])
+    notes.set(island.id, note)
+    rootLayer.append(note)
     let tapped = false
-    embedHost(
-      frame,
-      cover,
-      ({ height, box, lamps, off }) => {
-        // Switched off at home, the light is not there, minimap and all; back on, it returns.
-        if (off !== undefined && off !== shelved.has(island.id)) {
-          off ? shelve(island.id) : unshelve(island.id)
-          map.redraw()
-        }
-        if (lamps) {
-          map.setLamps(island.id, lamps)
-          showState(lamps)
-        }
-        if (box) boxes.set(island.id, box)
-        const at = world.islands.find((t) => t.id === island.id)
-        if (!at) return
-        // The page reports on every lamp change; only a new size moves anything.
-        if (Math.abs(at.h - height) > 2) {
-          at.h = height
-          el.style.height = `${height}px`
-          map.redraw()
-        }
-        placeNote(at)
+    el = createLight({
+      onLamps: (lamps) => {
+        map.setLamps(island.id, lamps)
+        showState(lamps.map((l) => l.on))
       },
-      () => {
+      // Switched off at home, the light is not there, minimap and all; back on, it returns.
+      onEnabled: (on) => {
+        if (on !== shelved.has(island.id)) return
+        on ? unshelve(island.id) : shelve(island.id)
+        map.redraw()
+      },
+      onTap: () => {
         if (tapped) return
         tapped = true
-        setTimeout(() => note?.classList.add('shown'), 3000)
+        setTimeout(() => note.classList.add('shown'), 3000)
       },
-    )
+    }).el
   } else {
     el = h(
       'button',
@@ -189,7 +158,7 @@ for (const island of ISLANDS) {
   rootLayer.append(el)
 }
 
-/** Takes an island off the map, its place kept; the element stays, hidden, so its page can still report */
+/** Takes an island off the map, its place kept; the element stays, hidden, so the light can still hear it is back */
 function shelve(id: string) {
   const i = world.islands.findIndex((t) => t.id === id)
   if (i !== -1) shelved.set(id, world.islands[i])
@@ -208,10 +177,8 @@ function unshelve(id: string) {
 
 // The traffic light peeks in at the right of the landing view: its left edge, placed for
 // the window's width at load (and again when the layout changes).
-// Placed by the light itself, not its frame: the light's page lays the light out INSET px in from
-// the frame's left (shared/embed.js), so the frame goes that much further right, from the start.
 const PEEK_ID = 'traffic'
-const peek = () => ({ id: PEEK_ID, view: $('map').clientWidth || innerWidth, px: (narrow.matches ? 44 : 72) + INSET })
+const peek = () => ({ id: PEEK_ID, view: $('map').clientWidth || innerWidth, px: narrow.matches ? 44 : 72 })
 const layout = () =>
   scatter(
     CATEGORIES,
@@ -226,11 +193,10 @@ const placed = () => [...world.links, ...world.categories, ...world.islands]
 const children = () => Object.values(world.children).flat()
 const childRect = (id: string) => children().find((t) => t.id === id)
 
-/** A note sits just right of what is drawn in its island, its middle on that content's middle */
+/** A note sits just right of its island, its middle on the island's middle */
 function placeNote(t: Rect & { id: string }) {
   const note = notes.get(t.id)
-  const box = boxes.get(t.id) ?? { x: 0, y: 0, w: t.w, h: t.h }
-  if (note) Object.assign(note.style, { left: `${t.x + box.x + box.w + 10}px`, top: `${t.y + box.y + Math.round(box.h / 2)}px` })
+  if (note) Object.assign(note.style, { left: `${t.x + t.w + 10}px`, top: `${t.y + Math.round(t.h / 2)}px` })
 }
 
 /** Lays the world out: every tile to its place (an open card keeps its own) */
@@ -272,9 +238,9 @@ const map = createMap({
   gridFollower: $('logo'),
 })
 
-// A light's lamps show on the minimap dim until its page reports them lit or not.
+// The light's lamps show on the minimap dim until it hears them lit or not.
 for (const island of ISLANDS) {
-  if (island.kind === 'frame' && island.lamps) map.setLamps(island.id, island.lamps.map((color) => ({ color, on: false })))
+  if (island.kind === 'light') map.setLamps(island.id, LAMPS.map(({ color }) => ({ color, on: false })))
 }
 
 narrow.addEventListener('change', () => {
@@ -678,8 +644,9 @@ function closeProject(panned = false) {
 window.addEventListener('popstate', () => sync())
 
 window.addEventListener('keydown', (e) => {
-  // The image viewer has its own keys, and Esc there must not close the project too.
-  if (lightboxOpen() || e.metaKey || e.ctrlKey || e.altKey) return
+  // The image viewer has its own keys, and Esc there must not close the project too. Typing a
+  // name under the light is typing, not steering the map.
+  if (lightboxOpen() || e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return
   if (card && !card.folding) {
     if (e.key === 'Escape') closeProject()
     return
@@ -759,23 +726,17 @@ function opening(at: Rect | null, then: () => void) {
 }
 
 /**
- * An island with a gate asks whether it exists right now (the traffic light's
- * master switch). Off, it is taken off the map, minimap and all.
+ * Whether the light exists right now (its master switch). Off, it is taken off the map,
+ * minimap and all, and never connects: it is back on the next visit.
  */
 async function gated(): Promise<Set<string>> {
   const gone = new Set<string>()
-  await Promise.all(
-    ISLANDS.filter((i) => i.kind === 'frame' && i.gate).map(async (i) => {
-      if (i.kind !== 'frame' || !i.gate) return
-      try {
-        const state = (await (await fetch(i.gate, { cache: 'no-store' })).json()) as { enabled?: boolean }
-        if (state.enabled === false) gone.add(i.id)
-      } catch {
-        // Unknown: leave it on the map.
-      }
-    }),
-  )
-  // Off from the start, its page is never loaded: it is back on the next visit.
+  try {
+    const state = (await (await fetch(STATE_URL, { cache: 'no-store' })).json()) as { enabled?: boolean }
+    if (state.enabled === false) for (const i of ISLANDS) if (i.kind === 'light') gone.add(i.id)
+  } catch {
+    // Unknown: leave it on the map.
+  }
   for (const id of gone) {
     shelve(id)
     tiles.get(id)?.remove()
@@ -789,7 +750,7 @@ const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
 const slug = slugNow()
 const linked = findProject(slug)
 const linkedCat = categoryOf(linked?.id ?? slug)
-const anchored = ISLANDS.find((i) => i.kind === 'frame' && i.path === slug)
+const anchored = ISLANDS.find((i) => i.kind === 'light' && i.path === slug)
 if (linkedCat) {
   // Arrived inside a category: the map goes under it in history, so back lands on the map, not off the site.
   const path = location.pathname

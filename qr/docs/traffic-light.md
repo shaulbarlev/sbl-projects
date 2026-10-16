@@ -61,24 +61,29 @@ If the connection drops, the agent reconnects with backoff (1 s doubling to
 
 ## Opening the page
 
-1. Phone loads `/traffic` (or the root, when the traffic light has been sent
-   as a destination). The Worker asks the object one question, "is the master
-   switch on", and if so serves the inlined page: two `<button>` lamps, CSS,
-   and a small script. No fonts, no external files.
-2. The script opens a WebSocket to `/traffic/ws`. The Worker hands it straight
-   to the object, which refuses if the switch is off, caps open pages at
-   twenty, tags the socket `page`, and immediately sends
-   `{state, online, states}`. The lamps light up to match.
-3. Every 5 s the page sends `{warm}` so the object stays resident while
+The light lives on the portfolio's map (`src/traffic.ts` in the site), drawn
+there as plain DOM; since 16 October 2026 there is no page of its own here.
+`/traffic` on sbl.cx, and a root that has been sent the light, redirect to the
+site's `/traffic`, which opens the map focused on it.
+
+1. The map asks `GET /traffic/state` (readable across origins) whether the
+   master switch is on. Off, the light is left off the map for that visit.
+2. While the light is near the view, the map opens a WebSocket to
+   `wss://sbl.cx/traffic/ws`. The Worker hands it straight to the object,
+   which refuses if the switch is off, caps open pages at twenty, tags the
+   socket `page`, and immediately sends `{state, online, states}`. The lamps
+   light up to match. Twenty seconds out of view, it closes.
+3. Every 5 s the map sends `{warm}` so the object stays resident while
    someone is looking; every 25 s it sends `ping`, which the object answers
    without waking.
-4. If the socket cannot be opened, the page falls back to `GET /traffic/state`
-   every 3 s and `POST /traffic/toggle` for taps.
+4. If the socket is refused, the map polls `GET /traffic/state` every 3 s
+   and the lamps stay dim until it is back. `POST /traffic/toggle` remains for
+   scripts and timing; the map does not use it.
 
 ## A tap, step by step
 
-1. **Finger down.** The handler is on `pointerdown`, not `click`, because a
-   touch click waits for the finger to lift, 50 to 100 ms of nothing. The lamp
+1. **Tap.** On the map a tap is a `click`, which the map withholds when the
+   press was a drag, so it lands as the finger lifts. The lamp
    flips on screen immediately and the phone ticks (`navigator.vibrate(10)`).
 2. **The page names the state it wants.** It sends `{set, entity, state: on|off}`
    rather than "toggle". Two fast toggles could both read the same old state at
@@ -133,7 +138,7 @@ that move a hop cost 330 ms and a tap 750 ms.
 
 `trafficEnabled` in the app state, flipped from the Home card or
 `POST /_/api/traffic {on}`. Off: `/traffic` and its socket are the site's like
-any other path (the bare embedded copy stays up, dark), a sent traffic target is skipped like an empty image set so a temp
+any other path, the map leaves the light out, a sent traffic target is skipped like an empty image set so a temp
 pointing at it falls through to main, and a traffic step in a sequence is
 passed over rather than burned. On: the page is public. That is the point of a
 traffic light.

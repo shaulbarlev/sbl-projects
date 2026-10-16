@@ -23,9 +23,9 @@ and electronics, on a 2D plane you explore like a map.
   requests): at 70 MB it is over this host's 25 MiB per-file limit.
 - **Islands**: things out past the projects, there to be found, listed in
   `ISLANDS` in `src/projects.ts`. A picture (a tap only brings it into view), or
-  a live page from elsewhere in a frame: the traffic light at home is the very
-  page sbl.cx/traffic serves, its bare copy (`?bare`, no background), so the
-  lamps, socket, name field, party button and master switch are that page's own.
+  the traffic light at home, drawn on the map by `src/traffic.ts`: real lamps,
+  driven over a socket to the QR Worker at sbl.cx (`qr/docs/traffic-light.md`),
+  with its name field, party button, and master switch.
 - **Finding your way**: the minimap, and small markers at the edge of the screen
   that point at tiles out of view (tap one to fly there). Dragging past the edge of the world
   rubber-bands. Every visit opens on the whole field while the

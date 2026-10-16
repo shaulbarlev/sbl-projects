@@ -557,42 +557,30 @@ export function displayPictures(p: Project): string[] {
 export type Island =
   | { id: string; kind: 'picture'; src: string; alt: string; w: number; h: number }
   /**
-   * A live page from elsewhere, shown as it is; `lamps` are its lights' colours,
-   * for the minimap before it has loaded. `note` appears beside it once the
-   * visitor has played with it for a few seconds, with one photo under it: the
-   * one for the light's state right now, keyed by which lamps are lit ("off",
-   * "green", "orange", "both" for two lamps in page order). `gate` is a JSON
-   * URL whose `enabled` says whether the island exists at all right now, and
-   * `path` a URL path of this site that arrives focused on it.
+   * The traffic light at home (traffic.ts), drawn on the map and live. `note` appears
+   * beside it a few seconds after the first tap, with one photo under it: the one for
+   * the light's state right now, keyed by which lamps are lit ("off", "green", "orange",
+   * "both"). `path` is a URL path of this site that arrives focused on it.
    */
   | {
       id: string
-      kind: 'frame'
-      src: string
-      title: string
+      kind: 'light'
       w: number
       h: number
-      lamps?: string[]
-      note?: { text: string; photos: Record<string, { src: string; alt: string }> }
-      gate?: string
-      path?: string
+      note: { text: string; photos: Record<string, { src: string; alt: string }> }
+      path: string
     }
 
 export const ISLANDS: Island[] = [
   { id: 'me', kind: 'picture', src: '/islands/me.jpg', alt: 'Shaul', w: 230, h: 230 },
-  // The traffic light at home, the very page sbl.cx/traffic serves (its bare copy, no
-  // background): lamps, socket, name field, party button and master switch are all its
-  // own. The page reports its true height once loaded; `h` is the guess until then.
+  // The traffic light at home: its lamps, socket, name field and party button are traffic.ts's.
+  // Off at its master switch (in the QR's panel), it is not on the map at all.
   {
     id: 'traffic',
-    kind: 'frame',
-    src: 'https://sbl.cx/traffic?bare',
-    title: 'The traffic light at home. Tap a lamp.',
-    w: 340,
-    h: 400,
-    lamps: ['#22c55e', '#f59e0b'],
-    // The master switch in the QR's panel: off, the light is not on the map at all.
-    gate: 'https://sbl.cx/traffic/state',
+    kind: 'light',
+    // the housing: 14 + 72 + 12 + 72 + 14 hundredths of its width tall
+    w: 180,
+    h: 331,
     path: 'traffic',
     note: {
       text: 'You are driving the real traffic light in my apartment.',

@@ -14,7 +14,7 @@ import { renderMessage } from './message';
 import { qrSvg } from './qr';
 import { describeTarget, isServable, resolve, sequenceLive, sequenceRunOpen, stepTarget, stepsRemaining, targetToUrl } from './resolve';
 import { DEFAULT_TEMPLATE_ID, renderSplash } from './splash';
-import { HOME_ENTITIES, LIGHTS, PARTY, renderTraffic } from './traffic';
+import { HOME_ENTITIES, LIGHTS, PARTY } from './traffic';
 import type { Env, Resolution, SequenceStep, State, StoredFile, Target } from './types';
 import { clampDuration, validateUrl } from './validate';
 
@@ -214,15 +214,11 @@ async function serve(
     return new Response(renderMessage(served.text), { headers });
   }
 
-  // The traffic light lives on the portfolio's map now; the page of its own is
-  // the embedded copy only. A scan sent to it lands on the map, focused on it.
+  // The traffic light lives on the portfolio's map. A scan sent to it lands on
+  // the map, focused on it.
   if (served.kind === 'traffic') {
-    if (env.SITE) {
-      headers.set('location', `https://${state.siteHost}/traffic`);
-      return new Response(null, { status: 302, headers });
-    }
-    headers.set('content-type', 'text/html; charset=utf-8');
-    return new Response(renderTraffic(), { headers });
+    headers.set('location', `https://${state.siteHost}/traffic`);
+    return new Response(null, { status: 302, headers });
   }
 
   const destination = targetToUrl(served, fileOrigin);
@@ -437,25 +433,20 @@ async function handleTraffic(
   }
 
   const home = await callState(env, 'home-state');
-  // The state answers whatever the switch says, switch included: the embedded
-  // copy polls it when its socket is refused, and the map asks it before drawing
-  // the light. Readable across origins for that.
+  // The state answers whatever the switch says, switch included: the map asks it
+  // before drawing the light, and polls it when its socket is refused. Readable
+  // across origins for that.
   if (path === '/traffic/state' && request.method === 'GET') {
     const response = json(home);
     response.headers.set('access-control-allow-origin', '*');
     return response;
   }
-  // The embedded copy has nowhere to redirect to: switched off, it hides itself
-  // (the socket is refused and polling reports the switch off).
-  const bare = url.searchParams.has('bare');
-  if (!home.enabled && !bare) return homePage(request, env, url, (await callState(env, 'get')) as State);
+  if (!home.enabled) return homePage(request, env, url, (await callState(env, 'get')) as State);
 
-  // The page of its own is retired: the light lives on the portfolio's map, which
-  // embeds the bare copy.
+  // The light lives on the portfolio's map; this path is a way there.
   if (path === '/traffic' || path === '/traffic/') {
-    if (bare) return html(renderTraffic(true));
     const state = (await callState(env, 'get')) as State;
-    return env.SITE ? Response.redirect(`https://${state.siteHost}/traffic`, 302) : html(renderTraffic());
+    return Response.redirect(`https://${state.siteHost}/traffic`, 302);
   }
 
   return json({ error: 'Not found' }, 404);

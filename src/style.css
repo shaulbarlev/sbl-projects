@@ -297,27 +297,160 @@ iframe {
     opacity: 0;
   }
 }
-/* a live page as an island: the light itself takes the taps, the map takes the rest */
-.tile.island.frame {
-  cursor: inherit;
+/* the traffic light at home (traffic.ts): sized off the tile's width, so it scales with the island */
+.tile.island.light {
+  container-type: inline-size;
 }
-.tile.island.frame iframe {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  /* the light's page is color-scheme: dark; a frame whose scheme differs from its page's is
-     drawn on an opaque backdrop, so the frame says dark too and stays see-through on the light site */
-  color-scheme: dark;
-  opacity: 0;
-  transition: opacity calc(0.3s * var(--pace));
+/* a press is the lamp's, not the whole light's */
+.tile.island.light:active {
+  transform: none;
 }
-.tile.island.frame iframe.drawn {
-  opacity: 1;
+.light .housing {
+  display: grid;
+  gap: 12cqw;
+  padding: 14cqw;
+  background: #111;
 }
-/* over the frame: takes the pointer, except where it is cut away for the page's text fields */
-.tile.island.frame .cover {
+.light .lamp {
+  width: 72cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 22%, #111);
+  box-shadow: inset 0 4cqw 9cqw rgb(0 0 0 / 0.7);
+  transition:
+    background calc(0.15s * var(--pace)),
+    box-shadow calc(0.15s * var(--pace)),
+    opacity calc(0.3s * var(--pace)),
+    transform 0.08s;
+}
+.light .lamp:active {
+  transform: scale(0.97);
+}
+.light .lamp[aria-pressed='true'] {
+  background: radial-gradient(circle at 40% 35%, #fff9 0, var(--c) 28%, var(--c) 100%);
+  box-shadow:
+    0 0 20cqw 5cqw color-mix(in srgb, var(--c) 60%, transparent),
+    inset 0 -3cqw 7cqw rgb(0 0 0 / 0.25);
+}
+.light .lamp:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+/* while a name is asked for, the lamps are held */
+.light.gated .lamp {
+  cursor: default;
+  opacity: 0.4;
+}
+/* under the light, out of the tile's box so nothing on the map moves: the party button and the name */
+.light .below {
+  position: absolute;
+  top: calc(100% + 8cqw);
+  left: 0;
+  display: grid;
+  justify-items: start;
+  gap: 8cqw;
+}
+.light .party-box {
+  padding: 10cqw;
+}
+.light .party-box[hidden],
+.light .who[hidden] {
+  display: none;
+}
+.light .party {
+  --c: #e879f9;
+  --gc: var(--c);
+  position: relative;
+  width: 40cqw;
+  container-type: inline-size;
+}
+.light .party[aria-pressed='true'] {
+  background: #26262a;
+  box-shadow: 0 0 20cqw 5cqw color-mix(in srgb, var(--gc) 60%, transparent);
+}
+.light .ball {
   position: absolute;
   inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  animation: ball-turn 18s linear infinite;
+}
+.light .party[aria-pressed='true'] .ball {
+  opacity: 1;
+}
+.light .ball b {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: linear-gradient(#111, #333);
+  animation: ball-counter 18s linear infinite;
+}
+.light .ball i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7cqw;
+  height: 7cqw;
+  transform-origin: 0 0;
+  transform: translate3d(var(--x), var(--y), var(--z)) rotate(var(--a)) rotateY(var(--t));
+  backface-visibility: hidden;
+  background: color-mix(in srgb, var(--gc) calc(30% * var(--k)), var(--grey));
+  animation: ball-shimmer 2s linear infinite;
+}
+@keyframes ball-turn {
+  from {
+    transform: rotateX(90deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(90deg) rotateZ(360deg);
+  }
+}
+@keyframes ball-counter {
+  from {
+    transform: rotateX(90deg) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(90deg) rotateY(-360deg);
+  }
+}
+@keyframes ball-shimmer {
+  50% {
+    opacity: 0.4;
+  }
+}
+/* the name: one square field, the site's own, with its send arrow inside */
+.light .who {
+  position: relative;
+  display: flex;
+  width: max(100cqw, 190px);
+}
+.light .who input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 36px 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px; /* under 16px, iOS zooms in on focus */
+  outline: none;
+  -webkit-appearance: none;
+}
+.light .who input:focus {
+  border-color: var(--fg);
+}
+.light .who button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  font-size: 16px;
+}
+.light .who input:placeholder-shown + button {
+  opacity: 0.35;
 }
 
 /* a word beside an island, once the visitor has played with it */

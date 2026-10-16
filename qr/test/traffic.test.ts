@@ -63,37 +63,19 @@ describe('the traffic light page', () => {
     expect(response.headers.get('location')).toBe('https://shaulb.com/traffic');
   });
 
-  it('has a bare copy for embedding, which stays up with the switch off', async () => {
-    const off = await SELF.fetch(`${ORIGIN}/traffic?bare`, { redirect: 'manual' });
-    expect(off.status).toBe(200);
-    expect(await off.text()).toContain('background: transparent');
-    await traffic(true);
-    const on = await (await SELF.fetch(`${ORIGIN}/traffic?bare`)).text();
-    expect(on).toContain('background: transparent');
-    // the guest side of shared/embed.js, inlined: it reports its layout and takes relayed taps
-    expect(on).toContain("'skin:layout'");
-    expect(on).toContain('guest();');
-  });
-
-  it('sends /traffic on to the map, and only the bare copy renders here', async () => {
+  it('sends /traffic on to the map, which draws the light itself', async () => {
     await traffic(true);
     const response = await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' });
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('https://shaulb.com/traffic');
-    const page = await (await SELF.fetch(`${ORIGIN}/traffic?bare`)).text();
-    expect(page).toContain('aria-label="Green light"');
-    expect(page).toContain('aria-label="Orange light"');
-    // Sized by its content, hidden when off; and one script whose function
-    // names do not shadow each other (a duplicate declaration silently wins).
-    expect(page).toContain('html { height: auto; }');
-    expect(page).toContain('body[hidden] { display: none; }');
-    const names = [...page.matchAll(/^\s*function (\w+)\(/gm)].map((m) => m[1]);
-    expect(new Set(names).size).toBe(names.length);
+    // the old embeddable copy is gone: no page renders here any more
+    const bare = await SELF.fetch(`${ORIGIN}/traffic?bare`, { redirect: 'manual' });
+    expect(bare.headers.get('location')).toBe('https://shaulb.com/traffic');
     // and the map may ask across origins whether the light is on
     const state = await SELF.fetch(`${ORIGIN}/traffic/state`);
     expect(state.headers.get('access-control-allow-origin')).toBe('*');
     expect(((await state.json()) as any).enabled).toBe(true);
-    // switched off too: that is how the map and the bare copy learn it
+    // switched off too: that is how the map learns it
     await traffic(false);
     const off = await SELF.fetch(`${ORIGIN}/traffic/state`);
     expect(off.headers.get('content-type')).toContain('json');
@@ -307,7 +289,7 @@ describe('the page socket', () => {
 
     await traffic(false);
     await vi.waitFor(() => expect(seen.some((m) => m.type === 'state' && m.enabled === false)).toBe(true));
-    // The bare page keeps polling too, and hears the same.
+    // The map polls too when its socket is refused, and hears the same.
     const off = (await (await SELF.fetch(`${ORIGIN}/traffic/state`)).json()) as any;
     expect(off.enabled).toBe(false);
 
