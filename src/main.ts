@@ -143,7 +143,7 @@ for (const island of ISLANDS) {
       onTap: () => {
         if (tapped) return
         tapped = true
-        setTimeout(() => note.classList.add('shown'), 3000)
+        setTimeout(() => note.classList.add('shown'), 2000)
       },
     }).el
   } else {
