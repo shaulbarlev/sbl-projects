@@ -71,6 +71,8 @@ export default {
       // The other domains are custom domains of this Worker too, each with a
       // setting of its own; www. is the same domain.
       const domain = url.hostname.replace(/^www\./, '');
+      // The light's calls answer on every host, so the site's map reaches them on its own origin.
+      if (path.startsWith('/traffic/') && path !== '/traffic/') return await handleTraffic(request, env, ctx, url);
       if (DOMAINS.has(domain)) return await handleDomain(request, env, url, domain);
       if (path.startsWith('/f/')) return await serveFile(request, env, path);
       if (path === '/traffic' || path.startsWith('/traffic/')) {

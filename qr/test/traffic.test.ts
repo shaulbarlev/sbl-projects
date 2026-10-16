@@ -68,6 +68,11 @@ describe('the traffic light page', () => {
     const response = await SELF.fetch(`${ORIGIN}/traffic`, { redirect: 'manual' });
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('https://shaulb.com/traffic');
+    // the site's own hosts answer the light's calls, so the map stays on its origin
+    const onSite = await SELF.fetch('https://shaulb.com/traffic/state');
+    expect(((await onSite.json()) as any).enabled).toBe(true);
+    // while /traffic itself there is the site's page, not a redirect back to it
+    expect((await SELF.fetch('https://shaulb.com/traffic', { redirect: 'manual' })).headers.get('location')).not.toBe('https://shaulb.com/traffic');
     // the old embeddable copy is gone: no page renders here any more
     const bare = await SELF.fetch(`${ORIGIN}/traffic?bare`, { redirect: 'manual' });
     expect(bare.headers.get('location')).toBe('https://shaulb.com/traffic');

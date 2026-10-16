@@ -37,7 +37,7 @@ the agent's env. No Home Assistant long-lived token exists for this any more.
 ## Setup, once
 
 1. The agent starts, reads its env file, and opens one WebSocket to
-   `wss://sbl.cx/_/agent` with `Authorization: Bearer AGENT_TOKEN`.
+   `wss://shaulb.com/_/agent` with `Authorization: Bearer AGENT_TOKEN`.
 2. The Worker checks the token in constant time and hands the connection to the
    Durable Object, which accepts it with Cloudflare's hibernation API and tags
    it `agent`. An idle connection costs nothing; the object sleeps and wakes
@@ -69,7 +69,7 @@ site's `/traffic`, which opens the map focused on it.
 1. The map asks `GET /traffic/state` (readable across origins) whether the
    master switch is on. Off, the light is left off the map for that visit.
 2. While the light is near the view, the map opens a WebSocket to
-   `wss://sbl.cx/traffic/ws`. The Worker hands it straight to the object,
+   `wss://shaulb.com/traffic/ws` (the site's own origin: `/traffic/*` answers on every host of the Worker). The Worker hands it straight to the object,
    which refuses if the switch is off, caps open pages at twenty, tags the
    socket `page`, and immediately sends `{state, online, states}`. The lamps
    light up to match. Twenty seconds out of view, it closes.

@@ -3,11 +3,12 @@ import { h } from './dom'
 /**
  * The traffic light at home, drawn on the map: two lamps and, while its own switch is on,
  * the party button under them. Each is a real switch in my apartment, reached through the
- * QR Worker at sbl.cx (qr/docs/traffic-light.md). Its socket pushes state as it changes and
+ * QR Worker (qr/docs/traffic-light.md), which serves this site too. Its socket pushes state as it changes and
  * takes taps; it is open only while the light is near the view, as each open one keeps the
  * Worker's object awake. Taps are clicks, so the map's own drag check tells them apart.
  */
-const ORIGIN = 'https://sbl.cx'
+// Same origin in production: the QR Worker that serves the site answers /traffic/* on every host.
+const ORIGIN = import.meta.env.DEV ? 'https://shaulb.com' : location.origin
 /** Whether the light exists right now (its master switch), what is lit, and whether home is reachable */
 export const STATE_URL = `${ORIGIN}/traffic/state`
 /** Top to bottom. The Worker and the agent at home allow these entities and no others. */
@@ -60,8 +61,7 @@ export function createLight(opts: {
       const state = data.states![entity]
       const want = wanted[entity]
       if (!(want && performance.now() - want.at < SETTLE_MS && state !== want.state)) buttons[i].setAttribute('aria-pressed', String(state === 'on'))
-      // No socket, no tap: the lamps dim while it is down.
-      buttons[i].disabled = !data.online || !open()
+      buttons[i].disabled = !data.online
     })
     glow()
     report()
@@ -82,7 +82,7 @@ export function createLight(opts: {
 
   function connect() {
     if (ws || !wanting) return
-    const sock = (ws = new WebSocket(`${ORIGIN.replace('https', 'wss')}/traffic/ws`))
+    const sock = (ws = new WebSocket(`${ORIGIN.replace(/^http/, 'ws')}/traffic/ws`))
     sock.onopen = () => {
       backoff = 1000
       clearInterval(poller)
@@ -141,7 +141,7 @@ export function createLight(opts: {
   // --- taps
   buttons.forEach((b, i) =>
     b.addEventListener('click', () => {
-      if (b.disabled || !open()) return
+      if (b.disabled) return
       if (!player.tap()) return
       const entity = entities[i]
       const next = b.getAttribute('aria-pressed') === 'true' ? 'off' : 'on'
@@ -150,7 +150,13 @@ export function createLight(opts: {
       b.setAttribute('aria-pressed', String(next === 'on'))
       wanted[entity] = { state: next, at: performance.now() }
       navigator.vibrate?.(10)
-      send({ type: 'set', entity, state: next })
+      if (open()) send({ type: 'set', entity, state: next })
+      // No socket: the same tap over HTTP; its answer carries the real state.
+      else
+        fetch(`${ORIGIN}/traffic/toggle`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-skin-request': '1' }, body: JSON.stringify({ entity, state: next }) })
+          .then((r) => r.json() as Promise<Home>)
+          .then((d) => d.error && paint(d))
+          .catch(() => {})
       glow()
       report()
       opts.onTap()

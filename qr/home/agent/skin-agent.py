@@ -12,7 +12,7 @@ Worker were ever compromised, is two webhook ids that can set two switches
 and one party toggle on or off, and nothing else.
 
 Configuration comes from the environment (see skin-agent.service):
-  SKIN_URL        wss://sbl.cx/_/agent
+  SKIN_URL        wss://shaulb.com/_/agent
   AGENT_TOKEN     the bearer the Worker expects
   HA_URL          http://192.168.50.232:8123
   WEBHOOK_SET     id of the webhook that sets a lamp: {"entity", "state"}

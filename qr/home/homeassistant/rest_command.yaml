@@ -3,7 +3,7 @@
 # The bearer lives in secrets.yaml, see secrets.example.yaml.
 rest_command:
   skin_state:
-    url: https://sbl.cx/_/agent/state
+    url: https://shaulb.com/_/agent/state
     method: post
     headers:
       authorization: !secret skin_agent_token
@@ -15,7 +15,7 @@ rest_command:
   # Home's copy of the master switch, pushed to sbl.cx whenever it changes.
   # Added 2026-09-15. Loaded with rest_command.reload once rest_command exists.
   skin_traffic:
-    url: https://sbl.cx/_/agent/traffic
+    url: https://shaulb.com/_/agent/traffic
     method: post
     headers:
       authorization: !secret skin_agent_token
@@ -23,7 +23,7 @@ rest_command:
     payload: '{"on": "{{ states(''input_boolean.sbl_cx_traffic_light'') }}"}'
   # Home's copy of the party button's switch. Added 2026-09-15.
   skin_party:
-    url: https://sbl.cx/_/agent/party
+    url: https://shaulb.com/_/agent/party
     method: post
     headers:
       authorization: !secret skin_agent_token
