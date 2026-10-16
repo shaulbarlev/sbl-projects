@@ -1163,7 +1163,7 @@ body.has-project .back-node {
   transition: opacity calc(0.6s * var(--pace));
 }
 .sunk > .dim {
-  opacity: 0.6;
+  opacity: 0.8;
 }
 .front-layer {
   pointer-events: none;
