@@ -118,11 +118,14 @@ for (const island of ISLANDS) {
     // photo of the light as it is right now, named by the lamps that are lit.
     const photo = h('img', { alt: '', loading: 'lazy' })
     const note = h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
-    const showState = (lit: boolean[]) => {
+    // A beat behind the lamps, so the photo follows the light rather than racing it.
+    let swap: ReturnType<typeof setTimeout> | undefined
+    const showState = (lit: boolean[], delay = 300) => {
       const p = island.note.photos[lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off']
-      if (photo.getAttribute('src') !== p.src) Object.assign(photo, { src: p.src, alt: p.alt })
+      clearTimeout(swap)
+      swap = setTimeout(() => photo.getAttribute('src') !== p.src && Object.assign(photo, { src: p.src, alt: p.alt }), delay)
     }
-    showState([])
+    showState([], 0)
     notes.set(island.id, note)
     rootLayer.append(note)
     let tapped = false
