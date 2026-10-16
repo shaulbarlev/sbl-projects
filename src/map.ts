@@ -27,7 +27,6 @@ export function createMap(opts: {
   viewport: HTMLElement
   plane: HTMLElement
   minimap: HTMLElement
-  readout: HTMLElement
   /** Holds the markers that point at tiles off screen */
   markers: HTMLElement
   world: World
@@ -44,7 +43,7 @@ export function createMap(opts: {
   /** An element on the plane that draws the grid too, and is told where its lines fall (--gx, --gy) */
   gridFollower?: HTMLElement
 }) {
-  const { viewport, plane, minimap, readout, markers } = opts
+  const { viewport, plane, minimap, markers } = opts
   const gridFollower = opts.gridFollower
   let world = opts.world
   let home = world.origin
@@ -178,11 +177,6 @@ export function createMap(opts: {
     frame.style.top = `${(top / world.h) * 100}%`
     frame.style.width = `${(w / world.w) * 100}%`
     frame.style.height = `${(h / world.h) * 100}%`
-    // The same text node, its data replaced: textContent would swap in a new node every frame.
-    const text = `x ${Math.round(cam.x - home.x)}  y ${Math.round(cam.y - home.y)}  ${Math.round(cam.z * 100)}%`
-    if (readout.firstChild instanceof Text) {
-      if (readout.firstChild.data !== text) readout.firstChild.data = text
-    } else readout.textContent = text
 
     const inView = (r: Rect) => r.x + r.w > left && r.x < left + w && r.y + r.h > top && r.y < top + h
     opts.onHomeVisible(inView(world.home))

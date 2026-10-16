@@ -648,15 +648,6 @@ iframe {
   border: 1px solid #000;
   background: rgb(var(--ink) / 0.08);
 }
-.readout {
-  margin-top: 0.25rem;
-  font-size: 10px;
-  line-height: 1.2;
-  white-space: pre;
-  font-family: var(--mono);
-  color: rgb(var(--ink) / 0.55);
-  font-variant-numeric: tabular-nums;
-}
 
 /* ---------- project: a modal on wide screens ---------- */
 
@@ -924,9 +915,6 @@ iframe {
   }
   .locator {
     width: 92px;
-  }
-  .readout {
-    font-size: 9px;
   }
 
   .pv {

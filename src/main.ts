@@ -235,7 +235,6 @@ const map = createMap({
   viewport: $('map'),
   plane,
   minimap: $('minimap'),
-  readout: $('readout'),
   markers: $('markers'),
   world,
   label: (id) => findProject(id)?.title ?? CATEGORIES.find((c) => c.id === id)?.title ?? (id === REEL_SLUG ? REEL.title : id),
