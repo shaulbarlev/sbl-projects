@@ -118,12 +118,19 @@ for (const island of ISLANDS) {
     // photo of the light as it is right now, named by the lamps that are lit.
     const photo = h('img', { alt: '', loading: 'lazy' })
     const note = h('aside', { class: 'note' }, h('p', {}, island.note.text), h('span', { class: 'photo' }, photo))
-    // A beat behind the lamps, so the photo follows the light rather than racing it.
+    // 300ms behind the lamps, counted from when the state changed (a report of the same state does
+    // not restart it), and only once the photo is decoded, so it changes in one frame.
+    let target = ''
     let swap: ReturnType<typeof setTimeout> | undefined
     const showState = (lit: boolean[], delay = 300) => {
       const p = island.note.photos[lit[0] && lit[1] ? 'both' : lit[0] ? 'green' : lit[1] ? 'orange' : 'off']
+      if (p.src === target) return
+      target = p.src
       clearTimeout(swap)
-      swap = setTimeout(() => photo.getAttribute('src') !== p.src && Object.assign(photo, { src: p.src, alt: p.alt }), delay)
+      const ready = new Image()
+      ready.src = p.src
+      const shown = Promise.all([ready.decode().catch(() => {}), new Promise((r) => (swap = setTimeout(r, delay)))])
+      void shown.then(() => target === p.src && Object.assign(photo, { src: p.src, alt: p.alt }))
     }
     showState([], 0)
     notes.set(island.id, note)
@@ -143,6 +150,8 @@ for (const island of ISLANDS) {
       onTap: () => {
         if (tapped) return
         tapped = true
+        // every state's photo, ready before it is needed
+        for (const p of Object.values(island.note.photos)) new Image().src = p.src
         setTimeout(() => note.classList.add('shown'), 2000)
       },
     }).el
