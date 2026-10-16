@@ -193,10 +193,10 @@ const placed = () => [...world.links, ...world.categories, ...world.islands]
 const children = () => Object.values(world.children).flat()
 const childRect = (id: string) => children().find((t) => t.id === id)
 
-/** A note sits just right of its island, its middle on the island's middle */
+/** A note sits just right of its island, as tall as it */
 function placeNote(t: Rect & { id: string }) {
   const note = notes.get(t.id)
-  if (note) Object.assign(note.style, { left: `${t.x + t.w + 10}px`, top: `${t.y + Math.round(t.h / 2)}px` })
+  if (note) Object.assign(note.style, { left: `${t.x + t.w + 10}px`, top: `${t.y}px`, height: `${t.h}px` })
 }
 
 /** Lays the world out: every tile to its place (an open card keeps its own) */

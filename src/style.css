@@ -422,6 +422,7 @@ iframe {
 /* the name: one square field, the site's own, with its send arrow inside */
 .light .who {
   position: relative;
+  margin-top: 4cqw;
   display: flex;
   width: max(100cqw, 190px);
 }
@@ -463,9 +464,11 @@ iframe {
   background: var(--bg);
   font-size: 13px;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
   opacity: 0;
-  /* centred on the island's middle, and grows out of its left edge when it appears */
-  transform: translateY(-50%) scale(0.6);
+  /* as tall as the island beside it, and grows out of its left edge when it appears */
+  transform: scale(0.6);
   transform-origin: left center;
   transition:
     opacity calc(0.15s * var(--pace)),
@@ -474,14 +477,15 @@ iframe {
 }
 .note.shown {
   opacity: 1;
-  transform: translateY(-50%);
+  transform: none;
 }
 .note p {
   margin: 0;
 }
 .note .photo {
   display: block;
-  aspect-ratio: 3 / 4;
+  flex: 1;
+  min-height: 0;
   margin-top: 0.75rem;
   overflow: hidden;
 }
