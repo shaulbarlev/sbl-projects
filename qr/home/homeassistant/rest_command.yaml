@@ -9,8 +9,8 @@ rest_command:
       authorization: !secret skin_agent_token
     content_type: application/json
     payload: >-
-      {"states": {"switch.traffic_1_power1": "{{ states('switch.traffic_1_power1') }}",
-                  "switch.tasmota": "{{ states('switch.tasmota') }}",
+      {"states": {"switch.traffic_green": "{{ states('switch.traffic_green') }}",
+                  "switch.traffic_orange": "{{ states('switch.traffic_orange') }}",
                   "input_boolean.party": "{{ states('input_boolean.party') }}"}}
   # Home's copy of the master switch, pushed to sbl.cx whenever it changes.
   # Added 2026-09-15. Loaded with rest_command.reload once rest_command exists.

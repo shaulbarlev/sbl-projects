@@ -32,7 +32,7 @@ import urllib.request
 
 import websockets
 
-ALLOWED = {'switch.tasmota', 'switch.traffic_1_power1', 'input_boolean.party'}
+ALLOWED = {'switch.traffic_orange', 'switch.traffic_green', 'input_boolean.party'}
 SERVICES = {'turn_on': 'on', 'turn_off': 'off'}
 
 SKIN_URL = os.environ['SKIN_URL']

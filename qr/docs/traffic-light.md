@@ -17,7 +17,7 @@ network dials out and holds one connection open; everything flows over that.
 ## The pieces
 
 ```
-phone ──wss──▶ Worker (Tel Aviv) ──▶ Durable Object (Europe) ◀──wss── agent (LXC 300) ──http──▶ Home Assistant ──mqtt──▶ Tasmota relays
+phone ──wss──▶ Worker (Tel Aviv) ──▶ Durable Object (Europe) ◀──wss── agent (LXC 300) ──http──▶ Home Assistant ──esphome api──▶ plug relays
                                             │                             ▲
                                             └──────── state pushes ───────┘
 ```
@@ -27,8 +27,8 @@ phone ──wss──▶ Worker (Tel Aviv) ──▶ Durable Object (Europe) ◀
 | Worker | Cloudflare edge, the colo nearest the phone | serves the page, routes taps, checks the allowlist |
 | Durable Object | one Cloudflare data center in Europe | the one stateful thing: holds the agent's socket and every open page's socket, caches lamp states, enforces the master switch and the daily ceiling |
 | Home agent `skin-agent` | Proxmox `serv` → LXC 300 "connection", 192.168.50.171 | Python service; dials out to the object; posts taps to a local-only Home Assistant webhook; hard allowlist of the two switches; holds no Home Assistant credential |
-| Home Assistant | HAOS, 192.168.50.232 | owns the switches; drives the Tasmotas over MQTT; two automations and one `rest_command` for the traffic light |
-| Lamps | `src/traffic.ts` | green on top is `switch.traffic_1_power1`, orange below is `switch.tasmota` |
+| Home Assistant | HAOS, 192.168.50.232 | owns the switches; drives the two ESPHome plugs (Athom Plug V2) over the ESPHome API; two automations and one `rest_command` for the traffic light |
+| Lamps | `src/traffic.ts` | green on top is `switch.traffic_green`, orange below is `switch.traffic_orange` |
 
 Secrets: `AGENT_TOKEN` on the Worker, in `/etc/skin-agent.env` at home, and
 in Home Assistant's `secrets.yaml` for the state report; two webhook ids in
@@ -99,12 +99,12 @@ site's `/traffic`, which opens the map focused on it.
    `{entity, state}` to the local-only setting webhook with a 3 s timeout. The
    automation behind it matches one of four hardcoded branches and calls
    `switch.turn_on` or `switch.turn_off`. Home Assistant publishes the MQTT
-   command; the Tasmota switches the relay and reports back over MQTT.
+   command; the plug switches the relay and reports back.
 5. **The agent answers with timing only.** `{reply, id, ok, haMs}`. The
    object forwards it to the tapping page as `result`. The page does not repaint
-   from it. A Tasmota reports its state after the command is sent, so a state
+   from it. A plug reports its state after the command is sent, so a state
    here would be stale and flicker the lamp back.
-6. **Confirmation by push, from Home Assistant itself.** The Tasmota's report
+6. **Confirmation by push, from Home Assistant itself.** The plug's report
    changes the switch's state, which triggers the "report lamp state"
    automation; its `rest_command` posts both states to the Worker, the object
    stores them and broadcasts to every open page. That push is the truth.
@@ -233,7 +233,7 @@ check.
 
 ## What would make it faster still
 
-- The agent calling the Tasmota's own HTTP interface instead of going through
+- The agent calling the plug's own HTTP interface instead of going through
   Home Assistant: 20 to 40 ms, needs the two devices' LAN addresses.
 - A direct phone-to-home channel (WebRTC) would cut the Europe round trip,
   but takes 1 to 3 s to set up and fails behind carrier NAT often enough not

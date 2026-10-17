@@ -13,8 +13,8 @@ const ORIGIN = import.meta.env.DEV ? 'https://shaulb.com' : location.origin
 export const STATE_URL = `${ORIGIN}/traffic/state`
 /** Top to bottom. The Worker and the agent at home allow these entities and no others. */
 export const LAMPS = [
-  { entity: 'switch.traffic_1_power1', label: 'Green', color: '#22c55e' },
-  { entity: 'switch.tasmota', label: 'Orange', color: '#f59e0b' },
+  { entity: 'switch.traffic_green', label: 'Green', color: '#22c55e' },
+  { entity: 'switch.traffic_orange', label: 'Orange', color: '#f59e0b' },
 ]
 const PARTY = 'input_boolean.party'
 

@@ -12,7 +12,7 @@ mode: queued
 max: 50
 triggers:
   - trigger: state
-    entity_id: [switch.traffic_1_power1, switch.tasmota, input_boolean.party]
+    entity_id: [switch.traffic_green, switch.traffic_orange, input_boolean.party]
     to: [on, off]
   - trigger: webhook
     webhook_id: <WEBHOOK_REPORT>

@@ -6,8 +6,8 @@
  * toggle them.
  */
 export const LIGHTS = [
-  { entity: 'switch.traffic_1_power1', label: 'Green', color: '#22c55e' },
-  { entity: 'switch.tasmota', label: 'Orange', color: '#f59e0b' },
+  { entity: 'switch.traffic_green', label: 'Green', color: '#22c55e' },
+  { entity: 'switch.traffic_orange', label: 'Orange', color: '#f59e0b' },
 ] as const;
 
 /**
